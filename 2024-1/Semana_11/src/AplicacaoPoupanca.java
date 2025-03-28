@@ -1,7 +1,7 @@
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.Component;
 
 public class AplicacaoPoupanca {
     public static void main(String[] args) {
@@ -16,46 +16,67 @@ class JanelaPoupanca extends JFrame {
     private JTextField txtNumAnos;
     private JTextField txtDepositoMensal;
     private JTextField txtTotalPoupado;
-    private JButton btnOk;
 
     public JanelaPoupanca() {
         setTitle("Poupex - Calculadora de Poupança");
         setSize(350, 250);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
+        
+        // Usando GridBagLayout para melhor organização
+        setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JPanel panelForm = new JPanel();
-        panelForm.setLayout(new SpringLayout());
+        // Adicionando componentes
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        add(new JLabel("Juros ao mês %:"), gbc);
+        
+        gbc.gridx = 1;
+        txtJurosMes = new JTextField(10);
+        add(txtJurosMes, gbc);
 
-        // Campos do formulário
-        addLabelAndField(panelForm, "Juros ao mês %:", txtJurosMes = new JTextField(10));
-        addLabelAndField(panelForm, "Número de anos:", txtNumAnos = new JTextField(10));
-        addLabelAndField(panelForm, "Depósito mensal R$:", txtDepositoMensal = new JTextField(10));
-        addLabelAndField(panelForm, "Total poupado R$:", txtTotalPoupado = new JTextField(10));
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        add(new JLabel("Número de anos:"), gbc);
+        
+        gbc.gridx = 1;
+        txtNumAnos = new JTextField(10);
+        add(txtNumAnos, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        add(new JLabel("Depósito mensal R$:"), gbc);
+        
+        gbc.gridx = 1;
+        txtDepositoMensal = new JTextField(10);
+        add(txtDepositoMensal, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        add(new JLabel("Total poupado R$:"), gbc);
+        
+        gbc.gridx = 1;
+        txtTotalPoupado = new JTextField(10);
         txtTotalPoupado.setEditable(false);
+        add(txtTotalPoupado, gbc);
 
-        SpringUtilities.makeCompactGrid(panelForm, 4, 2, 6, 6, 6, 6);
-        add(panelForm);
-
-        // Painel do botão
-        JPanel panelButton = new JPanel();
-        btnOk = new JButton("OK");
+        // Botão OK
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.CENTER;
+        JButton btnOk = new JButton("OK");
         btnOk.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 calcularPoupanca();
             }
         });
-        panelButton.add(btnOk);
-        add(panelButton);
-    }
-
-    private void addLabelAndField(JPanel panel, String labelText, JTextField textField) {
-        JLabel label = new JLabel(labelText, JLabel.TRAILING);
-        panel.add(label);
-        label.setLabelFor(textField);
-        panel.add(textField);
+        add(btnOk, gbc);
     }
 
     private void calcularPoupanca() {
@@ -89,57 +110,6 @@ class JanelaPoupanca extends JFrame {
             JOptionPane.showMessageDialog(this, 
                 "Digite valores numéricos válidos!", 
                 "Erro", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-}
-
-// Classe utilitária para layout (SpringUtilities.java)
-class SpringUtilities {
-    public static void makeCompactGrid(JPanel panel,
-                                     int rows, int cols,
-                                     int initialX, int initialY,
-                                     int xPad, int yPad) {
-        SpringLayout layout;
-        try {
-            layout = (SpringLayout) panel.getLayout();
-        } catch (ClassCastException exc) {
-            System.err.println("O primeiro argumento para makeCompactGrid deve ser um JPanel com SpringLayout.");
-            return;
-        }
-
-        Spring x = Spring.constant(initialX);
-        Spring y = Spring.constant(initialY);
-        Spring width = Spring.constant(0);
-        Spring height = Spring.constant(0);
-
-        // Calcula o grid
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                Component c = panel.getComponent(i * cols + j);
-                SpringLayout.Constraints constraints = layout.getConstraints(c);
-
-                constraints.setX(x);
-                constraints.setY(y);
-
-                width = Spring.max(width, constraints.getWidth());
-                height = Spring.max(height, constraints.getHeight());
-            }
-
-            x = Spring.sum(x, Spring.sum(width, Spring.constant(xPad)));
-            width = Spring.constant(0);
-        }
-
-        for (int j = 0; j < cols; j++) {
-            for (int i = 0; i < rows; i++) {
-                Component c = panel.getComponent(i * cols + j);
-                SpringLayout.Constraints constraints = layout.getConstraints(c);
-
-                constraints.setWidth(width);
-                constraints.setHeight(height);
-            }
-
-            y = Spring.sum(y, Spring.sum(height, Spring.constant(yPad)));
-            height = Spring.constant(0);
         }
     }
 }
