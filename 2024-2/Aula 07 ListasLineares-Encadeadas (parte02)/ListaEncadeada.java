@@ -1,4 +1,3 @@
-package encadeamento;
 
 public class ListaEncadeada {
     private Nodo inicio;

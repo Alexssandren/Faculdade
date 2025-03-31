@@ -1,6 +1,3 @@
-
-package encadeamento;
-
 public class TestaListaEncadeada {
     public static void main(String[] args){
         
