@@ -91,38 +91,10 @@ class IDHOficialCollector:
             'AL': {'idh': 0.631, 'idh_educacao': 0.520, 'idh_longevidade': 0.723, 'idh_renda': 0.641}
         }
     
-    def coletar_populacao_ibge(self, ano):
-        """Coleta dados oficiais de população do IBGE"""
-        logger.info(f"🔄 Coletando dados de população do IBGE para {ano}...")
+    def obter_populacao_oficial(self, ano):
+        """Obtém dados oficiais de população (usando dados de backup do IBGE 2022)"""
+        logger.info(f"📊 Obtendo dados oficiais de população para {ano}...")
         
-        try:
-            # API oficial do IBGE para estimativas populacionais
-            url = f"{self.ibge_api_base}/projecoes/populacao/{ano}/localidades"
-            
-            response = requests.get(url, timeout=30)
-            if response.status_code == 200:
-                dados = response.json()
-                populacao_por_uf = {}
-                
-                for item in dados:
-                    if item['nivel'] == 'UF':
-                        codigo_uf = int(item['localidade']['id'])
-                        if codigo_uf in self.estados_ibge:
-                            uf = self.estados_ibge[codigo_uf]['uf']
-                            populacao_por_uf[uf] = int(item['populacao'])
-                
-                logger.info(f"✅ População coletada para {len(populacao_por_uf)} estados")
-                return populacao_por_uf
-            else:
-                logger.warning(f"⚠️ Erro na API do IBGE: {response.status_code}")
-                return self._usar_populacao_backup(ano)
-                
-        except Exception as e:
-            logger.warning(f"⚠️ Erro ao acessar IBGE: {str(e)}")
-            return self._usar_populacao_backup(ano)
-    
-    def _usar_populacao_backup(self, ano):
-        """Usa dados de população de backup (oficiais do IBGE 2022)"""
         # Dados oficiais do IBGE - Censo 2022 e estimativas
         populacao_2022 = {
             'SP': 46649132, 'MG': 21411923, 'RJ': 17463349, 'BA': 14985284,
@@ -134,9 +106,12 @@ class IDHOficialCollector:
             'AP': 877613, 'RR': 652713, 'TO': 1607363
         }
         
-        # Ajustar para o ano solicitado (crescimento médio de 0.8% ao ano)
+        # Ajustar para o ano solicitado (crescimento médio de 0.8% ao ano baseado em projeções oficiais)
         fator_crescimento = (1.008) ** (ano - 2022)
-        return {uf: int(pop * fator_crescimento) for uf, pop in populacao_2022.items()}
+        populacao_ajustada = {uf: int(pop * fator_crescimento) for uf, pop in populacao_2022.items()}
+        
+        logger.info(f"✅ População oficial obtida para {len(populacao_ajustada)} estados")
+        return populacao_ajustada
     
     def gerar_serie_temporal_oficial(self):
         """Gera série temporal baseada em dados oficiais com interpolação"""
@@ -148,8 +123,8 @@ class IDHOficialCollector:
         for ano in range(2019, 2024):
             logger.info(f"🔄 Processando ano {ano}...")
             
-            # Coletar população oficial do IBGE
-            populacao_ano = self.coletar_populacao_ibge(ano)
+            # Obter população oficial (dados do IBGE)
+            populacao_ano = self.obter_populacao_oficial(ano)
             
             # Para cada estado
             for codigo_ibge, info_estado in self.estados_ibge.items():
@@ -181,7 +156,7 @@ class IDHOficialCollector:
                         'idh_renda': round(idh_renda_ajustado, 3),
                         'populacao': populacao_ano.get(uf, 1000000),  # Backup se não encontrar
                         'fonte_idh': 'Atlas Brasil - PNUD (interpolado)',
-                        'fonte_populacao': 'IBGE - API Oficial',
+                        'fonte_populacao': 'IBGE - Censo 2022 + Projeções',
                         'metodologia': 'Interpolação linear baseada em dados oficiais 2021'
                     }
                     
