@@ -7,8 +7,8 @@ beautifulsoup4>=4.12.0
 # Visualização e gráficos
 matplotlib>=3.7.0
 seaborn>=0.12.0
-plotly>=5.15.0
-geopandas>=0.13.0
+plotly>=5.0.0
+geopandas>=0.10.0
 folium>=0.14.0
 
 # Dashboard interativo
