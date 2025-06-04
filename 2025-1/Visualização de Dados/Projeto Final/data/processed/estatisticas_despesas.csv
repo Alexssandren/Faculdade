@@ -1,7 +1,7 @@
 ,ano,uf,estado,regiao,categoria,valor_pago,valor_empenhado,valor_liquidado,fonte,metodologia,data_coleta,fonte_original,validacao
 count,10800.0,10800,10800,10800,10800,10800.0,10800.0,10800.0,10800,10800,10800,10800,10800
 unique,,27,27,5,4,,,,1,1,1,1,1
-top,,AC,Acre,Nordeste,Assistência Social,,,,Portal da Transparência - Dados Oficiais (backup),Dados baseados em execução orçamentária oficial,2025-05-28 09:51:56,Portal da Transparência - Governo Federal,Valores baseados em orçamento público federal por estado
+top,,AC,Acre,Nordeste,Assistência Social,,,,Portal da Transparência - Dados Oficiais (backup),Dados baseados em execução orçamentária oficial,2025-05-30 15:04:25,Portal da Transparência - Governo Federal,Valores baseados em orçamento público federal por estado
 freq,,400,400,3600,2700,,,,10800,10800,10800,10800,10800
 mean,2021.0,,,,,93792000.0,103171200.0,98481600.0,,,,,
 std,1.4142790397702816,,,,,129964663.0992848,142961129.4092133,136462896.25424907,,,,,

@@ -1,1 +1,1 @@
-# Pacote data_collection para coletores de dados 
+# Este arquivo torna o diretório 'data_collection' um pacote Python. 

@@ -77,45 +77,107 @@ Este projeto analisa a correlação entre o **Índice de Desenvolvimento Humano 
 - Dados agregados por região criados
 - Métricas derivadas calculadas (per capita, variações anuais)
 - **15+ arquivos CSV** processados para análises
+- **✅ Dataset Unificado `data/processed/dataset_unificado.csv` gerado, servindo como base para o BD.**
 
-### 🔄 FASE 3: Desenvolvimento das Visualizações (3-4 dias) - **EM DESENVOLVIMENTO**
-**Status**: 🔄 Parcialmente implementada (50%)
+### ✅ NOVA FASE 2.5: Persistência de Dados em Banco de Dados (1-2 dias) - **CONCLUÍDA**
+**Status**: ✅ Finalizada em 100% (Depurada e Funcional)
 
-#### 3.1 ✅ Mapa de Calor Relacional
-- **Objetivo**: Correlação entre categorias de gastos e IDH por estado
-- **Tecnologia**: seaborn/matplotlib
-- **Status**: ✅ Versão básica implementada (PNG)
+#### 🎯 Objetivos (Requisito 7 da Faculdade):
+- Implementar persistência dos dados processados em um banco de dados relacional.
 
-#### 3.2 ⚠️ Gráfico de Bolhas Cruzado
-- **Objetivo**: Gastos vs IDH com tamanho das bolhas representando população
-- **Recurso**: Animação temporal (2019-2023)
-- **Status**: ⚠️ Código implementado, pendente execução completa
+#### ✅ Resultados Obtidos:
+- **Escolha do Banco de Dados**: SQLite utilizado pela simplicidade.
+- **Criação do Banco de Dados**: Script `src/database_setup.py` criado.
+  - Cria o arquivo `data/processed/projeto_visualizacao.db`.
+  - Define esquema e cria a tabela `analise_unificada` dinamicamente a partir do `dataset_unificado.csv`.
+- **Carga de Dados**: O script `src/database_setup.py` carrega os dados do `dataset_unificado.csv` para a tabela `analise_unificada`.
+- **Segurança**: Evita duplicação de dados em execuções subsequentes.
 
-#### 3.3 ✅ Mapa Coroplético Relacional
-- **Objetivo**: Distribuição geográfica dos gastos e IDH
-- **Tecnologia**: geopandas e plotly
-- **Status**: ✅ GeoJSON dos estados brasileiros obtido
+#### 🛠️ Como Configurar o Banco de Dados:
+```bash
+python src/database_setup.py
+```
+- Este comando irá criar o arquivo `projeto_visualizacao.db` e popular as tabelas.
 
-#### 📋 Pendências Fase 3:
-- [ ] Executar geração completa das visualizações interativas (HTML)
-- [ ] Finalizar mapas coropléticos relacionais avançados
-- [ ] Integrar dados reais de população nos gráficos de bolhas
-- [ ] Validar visualizações para integração no dashboard
+### 🔄 FASE 3: Desenvolvimento das Visualizações Avançadas (3-4 dias) - **CONCLUÍDA**
+**Status**: ✅ Finalizada em 100%
 
-### ⏳ FASE 4: Dashboard Interativo (2-3 dias) - **PENDENTE**
-**Status**: ⏳ Não iniciada
+#### 🎯 Objetivos:
+- Desenvolver os três tipos de gráficos relacionais interativos especificados, utilizando dados do banco de dados SQLite.
 
-#### 4.1 ⏳ Estrutura do Dashboard
-- Interface com Streamlit
-- Filtros por ano, região, categoria de gasto
+#### ✅ Resultados Obtidos:
+- Script `src/fase3_visualizacoes_avancadas.py` criado e funcional.
+  - Carrega dados da tabela `analise_unificada` do `projeto_visualizacao.db`.
+  - Gera e salva as seguintes visualizações interativas (arquivos HTML) em `results/visualizations/`:
+    - **1. Mapa de Calor Relacional:** `fase3_mapa_calor_interativo.html` mostrando correlações entre IDH e gastos.
+    - **2. Gráficos de Bolhas Cruzados:** Múltiplos arquivos `fase3_grafico_bolhas_<categoria>.html` (um para cada categoria de despesa), mostrando IDH vs. Gasto Per Capita, com tamanho da bolha pela população e animação por ano.
+    - **3. Mapas Coropléticos Relacionais:** Múltiplos arquivos para o ano mais recente (ex: 2023):
+      - `fase3_mapa_coropletico_idh_<ano>.html` (IDH por estado).
+      - `fase3_mapa_coropletico_gasto_<categoria>_<ano>.html` (Gasto per capita por categoria e estado).
+      - `fase3_mapa_coropletico_relacao_<categoria>_<ano>.html` (Relação IDH/Gasto por categoria e estado).
+- **Aviso:** Utiliza `choropleth_mapbox` que está depreciado em Plotly, mas funcional.
 
-#### 4.2 ⏳ Integração das Visualizações
-- Implementação dos três tipos de gráficos
-- Interatividade entre componentes
+#### 🛠️ Como Gerar as Visualizações Avançadas:
+```bash
+python src/visualization/static_visualizer.py
+```
+- Certifique-se de que as Fases 2 e 2.5 foram executadas anteriormente.
+- Os arquivos HTML serão salvos em `results/final_visualizations/`.
+- **Nota**: Estas são visualizações estáticas. O dashboard interativo (Fase 4) renderiza gráficos diretamente.
 
-#### 4.3 ⏳ Análises Estatísticas Integradas
-- Coeficientes de correlação dinâmicos
-- Testes de significância básicos
+### ⏳ FASE 4: Dashboard Interativo (3-5 dias) - **EM ANDAMENTO**
+**Status**: 🚧 Em Andamento (~65% Concluída)
+**Tecnologia**: `CustomTkinter (Tkinter)`
+
+#### 🎯 Objetivos:
+- Implementar um dashboard interativo desktop com CustomTkinter que lê dados do `dataset_unificado.csv` (e futuramente do banco de dados SQLite).
+- Exibir visualizações dinâmicas (mapa de calor, gráfico de bolhas, mapas coropléticos) usando Matplotlib.
+- Permitir interação do usuário através de filtros e consultas ao LLM.
+
+#### ✅ Progresso Atual:
+- Interface gráfica básica da janela principal renderizada com CustomTkinter.
+- Erro crítico de inicialização (`bad screen distance`) resolvido.
+- Carregamento de dados do `dataset_unificado.csv` implementado.
+- Filtro de ano funcional para atualizar visualizações.
+- Gráficos (mapa de calor, bolhas, coropléticos) são gerados com Matplotlib e exibidos dentro da UI.
+- Widgets para a funcionalidade de chat com LLM (histórico, campo de entrada, botão) estão instanciados e visíveis na UI.
+
+#### ⚠️ Problemas Conhecidos e Próximos Passos:
+- **Entrada de texto no chat:** Atualmente não está funcional ou o texto digitado não é visível.
+- **Comportamento do filtro de ano:** Ao alterar o ano, o campo de entrada do chat é apagado.
+- **Erros no console:** Mensagens de `invalid command name "..."` persistem e precisam ser investigadas.
+- Melhorar a usabilidade geral e a estética do dashboard.
+- Integrar completamente a leitura de dados do banco de dados SQLite.
+
+#### 4.1 🏗️ Estrutura do Dashboard
+- Interface com CustomTkinter (`src/app/dashboard_ui.py`).
+- Filtros por ano (implementado), região, categoria de gasto (a serem aprimorados).
+- **Fonte de Dados Primária Atual**: `dataset_unificado.csv`.
+
+#### 4.2 📊 Integração das Visualizações
+- Implementação dos três tipos de gráficos usando Matplotlib, renderizados em canvases Tkinter.
+- Interatividade básica com filtros (ano).
+
+#### 4.3 💬 Análises Estatísticas Integradas / LLM
+- Funcionalidade delegada à integração com LLM (Fase 4.5).
+
+### ⏳ NOVA FASE 4.5: Integração de LLM (2-3 dias) - **EM ANDAMENTO**
+**Status**: 🚧 Em Andamento (~70% Concluída)
+**Tecnologia**: `OpenAI (gpt-4o-mini)`
+
+#### 🎯 Objetivos (Requisito 9 da Faculdade):
+- Aplicar e usar um Large Language Model (LLM) de forma prática no projeto.
+
+#### ✅ Progresso Atual:
+- `LLMQueryHandler` (`src/llm/llm_handler.py`) implementado e capaz de se conectar à API da OpenAI usando a chave do arquivo `Chave.env`.
+- Inicialização do `LLMQueryHandler` no dashboard confirmada como bem-sucedida.
+- Estrutura básica para enviar consultas do usuário e receber respostas do LLM via widgets de chat está no lugar.
+- Lógica para extrair intenções de filtro da resposta do LLM parcialmente implementada.
+
+#### ⚠️ Problemas Conhecidos e Próximos Passos:
+- **Testes de interação com LLM bloqueados:** Problemas com a entrada de texto no chat do dashboard impedem testes completos da funcionalidade do LLM.
+- Validar e refinar a aplicação dos filtros (ano, UF, região, categoria) sugeridos pelo LLM na interface do dashboard.
+- Melhorar o prompt do sistema e a robustez da extração de JSON da resposta do LLM.
 
 ### ⏳ FASE 5: Análise Final e Insights (1-2 dias) - **PENDENTE**
 **Status**: ⏳ Não iniciada
@@ -133,8 +195,9 @@ Este projeto analisa a correlação entre o **Índice de Desenvolvimento Humano 
 ### 🔧 Stack Tecnológico Implementado:
 - **🔄 Coleta**: `requests`, `BeautifulSoup`, `pandas` ✅
 - **📊 Processamento**: `pandas`, `numpy` ✅
-- **📈 Visualização**: `matplotlib`, `seaborn`, `plotly`, `geopandas` ✅
-- **🖥️ Dashboard**: `streamlit` (Fase 4)
+- **📈 Visualização**: `matplotlib`, `seaborn`, `plotly`, `geopandas` ✅ (Plotly para estáticos, Matplotlib/Seaborn para dashboard)
+- **🖥️ Dashboard**: `CustomTkinter` ✅
+- **🤖 LLM**: `openai` ✅
 - **📊 Análise**: `scipy`, `statsmodels` ✅
 
 ### 📦 Dependências Completas:
@@ -147,9 +210,11 @@ pip install -r requirements.txt
 - `numpy>=1.24.0` - Computação numérica ✅
 - `matplotlib>=3.7.0` - Visualizações ✅
 - `seaborn>=0.12.0` - Visualizações estatísticas ✅
-- `plotly>=5.0.0` - Visualizações interativas ✅
+- `plotly>=5.0.0` - Visualizações interativas (para HTMLs estáticos) ✅
 - `geopandas>=0.10.0` - Mapas geográficos ✅
-- `streamlit>=1.25.0` - Dashboard interativo
+- `customtkinter>=5.0.0` - Dashboard interativo desktop ✅
+- `openai>=1.0.0` - Integração com LLM ✅
+- `python-dotenv>=1.0.0` - Carregamento de variáveis de ambiente ✅
 - `scipy>=1.11.0` - Análises estatísticas ✅
 - `beautifulsoup4>=4.12.0` - Web scraping ✅
 - `requests>=2.31.0` - Requisições HTTP ✅
@@ -161,10 +226,29 @@ pip install -r requirements.txt
 python fase1_coleta_oficial.py
 ```
 
-### ✅ Fase 2: Análise Exploratória 
+### ✅ Fase 2: Análise Exploratória e Criação do Dataset Unificado
 ```bash
 python fase2_analise_exploratoria.py
 ```
+- Este script agora também gera o `data/processed/dataset_unificado.csv`.
+
+### ✅ Fase 2.5: Configuração do Banco de Dados
+```bash
+python src/database/database_manager.py
+```
+- Este comando cria o banco de dados `projeto_visualizacao.db` e o popula com os dados do `dataset_unificado.csv`.
+
+### ✅ Fase 3: Geração das Visualizações Avançadas (Estáticas HTML)
+```bash
+python src/visualization/static_visualizer.py
+```
+- Gera os arquivos HTML interativos em `results/final_visualizations/`.
+
+### 🚀 Execução Completa do Pipeline (incluindo Dashboard Interativo)
+```bash
+python main.py
+```
+- Este é o comando principal para executar todas as fases configuradas no `main.py`, incluindo a inicialização do dashboard interativo.
 
 ### 🔍 Verificação dos Dados
 ```bash
@@ -175,38 +259,45 @@ python verificar_dados.py
 
 ```
 projeto_final/
-├── fase1_coleta_oficial.py         # 🚀 SCRIPT PRINCIPAL - Coleta dados oficiais ✅
-├── fase2_analise_exploratoria.py   # 📊 Análise exploratória e correlações ✅
-├── verificar_dados.py              # 🔍 Verificação dos dados coletados ✅
+├── main.py                         # 🚀 SCRIPT PRINCIPAL - Orquestra as fases e inicia o dashboard ✅
+├── Chave.env                       # 🔑 Arquivo para a chave da API OpenAI (NÃO COMMITAR)
+├── fase1_coleta_oficial.py         # Script legado da Fase 1 (funcionalidade agora em src/)
+├── fase2_analise_exploratoria.py   # Script legado da Fase 2 (funcionalidade agora em src/)
+├── verificar_dados.py              # 🔍 Verificação dos dados coletados (pode precisar de ajuste)
 ├── data/
 │   ├── raw/                        # 📊 Dados brutos ✅
-│   │   ├── idh_oficial_real.csv                    # IDH por estado (136 registros)
-│   │   ├── despesas_publicas_oficiais_real.csv     # Despesas federais (10.800+ registros)
-│   │   └── relatorio_compatibilidade_oficial.csv   # Relatório de compatibilidade
 │   ├── processed/                  # 📈 Dados processados ✅
-│   │   ├── brazil_states.geojson                   # ✅ GeoJSON dos estados brasileiros
-│   │   ├── dataset_unificado.csv                   # Dataset pronto para análises
-│   │   ├── estatisticas_*.csv                      # Estatísticas descritivas
-│   │   ├── correlacoes_*.csv                       # Análises de correlação
-│   │   ├── *_por_regiao.csv                        # Dados agregados por região
-│   │   ├── variacao_anual_*.csv                    # Variações anuais
-│   │   ├── outliers_*.csv                          # Outliers identificados
-│   │   ├── *.png                                   # 12+ gráficos exploratórios
-│   │   └── *.html                                  # Visualizações interativas (pendente)
-│   └── external/                   # 🗺️ Dados auxiliares
+│   │   ├── dataset_unificado.csv   # ✅ Dataset consolidado
+│   │   └── projeto_visualizacao.db # ✅ Banco de dados SQLite
+│   └── geospatial/                 # ✅ Dados geoespaciais (ex: .shp para mapas)
+│       └── BR_UF_2024.shp
 ├── src/
+│   ├── app/                        # 🖥️ Lógica do Dashboard CustomTkinter ✅
+│   │   └── dashboard_ui.py
+│   ├── llm/                        # 🤖 Lógica de integração com LLM ✅
+│   │   └── llm_handler.py
 │   ├── data_collection/            # 🔧 Scripts de coleta ✅
 │   │   ├── __init__.py
-│   │   ├── idh_oficial_collector.py        # Coletor IDH oficial
-│   │   └── despesas_oficiais_collector.py  # Coletor despesas oficial
-│   ├── data_processing/            # 🔄 Limpeza e transformação
-│   ├── analysis/                   # 📊 Análises estatísticas
-│   └── visualization/              # 📈 Gráficos e dashboard
-├── notebooks/                      # 📓 Jupyter notebooks exploratórios
-├── dashboard/                      # 🖥️ Aplicação Streamlit (Fase 4)
-├── docs/                          # 📖 Documentação
-├── requirements.txt               # 📦 Dependências ✅
-└── README.md                      # 📖 Este arquivo
+│   │   ├── idh_oficial_collector.py
+│   │   └── despesas_oficiais_collector.py
+│   ├── data_processing/            # 🔄 Limpeza e transformação ✅
+│   │   └── data_processor.py
+│   ├── analysis/                   # 📊 Análises estatísticas ✅
+│   │   ├── __init__.py
+│   │   ├── exploratory_analyzer.py
+│   │   └── advanced_analyzer.py
+│   ├── visualization/              # 📈 Scripts de visualização ✅
+│   │   └── static_visualizer.py    # Para HTMLs estáticos
+│   └── database/                   # 🛠️ Script de configuração do BD ✅
+│       └── database_manager.py
+├── results/
+│   ├── exploratory_analysis/       # Resultados da análise exploratória ✅
+│   ├── advanced_analysis/          # Resultados das análises avançadas ✅
+│   └── final_visualizations/       # Visualizações HTML estáticas geradas pela Fase 3 ✅
+├── notebooks/                      # 📓 Jupyter notebooks exploratórios (se houver)
+├── docs/                           # 📖 Documentação adicional
+├── requirements.txt                # 📦 Dependências ✅
+└── README.md                       # 📖 Este arquivo
 ```
 
 ## 📊 Resultados Obtidos
@@ -234,9 +325,14 @@ projeto_final/
 ## 🎯 Próximos Passos Imediatos
 
 ### 📋 Prioridades:
-1. **🔄 Finalizar Fase 3**: Executar geração completa das visualizações interativas
-2. **🚀 Iniciar Fase 4**: Desenvolver dashboard Streamlit com filtros dinâmicos
-3. **📊 Implementar Fase 5**: Responder sistematicamente às perguntas de pesquisa
+1.  **🐞 Corrigir Dashboard CustomTkinter**:
+    *   Resolver problema de entrada de texto não funcional/invisível no chat.
+    *   Corrigir comportamento do filtro de ano que apaga o campo de chat.
+    *   Investigar e resolver erros `invalid command name "..."` no console.
+2.  **🤖 Testar Funcionalidade LLM**: Após correção da UI do chat, testar completamente a interação com o LLM, incluindo a aplicação de filtros.
+3.  **💅 Refinar Dashboard**: Melhorar usabilidade, estética e responsividade.
+4.  **⚙️ Integração BD**: Migrar dashboard para ler dados diretamente do SQLite.
+5.  **📊 Concluir Fase 5**: Responder sistematicamente às perguntas de pesquisa usando o dashboard funcional.
 
 ### 🛠️ Tarefas Técnicas:
 - [ ] Executar `fase2_analise_exploratoria.py` para gerar visualizações HTML
@@ -276,9 +372,11 @@ projeto_final/
 
 **📊 Status de Desenvolvimento**: 
 - ✅ **Fase 1**: Concluída (100%) - Coleta e preparação de dados oficiais
-- ✅ **Fase 2**: Concluída (100%) - Análise exploratória e correlações
-- 🔄 **Fase 3**: Em desenvolvimento (50%) - Visualizações relacionais específicas
-- ⏳ **Fase 4**: Pendente (0%) - Dashboard interativo com Streamlit
+- ✅ **Fase 2**: Concluída (100%) - Análise exploratória e dataset unificado
+- ✅ **Fase 2.5**: Concluída (100%) - Persistência de dados em Banco de Dados SQLite
+- ✅ **Fase 3**: Concluída (100%) - Visualizações relacionais específicas geradas
+- 🚧 **Fase 4**: Em Andamento (~65% Concluída) - Dashboard interativo desktop
+- 🚧 **Fase 4.5**: Em Andamento (~70% Concluída) - Integração de LLM para consultas em linguagem natural
 - ⏳ **Fase 5**: Pendente (0%) - Resposta às perguntas de pesquisa
 
-**🏆 Progresso Total**: 50% concluído | **Base sólida estabelecida** | **Pronto para visualizações e dashboard** ✅ 
+**🏆 Progresso Total**: ~75% concluído | **Dashboard Desktop funcional com ressalvas** | **LLM integrado, pendente de UI do chat** ✅ 
