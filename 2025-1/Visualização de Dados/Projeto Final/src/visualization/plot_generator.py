@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg') # Deve ser chamado ANTES de qualquer importação que possa usar matplotlib (ex: geopandas)
 import pandas as pd
 import sqlite3
 from pathlib import Path

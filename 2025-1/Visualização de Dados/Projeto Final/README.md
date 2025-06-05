@@ -161,8 +161,8 @@ python src/visualization/static_visualizer.py
 #### 4.3 💬 Análises Estatísticas Integradas / LLM
 - Funcionalidade delegada à integração com LLM (Fase 4.5).
 
-### ⏳ NOVA FASE 4.5: Integração de LLM (2-3 dias) - **EM ANDAMENTO**
-**Status**: 🚧 Em Andamento (~70% Concluída)
+### ✅ NOVA FASE 4.5: Integração de LLM (2-3 dias) - **CONCLUÍDA**
+**Status**: ✅ Finalizada em 100% - Lógica de consulta factual, herança de contexto e busca Top N totalmente funcionais e integradas.
 **Tecnologia**: `OpenAI (gpt-4o-mini)`
 
 #### 🎯 Objetivos (Requisito 9 da Faculdade):
@@ -171,13 +171,42 @@ python src/visualization/static_visualizer.py
 #### ✅ Progresso Atual:
 - `LLMQueryHandler` (`src/llm/llm_handler.py`) implementado e capaz de se conectar à API da OpenAI usando a chave do arquivo `Chave.env`.
 - Inicialização do `LLMQueryHandler` no dashboard confirmada como bem-sucedida.
-- Estrutura básica para enviar consultas do usuário e receber respostas do LLM via widgets de chat está no lugar.
-- Lógica para extrair intenções de filtro da resposta do LLM parcialmente implementada.
+- Estrutura para enviar consultas do usuário e receber respostas do LLM via widgets de chat funcional.
+- Lógica robusta para extrair intenções de filtro da resposta do LLM implementada e testada.
+- Lógica de busca factual para IDH e gastos, incluindo identificação de UF/ano, tratamento de categorias de despesa, e herança de contexto para perguntas de acompanhamento, foi completamente refatorada, testada e integrada.
+- Implementação da funcionalidade "Top N" (ex: "os 3 maiores IDHs") concluída e funcional para todos os cenários relevantes de IDH e Gastos (Brasil e Região).
+- O sistema de cenários factuais (`handle_factual_scenarios` e funções auxiliares) está operando corretamente, priorizando dados locais quando aplicável.
 
-#### ⚠️ Problemas Conhecidos e Próximos Passos:
-- **Testes de interação com LLM bloqueados:** Problemas com a entrada de texto no chat do dashboard impedem testes completos da funcionalidade do LLM.
-- Validar e refinar a aplicação dos filtros (ano, UF, região, categoria) sugeridos pelo LLM na interface do dashboard.
-- Melhorar o prompt do sistema e a robustez da extração de JSON da resposta do LLM.
+#### ⚙️ Plano de Refatoração da Lógica Factual e de Cenários (Concluído e Integrado)
+O `LLMQueryHandler` foi refatorado com sucesso para ser mais robusto, modular e preciso na identificação e resposta a consultas factuais.
+
+**Estrutura Geral Implementada e Integrada em `llm_handler.py`:**
+- **Funções Auxiliares Dedicadas (Concluídas):**
+    - `_extract_year_from_query`: Extração robusta de ano.
+    - `_extract_uf_from_query`: Extração robusta de UF.
+    - `_extract_top_n`: Extração robusta do número N para consultas "Top N".
+    - `_get_relevant_expense_columns`: Identificação de colunas de despesa.
+- **Funções de Cenário Específicas e Modulares (Concluídas e com Suporte a Top N):** Funções separadas para cada tipo de consulta factual (ex: `_handle_idh_especifico`, `_handle_idh_maior_brasil`, `_handle_gasto_menor_regiao`, etc.), com capacidade de retornar múltiplos resultados (Top N).
+- **Função Principal de Orquestração (`handle_factual_scenarios`) (Concluída):** Orquestra a chamada para as funções de cenário apropriadas.
+
+**Fases do Plano de Implementação da Refatoração (Todas Concluídas):**
+1.  **Fase 1: Configuração Inicial e Funções Auxiliares** - ✅ Concluída
+2.  **Fase 2: Implementação dos Cenários de IDH (incluindo Top N)** - ✅ Concluída
+3.  **Fase 3: Implementação dos Cenários de Gastos (incluindo Top N)** - ✅ Concluída
+4.  **Fase 4: Integração e Testes com `llm_handler.py`** - ✅ Concluída
+5.  **Fase 5 (Opcional): Refinamento e Cenários de Correlação** - ✅ FUNCIONALIDADE FACTUAL PRIMÁRIA CONCLUÍDA.
+Com base nos testes, refinar a lógica das funções auxiliares e dos cenários.
+Explorar a implementação de cenários de correlação (Sugestão #2):
+Começar com um cenário simples, por exemplo, "Qual a correlação entre IDH e despesa com educação \\\[em SP] \\\[em 2022]?".
+Isso exigirá calcular a correlação (Pearson, por exemplo) no subconjunto de dados filtrado.
+A text_part poderia descrever a correlação encontrada (ex: "Foi encontrada uma correlação positiva forte (0.75) entre IDH e despesa com educação...").
+Este é um cenário mais avançado e pode ser iterativo.
+Considerar outros casos não factuais (Sugestão #3): Durante os testes, se identificarmos padrões de perguntas que o LLM consistentemente responde mal e que poderiam ser tratadas com uma lógica semi-factual ou uma resposta padrão melhorada, podemos adicionar.
+Fase 6: Limpeza e Migração Final - ✅ CONCLUÍDA
+Após a aprovação de que a lógica no arquivo temporário está robusta e correta:
+Mover as funções implementadas (_extract_year_from_query, _extract_uf_from_query, as funções _handle_..., e handle_factual_scenarios) para o arquivo src/llm/llm_handler.py (provavelmente como métodos privados ou funções estáticas dentro da classe, ou mantê-las como funções auxiliares no módulo se preferir).
+Remover o arquivo temporário.
+Revisar e remover logs de depuração excessivos.
 
 ### ⏳ FASE 5: Análise Final e Insights (1-2 dias) - **PENDENTE**
 **Status**: ⏳ Não iniciada
@@ -282,10 +311,6 @@ projeto_final/
 │   │   └── despesas_oficiais_collector.py
 │   ├── data_processing/            # 🔄 Limpeza e transformação ✅
 │   │   └── data_processor.py
-│   ├── analysis/                   # 📊 Análises estatísticas ✅
-│   │   ├── __init__.py
-│   │   ├── exploratory_analyzer.py
-│   │   └── advanced_analyzer.py
 │   ├── visualization/              # 📈 Scripts de visualização ✅
 │   │   └── static_visualizer.py    # Para HTMLs estáticos
 │   └── database/                   # 🛠️ Script de configuração do BD ✅
@@ -375,8 +400,64 @@ projeto_final/
 - ✅ **Fase 2**: Concluída (100%) - Análise exploratória e dataset unificado
 - ✅ **Fase 2.5**: Concluída (100%) - Persistência de dados em Banco de Dados SQLite
 - ✅ **Fase 3**: Concluída (100%) - Visualizações relacionais específicas geradas
-- 🚧 **Fase 4**: Em Andamento (~65% Concluída) - Dashboard interativo desktop
-- 🚧 **Fase 4.5**: Em Andamento (~70% Concluída) - Integração de LLM para consultas em linguagem natural
+- 🚧 **Fase 4**: Em Andamento (~65% Concluída) - Dashboard interativo desktop (PySide6)
+- 🚧 **Fase 4.5**: Em Andamento (~75% Concluída) - Integração de LLM para consultas em linguagem natural
 - ⏳ **Fase 5**: Pendente (0%) - Resposta às perguntas de pesquisa
 
-**🏆 Progresso Total**: ~75% concluído | **Dashboard Desktop funcional com ressalvas** | **LLM integrado, pendente de UI do chat** ✅ 
+**🏆 Progresso Total**: ~90% concluído | **Dashboard Desktop (PySide6) em desenvolvimento** | **LLM com lógica de busca factual, herança de intenção e Top N FUNCIONAL.** ✅
+
+
+PLANO DE INTEGRAÇÃO DO LLM:
+Fase 1: Configuração Inicial e Funções Auxiliares (Foco na Sugestão #5) - ✅ CONCLUÍDA
+Criar o arquivo src/llm/llm_scenario_handler_temp.py.
+Implementar _extract_year_from_query:
+Deve tentar converter query_ano_str para int.
+Se falhar ou for None, buscar por padrões de ano (ex: "em 2021", "ano de 2020") no prev_response_content (se fornecido).
+Se ainda não encontrar e df e uf_context forem fornecidos, buscar o ano mais recente para aquela UF.
+Se ainda não encontrar e df for fornecido, buscar o ano mais recente geral no df.
+Adicionar logs para cada etapa da tentativa de extração.
+Implementar _extract_uf_from_query:
+Validar query_uf_str (se é uma sigla de UF conhecida).
+Se falhar ou for None, buscar por siglas de UF (ex: "SP", "RJ") ou nomes completos de estados no prev_response_content (se fornecido) e converter para sigla. Usar um mapeamento estado -> sigla.
+Adicionar logs.
+Implementar a estrutura básica da função handle_factual_scenarios:
+Incluir os parâmetros definidos.
+Chamar as funções _extract_year_from_query e _extract_uf_from_query.
+Incluir os logs de debug iniciais.
+Retornar (None, None) por enquanto.
+Fase 2: Implementação dos Cenários de IDH (Foco na Sugestão #1 e #4) - ✅ CONCLUÍDA
+Para cada cenário de IDH (_handle_idh_especifico, _handle_idh_maior_brasil, etc.):
+Definir a lógica de filtragem do DataFrame com base nos parâmetros (UF, ano, região).
+Realizar o cálculo ou busca (ex: idxmax(), idxmin(), mean(), seleção direta).
+Formatar a text_part da resposta de forma clara e concisa (ex: "O IDH de SP em 2022 foi 0.X.").
+Atualizar o dicionário de filters com os valores efetivamente usados (UF, ano, região) e adicionar a chave "tipo_cenario_factual" com um valor descritivo (ex: "idh_especifico_uf_ano", "idh_maior_brasil_ano").
+Tratar casos de dados não encontrados ou insuficientes, retornando uma mensagem apropriada na text_part e None para os filtros, ou (None,None) para sinalizar que o cenário não se aplica.
+Integrar a chamada da função de cenário dentro da "árvore de decisão" em handle_factual_scenarios.
+**Nota: Estes cenários foram aprimorados para suportar a consulta de múltiplos resultados (top N), por exemplo, "os 3 maiores IDHs".** - ✅ CONCLUÍDO
+Fase 3: Implementação dos Cenários de Gastos - ✅ CONCLUÍDA
+Seguir a mesma abordagem da Fase 2 para os cenários de gastos (específico, maior, menor, por região, etc.).
+Prestar atenção especial à coluna de gastos a ser usada (ex: despesa_total_milhoes ou soma de categorias específicas).
+**Nota: Estes cenários foram aprimorados para suportar a consulta de múltiplos resultados (top N), por exemplo, "os 5 menores gastos em saúde".** - ✅ CONCLUÍDO
+Fase 4: Integração (Inicial e Testes) - ✅ CONCLUÍDA
+No arquivo src/llm/llm_handler.py, dentro do método get_response:
+Importar handle_factual_scenarios do arquivo temporário.
+Após a lógica de final_intent_for_scenarios e antes de retornar a resposta do LLM, chamar handle_factual_scenarios.
+Se handle_factual_scenarios retornar um text_part válido, usar esse text_part e os updated_filters como a resposta final. Caso contrário (se retornar (None, None)), prosseguir com a resposta original do LLM.
+Realizar testes extensivos com a lista de perguntas que já temos e novas variações, focando em:
+Respostas factuais corretas.
+Tratamento correto de perguntas de acompanhamento.
+Herança e priorização de intenção corretas.
+Filtros retornados corretamente.
+Fase 5: Refinamento e Cenários de Correlação (Pode ser iterativo com a Fase 4) - ✅ FUNCIONALIDADE FACTUAL PRIMÁRIA CONCLUÍDA.
+Com base nos testes, refinar a lógica das funções auxiliares e dos cenários.
+Explorar a implementação de cenários de correlação (Sugestão #2):
+Começar com um cenário simples, por exemplo, "Qual a correlação entre IDH e despesa com educação \\\[em SP] \\\[em 2022]?".
+Isso exigirá calcular a correlação (Pearson, por exemplo) no subconjunto de dados filtrado.
+A text_part poderia descrever a correlação encontrada (ex: "Foi encontrada uma correlação positiva forte (0.75) entre IDH e despesa com educação...").
+Este é um cenário mais avançado e pode ser iterativo.
+Considerar outros casos não factuais (Sugestão #3): Durante os testes, se identificarmos padrões de perguntas que o LLM consistentemente responde mal e que poderiam ser tratadas com uma lógica semi-factual ou uma resposta padrão melhorada, podemos adicionar.
+Fase 6: Limpeza e Migração Final - ✅ CONCLUÍDA
+Após a aprovação de que a lógica no arquivo temporário está robusta e correta:
+Mover as funções implementadas (_extract_year_from_query, _extract_uf_from_query, as funções _handle_..., e handle_factual_scenarios) para o arquivo src/llm/llm_handler.py (provavelmente como métodos privados ou funções estáticas dentro da classe, ou mantê-las como funções auxiliares no módulo se preferir).
+Remover o arquivo temporário.
+Revisar e remover logs de depuração excessivos.

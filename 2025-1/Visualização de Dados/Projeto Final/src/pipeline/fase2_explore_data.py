@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg') # Deve ser chamado ANTES de importar pyplot ou seaborn
 import pandas as pd
 import numpy as np
 import os # Mantido por enquanto, mas verificar uso
@@ -79,19 +81,32 @@ def run_exploratory_analysis():
     # --- 2.2. Análise de Correlações (Mantida, usando df_corr) ---
     print('🔗 Análise de correlações (sobre dataset unificado)...')
     
-    # As colunas de categoria de despesa já devem estar pivotadas no df_corr
-    categorias_despesa = ['Saúde', 'Educação', 'Assistência Social', 'Infraestrutura'] # Base
-    # Filtrar para categorias que realmente existem em df_corr
-    categorias_existentes = [cat for cat in categorias_despesa if cat in df_corr.columns]
+    # Nomes técnicos das colunas de despesa (como são geradas pelo fase1b_clean_data)
+    despesa_cols_tecnicas = {
+        'Saúde': 'despesa_saude',
+        'Educação': 'despesa_educacao',
+        'Assistência Social': 'despesa_assistencia_social',
+        'Infraestrutura': 'despesa_infraestrutura'
+    }
+    
+    # Filtrar para categorias cujas colunas técnicas realmente existem em df_corr
+    # categorias_existentes agora será uma lista de nomes amigáveis (ex: 'Saúde')
+    # cujas colunas técnicas correspondentes (ex: 'despesa_saude') estão no DataFrame.
+    categorias_existentes_map = { 
+        nome_amigavel: nome_tecnico 
+        for nome_amigavel, nome_tecnico in despesa_cols_tecnicas.items() 
+        if nome_tecnico in df_corr.columns
+    }
 
-    if not categorias_existentes:
-        print("⚠️ Nenhuma das colunas de categoria de despesa esperadas foi encontrada no dataset unificado.")
+    if not categorias_existentes_map:
+        print("⚠️ Nenhuma das colunas de categoria de despesa esperadas (ex: despesa_saude) foi encontrada no dataset unificado.")
     else:
+        print(f"ℹ️ Categorias de despesa encontradas e mapeadas para análise: {list(categorias_existentes_map.keys())}")
         correlacoes = {}
-        for cat in categorias_existentes:
-            correlacoes[cat] = {
-                'pearson': df_corr['idh'].corr(df_corr[cat], method='pearson'),
-                'spearman': df_corr['idh'].corr(df_corr[cat], method='spearman')
+        for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
+            correlacoes[nome_amigavel] = {
+                'pearson': df_corr['idh'].corr(df_corr[nome_tecnico], method='pearson'),
+                'spearman': df_corr['idh'].corr(df_corr[nome_tecnico], method='spearman')
             }
         pd.DataFrame(correlacoes).to_csv(EXPLORE_RESULTS_DIR / 'correlacoes_por_categoria.csv')
         print(f"✅ Correlações por categoria salvas.")
@@ -102,9 +117,9 @@ def run_exploratory_analysis():
             for ano_val in sorted(df_corr['ano'].unique()):
                 linha = {'ano': ano_val}
                 sub = df_corr[df_corr['ano'] == ano_val]
-                for cat in categorias_existentes:
-                    linha[f'{cat}_pearson'] = sub['idh'].corr(sub[cat], method='pearson')
-                    linha[f'{cat}_spearman'] = sub['idh'].corr(sub[cat], method='spearman')
+                for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
+                    linha[f'{nome_amigavel}_pearson'] = sub['idh'].corr(sub[nome_tecnico], method='pearson')
+                    linha[f'{nome_amigavel}_spearman'] = sub['idh'].corr(sub[nome_tecnico], method='spearman')
                 correlacoes_ano.append(linha)
             pd.DataFrame(correlacoes_ano).to_csv(EXPLORE_RESULTS_DIR / 'correlacoes_por_ano.csv', index=False)
             print(f"✅ Correlações por ano salvas.")
@@ -115,9 +130,9 @@ def run_exploratory_analysis():
             for uf_val in sorted(df_corr['uf'].unique()):
                 linha = {'uf': uf_val}
                 sub = df_corr[df_corr['uf'] == uf_val]
-                for cat in categorias_existentes:
-                    linha[f'{cat}_pearson'] = sub['idh'].corr(sub[cat], method='pearson')
-                    linha[f'{cat}_spearman'] = sub['idh'].corr(sub[cat], method='spearman')
+                for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
+                    linha[f'{nome_amigavel}_pearson'] = sub['idh'].corr(sub[nome_tecnico], method='pearson')
+                    linha[f'{nome_amigavel}_spearman'] = sub['idh'].corr(sub[nome_tecnico], method='spearman')
                 correlacoes_estado.append(linha)
             pd.DataFrame(correlacoes_estado).to_csv(EXPLORE_RESULTS_DIR / 'correlacoes_por_estado.csv', index=False)
             print(f"✅ Correlações por estado salvas.")
@@ -128,9 +143,9 @@ def run_exploratory_analysis():
             for reg_val in sorted(df_corr['regiao'].dropna().unique()):
                 linha = {'regiao': reg_val}
                 sub = df_corr[df_corr['regiao'] == reg_val]
-                for cat in categorias_existentes:
-                    linha[f'{cat}_pearson'] = sub['idh'].corr(sub[cat], method='pearson')
-                    linha[f'{cat}_spearman'] = sub['idh'].corr(sub[cat], method='spearman')
+                for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
+                    linha[f'{nome_amigavel}_pearson'] = sub['idh'].corr(sub[nome_tecnico], method='pearson')
+                    linha[f'{nome_amigavel}_spearman'] = sub['idh'].corr(sub[nome_tecnico], method='spearman')
                 correlacoes_regiao.append(linha)
             pd.DataFrame(correlacoes_regiao).to_csv(EXPLORE_RESULTS_DIR / 'correlacoes_por_regiao.csv', index=False)
             print(f"✅ Correlações por região salvas.")
@@ -164,22 +179,31 @@ def run_exploratory_analysis():
         print("✅ Boxplot IDH por Região salvo.")
 
     # Scatterplot IDH vs. gastos (agora usando colunas existentes em df_corr)
-    for cat in categorias_existentes:
+    for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
         if 'idh' in df_corr.columns:
             plt.figure(figsize=(8,6))
-            sns.scatterplot(x=cat, y='idh', data=df_corr, hue='regiao' if 'regiao' in df_corr.columns else None, alpha=0.7)
-            plt.title(f'IDH vs. Gastos em {cat}')
-            plt.xlabel(f'Gasto em {cat}')
+            sns.scatterplot(x=nome_tecnico, y='idh', data=df_corr, hue='regiao' if 'regiao' in df_corr.columns else None, alpha=0.7)
+            plt.title(f'IDH vs. Gastos em {nome_amigavel}')
+            plt.xlabel(f'Gasto em {nome_amigavel}')
             plt.ylabel('IDH')
-            plt.savefig(EXPLORE_RESULTS_DIR / f'scatter_idh_vs_gasto_{cat.lower().replace(" ", "_")}.png')
+            plt.savefig(EXPLORE_RESULTS_DIR / f'scatter_idh_vs_gasto_{nome_amigavel.lower().replace(" ", "_").replace("ã", "a").replace("ç", "c")}.png')
             plt.close()
-            print(f"✅ Scatterplot IDH vs {cat} salvo.")
+            print(f"✅ Scatterplot IDH vs {nome_amigavel} salvo.")
 
     # Heatmap de correlação (já calculado, agora plotando)
-    cols_para_heatmap = ['idh'] + categorias_existentes
-    if len(cols_para_heatmap) > 1: # Precisa de pelo menos duas colunas para correlacionar
-        plt.figure(figsize=(8,6))
-        sns.heatmap(df_corr[cols_para_heatmap].corr(), annot=True, cmap='coolwarm', fmt=".2f", vmin=-1, vmax=1)
+    # Selecionar apenas as colunas técnicas de despesa que existem, mais o IDH
+    cols_tecnicas_para_heatmap = ['idh'] + [nome_tecnico for nome_tecnico in categorias_existentes_map.values()]
+    
+    if len(cols_tecnicas_para_heatmap) > 1: # Precisa de pelo menos duas colunas para correlacionar
+        # Para o heatmap, vamos usar os nomes amigáveis nos rótulos para melhor visualização
+        df_heatmap_plot = df_corr[cols_tecnicas_para_heatmap].copy()
+        rename_for_heatmap_plot = {'idh': 'IDH'} # Começa com IDH
+        for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
+            rename_for_heatmap_plot[nome_tecnico] = nome_amigavel # Mapeia de 'despesa_saude' para 'Saúde'
+        df_heatmap_plot.rename(columns=rename_for_heatmap_plot, inplace=True)
+        
+        plt.figure(figsize=(10,8)) # Ajustado tamanho para melhor visualização dos rótulos
+        sns.heatmap(df_heatmap_plot.corr(), annot=True, cmap='coolwarm', fmt=".2f", vmin=-1, vmax=1)
         plt.title('Heatmap de Correlação (Dataset Unificado)')
         plt.tight_layout()
         plt.savefig(EXPLORE_RESULTS_DIR / 'heatmap_correlacao_unificado.png')
@@ -190,9 +214,10 @@ def run_exploratory_analysis():
     print('🌎 Gerando mapas interativos (exploratórios)...')
 
     # Mapa de Calor Relacional (Heatmap de correlação interativo)
-    if len(cols_para_heatmap) > 1:
+    if len(cols_tecnicas_para_heatmap) > 1:
+        # Reutilizando df_heatmap_plot que já tem nomes amigáveis
         heatmap_fig_px = px.imshow(
-            df_corr[cols_para_heatmap].corr(),
+            df_heatmap_plot.corr(), # Usa o DataFrame com nomes amigáveis
             text_auto=True, # Mostra os valores de correlação no heatmap
             color_continuous_scale='RdBu_r', # Inverte para vermelho=positivo, azul=negativo
             aspect="auto",
@@ -206,10 +231,10 @@ def run_exploratory_analysis():
 
     # Gráfico de Bolhas Cruzado (IDH vs. gasto, tamanho=população)
     if 'populacao' in df_corr.columns and 'ano' in df_corr.columns and 'uf' in df_corr.columns and 'regiao' in df_corr.columns and 'idh' in df_corr.columns:
-        for cat in categorias_existentes:
+        for nome_amigavel, nome_tecnico in categorias_existentes_map.items():
             bolha_fig = px.scatter(
                 df_corr.sort_values(by='ano'), # Garante ordem para animação
-                x=cat,
+                x=nome_tecnico, # Usa o nome técnico da coluna para buscar os dados
                 y='idh',
                 size='populacao', 
                 color='regiao',
@@ -218,11 +243,11 @@ def run_exploratory_analysis():
                 animation_group='uf',
                 log_x=True, # Gastos podem ter grande variação
                 size_max=60,
-                title=f'Gráfico de Bolhas: IDH vs. Gasto em {cat}',
-                labels={cat: f'Gasto em {cat} (log)', 'idh': 'IDH', 'populacao': 'População'}
+                title=f'Gráfico de Bolhas: IDH vs. Gasto em {nome_amigavel}',
+                labels={nome_tecnico: f'Gasto em {nome_amigavel} (log)', 'idh': 'IDH', 'populacao': 'População'} # Usa nome técnico na key do label, amigável no value
             )
-            bolha_fig.write_html(EXPLORE_RESULTS_DIR / f'bolhas_idh_vs_gasto_{cat.lower().replace(" ", "_")}.html')
-            print(f"✅ Gráfico de bolhas IDH vs {cat} salvo.")
+            bolha_fig.write_html(EXPLORE_RESULTS_DIR / f'bolhas_idh_vs_gasto_{nome_amigavel.lower().replace(" ", "_").replace("ã", "a").replace("ç", "c")}.html')
+            print(f"✅ Gráfico de bolhas IDH vs {nome_amigavel} salvo.")
     else:
         print("⚠️ Não foi possível gerar gráficos de bolhas devido à falta de colunas: 'populacao', 'ano', 'uf', 'regiao' ou 'idh'.")
 
@@ -254,27 +279,31 @@ def run_exploratory_analysis():
                     mapbox_style="carto-positron", zoom=3, center = {"lat": -14.24, "lon": -51.925},
                     opacity=0.7, hover_name='uf',
                     title=f'Mapa Coroplético: IDH por Estado ({ano_max})',
-                    hover_data={'idh':True, 'regiao': True if 'regiao' in df_map else False}
+                    hover_data={'idh':True, 'regiao': True if 'regiao' in df_map.columns else False} # Ajustado para df_map.columns
                 )
                 fig_idh_map.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
                 fig_idh_map.write_html(EXPLORE_RESULTS_DIR / f'mapa_coropletico_idh_{ano_max}.html')
                 print(f"✅ Mapa coroplético de IDH ({ano_max}) salvo.")
 
             # Exemplo com uma categoria de gasto
-            if categorias_existentes:
-                cat_exemplo_mapa = categorias_existentes[0]
-                if cat_exemplo_mapa in df_map.columns:
+            if categorias_existentes_map: # Verifica se o mapa não está vazio
+                # Pega o primeiro nome amigável e seu correspondente técnico para o mapa de exemplo
+                primeiro_nome_amigavel = list(categorias_existentes_map.keys())[0]
+                primeiro_nome_tecnico = categorias_existentes_map[primeiro_nome_amigavel]
+                
+                if primeiro_nome_tecnico in df_map.columns:
                     fig_gasto_map = px.choropleth_mapbox(
                         df_map, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-                        color=cat_exemplo_mapa, color_continuous_scale="Blues",
+                        color=primeiro_nome_tecnico, # Usa o nome técnico da coluna
+                        color_continuous_scale="Blues",
                         mapbox_style="carto-positron", zoom=3, center = {"lat": -14.24, "lon": -51.925},
                         opacity=0.7, hover_name='uf',
-                        title=f'Mapa Coroplético: Gasto em {cat_exemplo_mapa} por Estado ({ano_max})',
-                        hover_data={'idh':True, cat_exemplo_mapa:True, 'regiao': True if 'regiao' in df_map else False}
+                        title=f'Mapa Coroplético: Gasto em {primeiro_nome_amigavel} por Estado ({ano_max})',
+                        hover_data={'idh':True, primeiro_nome_tecnico:True, 'regiao': True if 'regiao' in df_map.columns else False} # Ajustado para df_map.columns
                     )
                     fig_gasto_map.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-                    fig_gasto_map.write_html(EXPLORE_RESULTS_DIR / f'mapa_coropletico_gasto_{cat_exemplo_mapa.lower().replace(" ", "_")}_{ano_max}.html')
-                    print(f"✅ Mapa coroplético de Gasto ({cat_exemplo_mapa}, {ano_max}) salvo.")
+                    fig_gasto_map.write_html(EXPLORE_RESULTS_DIR / f'mapa_coropletico_gasto_{primeiro_nome_amigavel.lower().replace(" ", "_").replace("ã", "a").replace("ç", "c")}_{ano_max}.html')
+                    print(f"✅ Mapa coroplético de Gasto ({primeiro_nome_amigavel}, {ano_max}) salvo.")
         except Exception as e_map:
             print(f"⚠️ Erro ao gerar mapas coropléticos: {e_map}. Verifique o arquivo shapefile e as colunas.")
 
