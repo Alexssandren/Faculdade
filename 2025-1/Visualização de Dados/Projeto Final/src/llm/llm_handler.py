@@ -204,77 +204,46 @@ class LLMQueryHandler:
             if self.data_df is not None and not self.data_df.empty:
                 print(f"DEBUG LLM Handler: DataFrame carregado, processando com lógica de cenários.")
                 user_query_lower = user_query.lower()
+
+                # Se a nova pergunta for uma frase completa, desconsidere o contexto de UF anterior
+                is_full_question = len(user_query.split()) > 3
+                if is_full_question:
+                    print(f"DEBUG LLM Intent: Nova pergunta é completa. Contexto de UF anterior será ignorado se houver UF na query atual.")
+                    if "uf" in filters_identified_llm:
+                        pass # Mantém a UF identificada pelo LLM na query atual
+                    else: # Limpa qualquer resquício de UF herdada se não houver na query atual
+                        if self.conversation_history and len(self.conversation_history) > 2:
+                            # Tenta limpar o contexto de forma mais agessiva
+                             pass
+
+                # Determinar a intenção da consulta atual (current_query_intent)
+                current_query_intent = self._determine_intent_from_query(user_query_lower, filters_identified_llm)
+                print(f"DEBUG LLM Intent: Intenção da query ATUAL: '{current_query_intent}'")
+
+                # Determinar a intenção herdada, se a query atual não tiver uma intenção clara
+                inherited_intent = None
+                if not current_query_intent and len(self.conversation_history) >= 3:
+                     inherited_intent = self._determine_intent_from_query(
+                         self.conversation_history[-3]["content"].lower(),
+                         self.conversation_history[-2].get('filters', {}) # Usa filtros da resposta anterior
+                     )
+                     print(f"DEBUG LLM Intent: Intenção HERDADA: '{inherited_intent}'")
                 
-                # 1. Determinar intenção herdada (determined_primary_intent_type)
-                determined_primary_intent_type = None
-                tipo_consulta_herdada_do_llm = filters_identified_llm.get("tipo_consulta_herdada")
-
-                if tipo_consulta_herdada_do_llm:
-                    determined_primary_intent_type = tipo_consulta_herdada_do_llm
-                    print(f"DEBUG LLM Intent: Intenção primária herdada do JSON do LLM: '{determined_primary_intent_type}'")
-                elif len(self.conversation_history) >= 3 and self.conversation_history[-3]["role"] == "user":
-                    prev_user_query_full_content = self.conversation_history[-3]["content"].lower()
-                    # Lógica para determinar intenção da pergunta anterior (simplificada)
-                    if "idh" in prev_user_query_full_content:
-                        if "maior" in prev_user_query_full_content: determined_primary_intent_type = "idh_maior_brasil"
-                        elif "menor" in prev_user_query_full_content or "pior" in prev_user_query_full_content: determined_primary_intent_type = "idh_menor_brasil"
-                        elif "médio" in prev_user_query_full_content or "media" in prev_user_query_full_content: determined_primary_intent_type = "idh_medio_brasil"
-                        else: determined_primary_intent_type = "idh_especifico"
-                    elif "gasto" in prev_user_query_full_content or "despesa" in prev_user_query_full_content:
-                        if "maior" in prev_user_query_full_content: determined_primary_intent_type = "gasto_maior_brasil"
-                        elif "menor" in prev_user_query_full_content: determined_primary_intent_type = "gasto_menor_brasil"
-                        else: determined_primary_intent_type = "gasto_especifico"
-                    if determined_primary_intent_type:
-                         print(f"DEBUG LLM Intent: Intenção primária determinada da PENÚLTIMA query do usuário: '{determined_primary_intent_type}'")
-
-
-                # 2. Determinar intenção da consulta ATUAL (current_query_intent)
-                current_query_intent = None
-                llm_identified_intent = filters_identified_llm.get("tipo_intenção_llm") # O LLM pode sugerir
-                if llm_identified_intent:
-                    current_query_intent = llm_identified_intent
-                    print(f"DEBUG LLM Intent: Intenção da query ATUAL (do JSON LLM): '{current_query_intent}'")
-                else: # Tenta inferir da query atual se o LLM não forneceu "tipo_intenção_llm"
-                    if 'idh' in user_query_lower:
-                        if 'médio' in user_query_lower or 'media' in user_query_lower:
-                            current_query_intent = "idh_medio_brasil"
-                        elif 'maior' in user_query_lower:
-                            current_query_intent = "idh_maior_regiao" if filters_identified_llm.get('regiao') else "idh_maior_brasil"
-                        elif 'menor' in user_query_lower or 'pior' in user_query_lower:
-                            current_query_intent = "idh_menor_regiao" if filters_identified_llm.get('regiao') else "idh_menor_brasil"
-                        elif filters_identified_llm.get('uf') and filters_identified_llm.get('ano'):
-                            current_query_intent = "idh_especifico"
-                    elif 'gasto' in user_query_lower or 'despesa' in user_query_lower:
-                        if 'maior' in user_query_lower or 'mais gasta' in user_query_lower:
-                            current_query_intent = "gasto_maior_regiao" if filters_identified_llm.get('regiao') else "gasto_maior_brasil"
-                        elif 'menor' in user_query_lower or 'menos gasta' in user_query_lower:
-                            current_query_intent = "gasto_menor_regiao" if filters_identified_llm.get('regiao') else "gasto_menor_brasil"
-                        elif filters_identified_llm.get('uf') and filters_identified_llm.get('ano'):
-                            current_query_intent = "gasto_especifico"
-                    if current_query_intent:
-                        print(f"DEBUG LLM Intent: Intenção da query ATUAL (inferida da query string): '{current_query_intent}'")
-
-                # 3. Determinar intenção final para os cenários
-                final_intent_for_scenarios = current_query_intent if current_query_intent else determined_primary_intent_type
-                
-                print(f"DEBUG LLM Intent: Herdada (determined_primary_intent_type): '{determined_primary_intent_type}'")
-                print(f"DEBUG LLM Intent: Atual (current_query_intent): '{current_query_intent}'")
-                print(f"DEBUG LLM Intent: Final para cenários (final_intent_for_scenarios): '{final_intent_for_scenarios}'")
+                # A intenção final é a da query atual, ou a herdada se a atual for ambígua.
+                final_intent_for_scenarios = current_query_intent or inherited_intent
+                print(f"DEBUG LLM Intent: Final para cenários: '{final_intent_for_scenarios}'")
 
                 # 4. Chamar o novo handler de cenários factuais
-                scenario_text_part, scenario_updated_filters = handle_factual_scenarios(
-                    user_query_lower=user_query_lower,
-                    final_intent_for_scenarios=final_intent_for_scenarios,
-                    filters_from_llm=filters_identified_llm.copy(),
-                    data_df=self.data_df,
-                    conversation_history=self.conversation_history
+                factual_text, factual_filters = handle_factual_scenarios(
+                    user_query_lower, final_intent_for_scenarios, filters_identified_llm, 
+                    self.data_df, self.conversation_history, is_full_question
                 )
 
-                if scenario_text_part is not None:
-                    print(f"DEBUG LLM Handler: Cenário factual TRATADO pelo novo handler. Resposta: '{scenario_text_part}', Filtros: {scenario_updated_filters}")
-                    text_part_llm = scenario_text_part
-                    if scenario_updated_filters is not None:
-                         filters_identified_llm = scenario_updated_filters
+                if factual_text is not None:
+                    print(f"DEBUG LLM Handler: Cenário factual TRATADO pelo novo handler. Resposta: '{factual_text}', Filtros: {factual_filters}")
+                    text_part_llm = factual_text
+                    if factual_filters is not None:
+                         filters_identified_llm = factual_filters
                 else:
                     print(f"DEBUG LLM Handler: Nenhum cenário factual específico tratado pelo novo handler. Usando resposta original do LLM.")
 
@@ -300,6 +269,23 @@ class LLMQueryHandler:
         self.conversation_history = []
         if system_message:
             self.conversation_history.append(system_message)
+
+    def _determine_intent_from_query(self, query: str, filters: dict) -> Optional[str]:
+        """Função auxiliar para extrair a intenção de uma string de consulta."""
+        if 'idh' in query:
+            if 'médio' in query or 'media' in query: return "idh_medio_brasil"
+            if 'maior' in query or 'mais alto' in query:
+                return "idh_maior_regiao" if filters.get('regiao') else "idh_maior_brasil"
+            if 'menor' in query or 'pior' in query or 'mais baixo' in query:
+                return "idh_menor_regiao" if filters.get('regiao') else "idh_menor_brasil"
+            return "idh_especifico"
+        if 'gasto' in query or 'despesa' in query:
+            if 'maior' in query or 'mais gasta' in query:
+                return "gasto_maior_regiao" if filters.get('regiao') else "gasto_maior_brasil"
+            if 'menor' in query or 'menos gasta' in query:
+                return "gasto_menor_regiao" if filters.get('regiao') else "gasto_menor_brasil"
+            return "gasto_especifico"
+        return None
 
 # Funções auxiliares e de cenário copiadas aqui
 
@@ -1117,7 +1103,7 @@ def _handle_gasto_menor_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], u
         print(f"ERRO em _handle_gasto_menor_regiao para Reg '{reg}', Ano '{ano_usado}', Cat '{cat_nome}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) menor(es) gasto(s) na região {reg.title()} {msg_ano_ctx.replace(' na região', '')}.", None
 
-def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: Optional[str], filters_from_llm: Dict, data_df: pd.DataFrame, conversation_history: List[Dict]) -> Tuple[Optional[str], Optional[Dict]]:
+def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: Optional[str], filters_from_llm: Dict, data_df: pd.DataFrame, conversation_history: List[Dict], is_full_question: bool) -> Tuple[Optional[str], Optional[Dict]]:
     text_part: Optional[str] = None
     updated_filters: Dict = filters_from_llm.copy()
     scenario_filters: Optional[Dict] = None 

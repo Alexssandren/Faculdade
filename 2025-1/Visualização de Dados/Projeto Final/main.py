@@ -15,7 +15,7 @@ if str(SRC_DIR) not in sys.path:
 
 # Função auxiliar para verificar a existência de artefatos
 def check_outputs_exist(output_paths: list[Path], phase_name: str) -> bool:
-    """Verifica se todos os caminhos de Path (arquivos ou diretórios) existem."""
+    """Verifica se todos os caminhos de Path (arquivos ou diretórios) existem e, se for um diretório, se não está vazio."""
     print(f"🔎 Verificando artefatos para a {phase_name}...")
     all_exist = True
     if not output_paths:
@@ -26,17 +26,22 @@ def check_outputs_exist(output_paths: list[Path], phase_name: str) -> bool:
         if not path_obj.exists():
             print(f"  ⏳ Artefato não encontrado: {path_obj.relative_to(PROJECT_ROOT)}")
             all_exist = False
-            # Não precisa de break, é bom listar todos que faltam se for o caso,
-            # mas a lógica de pular depende de *todos* existirem.
-            # Para otimizar a verificação, um break aqui seria mais rápido se um faltar.
-            # Vamos manter assim para ter um log completo do que falta, se for o caso.
         else:
-            print(f"  ✅ Artefato encontrado: {path_obj.relative_to(PROJECT_ROOT)}")
+            # Se o artefato existe, mas é um diretório, verifica se está vazio
+            if path_obj.is_dir():
+                if not any(path_obj.iterdir()):
+                    print(f"  ⏳ Artefato encontrado, mas o diretório está vazio: {path_obj.relative_to(PROJECT_ROOT)}")
+                    all_exist = False
+                else:
+                    print(f"  ✅ Artefato (diretório com conteúdo) encontrado: {path_obj.relative_to(PROJECT_ROOT)}")
+            else:
+                 # Se for um arquivo, a existência já basta.
+                 print(f"  ✅ Artefato (arquivo) encontrado: {path_obj.relative_to(PROJECT_ROOT)}")
     
     if all_exist:
         print(f"👍 Todos os artefatos para {phase_name} encontrados.")
     else:
-        print(f"❗ Alguns artefatos para {phase_name} não foram encontrados.")
+        print(f"❗ Alguns artefatos para {phase_name} não foram encontrados. A fase será executada.")
     return all_exist
 
 try:
@@ -150,7 +155,7 @@ def run_complete_pipeline():
     print("-" * 50)
 
     # --- Fase 3: Geração de Visualizações Estáticas ---
-    fase3_outputs = [PROJECT_ROOT / "results/final_visualizations"] # Verifica o diretório
+    fase3_outputs = [PROJECT_ROOT / "results/visualizations"] # CORRIGIDO: Verifica o diretório novo
     print("\n🔷 FASE 3: Geração de Visualizações Estáticas...")
     if check_outputs_exist(fase3_outputs, "Fase 3"):
         print("⏭️  Fase 3 já concluída (artefatos encontrados). Pulando.")

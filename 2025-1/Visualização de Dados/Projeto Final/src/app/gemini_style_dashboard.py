@@ -1,22 +1,26 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, QLineEdit, QPushButton
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                               QHBoxLayout, QLabel, QTextEdit, QLineEdit, 
+                               QPushButton, QStackedWidget, QFrame)
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QPalette, QColor, QPainter, QPixmap
-from pathlib import Path # Adicionado para manipulação de caminhos
+from PySide6.QtGui import QPalette, QColor, QPainter, QPixmap, QTextCursor
+from pathlib import Path
 
-# Adicionar o diretório 'src' ao sys.path para import do LLMHandler
-# Isso assume que gemini_style_dashboard.py está em src/app/
-# e llm_handler.py está em src/llm/
-SCRIPT_DIR_LLM = Path(__file__).resolve().parent # src/app
-SRC_DIR_LLM = SCRIPT_DIR_LLM.parent # src/
-if str(SRC_DIR_LLM) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR_LLM))
+# Adicionar o diretório 'src' ao sys.path
+SCRIPT_DIR = Path(__file__).resolve().parent
+SRC_DIR = SCRIPT_DIR.parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 try:
     from llm.llm_handler import LLMQueryHandler
+    from app.widgets.collapsible_sidebar import CollapsibleSidebar
+    from app.widgets.graph_carousel import GraphCarouselWidget
 except ImportError as e:
-    print(f"Erro ao importar LLMQueryHandler: {e}. Verifique o sys.path e a estrutura do projeto.")
-    LLMQueryHandler = None # Define como None para que o app possa rodar com um aviso
+    print(f"Erro ao importar módulos: {e}. Verifique o sys.path e a estrutura do projeto.")
+    LLMQueryHandler = None
+    CollapsibleSidebar = None
+    GraphCarouselWidget = None
 
 # Classe para o widget com imagem de fundo personalizada
 class BackgroundImageWidget(QWidget):
@@ -47,41 +51,111 @@ class GeminiStyleDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Brasil em Dados")
-        self.setGeometry(100, 100, 1200, 800) # x, y, largura, altura
+        self.setGeometry(100, 100, 1400, 900) # Aumentado o tamanho padrão
+
+        # Configuração do Projeto
+        self.project_root = Path(__file__).resolve().parent.parent.parent
+        self.graphs_path = self.project_root / "results" / "visualizations"
 
         self._apply_dark_theme()
-
-        # Carregar a imagem de fundo uma vez
-        self.background_pixmap = QPixmap()
-        image_name = "Mapa Brasil.png"
-        script_dir = Path(__file__).parent
-        image_path = script_dir / "assets" / image_name
-        if image_path.exists():
-            if not self.background_pixmap.load(str(image_path.resolve())):
-                print(f"Erro ao carregar a imagem de fundo: {image_path}")
-        else:
-            print(f"Arquivo de imagem de fundo não encontrado: {image_path}")
-
-        # Inicializar LLM Handler
-        self.llm_handler = None
-        if LLMQueryHandler:
-            try:
-                self.llm_handler = LLMQueryHandler()
-                print("LLMQueryHandler inicializado com sucesso.")
-            except Exception as e_llm_init:
-                print(f"Erro ao inicializar LLMQueryHandler: {e_llm_init}")
-                # self.llm_handler permanece None
-        else:
-            print("LLMQueryHandler não pôde ser importado. Funcionalidade de chat com IA desabilitada.")
-
-        # Widget central e layout principal
+        
+        # --- Widgets Principais ---
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
-        self.main_layout = QVBoxLayout(self.central_widget)
 
-        # --- Placeholders para os elementos do design ---
+        # Layout que conterá as sidebars e a área de conteúdo principal
+        self.root_layout = QHBoxLayout(self.central_widget)
+        self.root_layout.setSpacing(0)
+        self.root_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # --- Barra Lateral Esquerda (Gráficos) ---
+        self._setup_left_sidebar()
 
-        # 1. Título Superior "Brasil em Dados" com cores
+        # --- Área de Conteúdo Central ---
+        content_container = QFrame() # Usar QFrame para permitir bordas
+        content_container.setObjectName("ContentContainer")
+        content_container.setStyleSheet("QFrame#ContentContainer { border: none; }")
+        content_container_layout = QVBoxLayout(content_container)
+        content_container_layout.setContentsMargins(10, 10, 10, 10)
+        self.root_layout.addWidget(content_container, 1)
+
+        # Título
+        self._setup_title(content_container_layout)
+
+        # Stack para alternar entre Chat e Gráficos
+        self.view_stack = QStackedWidget()
+        content_container_layout.addWidget(self.view_stack, 1)
+        
+        # Visão 1: Chat Central
+        self.main_chat_view = self._create_chat_widget(is_main_view=True)
+        self.view_stack.addWidget(self.main_chat_view)
+
+        # Visão 2: Carrossel de Gráficos
+        self.graph_carousel_view = GraphCarouselWidget()
+        self.view_stack.addWidget(self.graph_carousel_view)
+
+        self.view_stack.setCurrentWidget(self.main_chat_view)
+
+        # --- Barra Lateral Direita (Chat) ---
+        self._setup_right_sidebar()
+        
+        # Inicialização do LLM
+        self._initialize_llm_handler()
+
+        # Conectar os widgets de chat ao handler
+        self._connect_chat_widgets()
+
+    def _setup_left_sidebar(self):
+        self.left_sidebar = CollapsibleSidebar(self, expanded_width=200, direction=Qt.LeftEdge)
+        self.left_sidebar.setObjectName("LeftSidebar")
+        
+        sidebar_layout = self.left_sidebar.get_inner_layout()
+        
+        # Botão para voltar ao Chat principal
+        home_button = QPushButton("🏠 Início")
+        home_button.clicked.connect(self.show_main_chat_view)
+        sidebar_layout.addWidget(home_button)
+        sidebar_layout.addWidget(self._create_separator())
+
+        title_label = QLabel("Gráficos por Ano")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        sidebar_layout.addWidget(title_label)
+
+        for year in range(2023, 2018, -1): # Ordem decrescente
+            year_button = QPushButton(str(year))
+            year_button.clicked.connect(lambda checked=False, y=year: self.show_graph_view(y))
+            sidebar_layout.addWidget(year_button)
+        
+        sidebar_layout.addWidget(self._create_separator())
+        
+        general_button = QPushButton("Visão Geral")
+        general_button.clicked.connect(lambda: self.show_graph_view(None)) # Passa None para gráficos gerais
+        sidebar_layout.addWidget(general_button)
+
+
+        sidebar_layout.addStretch()
+        self.root_layout.addWidget(self.left_sidebar)
+
+    def _setup_right_sidebar(self):
+        self.right_sidebar = CollapsibleSidebar(self, expanded_width=400, direction=Qt.RightEdge)
+        self.right_sidebar.setObjectName("RightSidebar")
+        
+        self.sidebar_chat_view = self._create_chat_widget(is_main_view=False)
+        sidebar_layout = self.right_sidebar.get_inner_layout()
+        sidebar_layout.addWidget(self.sidebar_chat_view)
+
+        self.sidebar_chat_view.hide()
+        self.root_layout.addWidget(self.right_sidebar)
+    
+    def _create_separator(self):
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("background-color: #424242;")
+        return separator
+
+    def _setup_title(self, layout):
         title_text = "Brasil em Dados"
         colors = ["#009B3A", "#FFCC29", "#FFFFFF"] # Verde, Amarelo, Branco
         styled_title = ""
@@ -92,7 +166,7 @@ class GeminiStyleDashboard(QMainWindow):
             else:
                 color = colors[color_index % len(colors)]
                 styled_title += f'<span style="color: {color};">{char}</span>'
-                color_index += 1 # Incrementa o índice de cor apenas para caracteres não espaciais
+                color_index += 1
         
         self.title_label = QLabel(styled_title)
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -100,103 +174,151 @@ class GeminiStyleDashboard(QMainWindow):
         font.setPointSize(24)
         font.setBold(True)
         self.title_label.setFont(font)
-        self.main_layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignTop)
 
-        # 2. Área de Chat Central agora usa BackgroundImageWidget
-        self.chat_container_widget = BackgroundImageWidget(self.background_pixmap)
-        self.chat_container_widget.setObjectName("ChatContainerWidget")
-        # QSS para cor de fundo base (visível se a imagem não carregar ou tiver transparência) e bordas
-        self.chat_container_widget.setStyleSheet("""
-            QWidget#ChatContainerWidget {
-                background-color: #2a2a2a; 
-                border-radius: 8px;
-            }
-        """)
-        # O layout agora é do BackgroundImageWidget
-        chat_container_layout = QVBoxLayout(self.chat_container_widget)
-        # As margens agora são definidas no construtor do BackgroundImageWidget
-
-        self.chat_history_display = QTextEdit()
-        self.chat_history_display.setReadOnly(True)
-        self.chat_history_display.setObjectName("ChatHistoryDisplay")
-        # Tornar o fundo do QTextEdit transparente para ver a imagem do container por baixo
-        self.chat_history_display.setStyleSheet("QTextEdit#ChatHistoryDisplay { background-color: rgba(43, 43, 43, 0.8); color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 4px; }") # Levemente translúcido
-        chat_container_layout.addWidget(self.chat_history_display, 1) # Histórico ocupa a maior parte
-
-        self.chat_input_line = QLineEdit()
-        self.chat_input_line.setPlaceholderText("Digite sua mensagem e pressione Enter...")
-        self.chat_input_line.setObjectName("ChatInputLine")
-        self.chat_input_line.setStyleSheet("QLineEdit#ChatInputLine { background-color: #222222; color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 8px; padding: 10px; font-size: 14px; }")
-        self.chat_input_line.setFixedHeight(50) # Altura um pouco maior para a caixa de entrada
-        chat_container_layout.addWidget(self.chat_input_line) # Entrada na parte inferior do container do chat
-
-        self.main_layout.addWidget(self.chat_container_widget, 1) # O container do chat agora é o item expansível central
-
-        # REMOVER a antiga configuração da barra inferior do chat
-        # bottom_bar_layout = QHBoxLayout()
-        # ... (código da barra inferior removido)
-        # self.main_layout.addLayout(bottom_bar_layout)
+    def _create_chat_widget(self, is_main_view: bool):
+        if is_main_view:
+            background_pixmap = QPixmap()
+            image_path = SCRIPT_DIR / "assets" / "Mapa Brasil.png"
+            if image_path.exists():
+                background_pixmap.load(str(image_path.resolve()))
+            chat_container = BackgroundImageWidget(background_pixmap)
+        else:
+            chat_container = QWidget() # Sem imagem de fundo na sidebar
         
-        self.central_widget.setLayout(self.main_layout)
+        chat_container.setObjectName("ChatContainerWidget")
+        chat_container.setStyleSheet("background-color: transparent; border-radius: 8px;")
+        
+        chat_layout = QVBoxLayout(chat_container)
+        chat_layout.setContentsMargins(0, 0, 0, 0) if not is_main_view else chat_layout.setContentsMargins(15, 15, 15, 15)
+        
+        history_display = QTextEdit()
+        history_display.setReadOnly(True)
+        history_display.setObjectName("ChatHistoryDisplay")
+        history_display.setStyleSheet("background-color: rgba(43, 43, 43, 0.8); color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 4px;")
+        
+        input_line = QLineEdit()
+        input_line.setPlaceholderText("Digite sua mensagem...")
+        input_line.setObjectName("ChatInputLine")
+        input_line.setStyleSheet("background-color: #222222; color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 8px; padding: 10px; font-size: 14px;")
+        input_line.setFixedHeight(50)
+        
+        chat_layout.addWidget(history_display, 1)
+        chat_layout.addWidget(input_line)
 
-        # Conectar sinais (apenas para chat_input_line.returnPressed)
-        # self.send_button.clicked.connect(self._send_message) # Botão removido
-        self.chat_input_line.returnPressed.connect(self._send_message)
+        # Armazenar referências aos widgets de chat para poder conectar os sinais
+        if is_main_view:
+            self.main_chat_history = history_display
+            self.main_chat_input = input_line
+        else:
+            self.sidebar_chat_history = history_display
+            self.sidebar_chat_input = input_line
+            
+        return chat_container
+
+    def _initialize_llm_handler(self):
+        self.llm_handler = None
+        if LLMQueryHandler:
+            try:
+                self.llm_handler = LLMQueryHandler()
+                print("LLMQueryHandler inicializado com sucesso.")
+            except Exception as e:
+                print(f"Erro ao inicializar LLMQueryHandler: {e}")
+    
+    def _connect_chat_widgets(self):
+        self.main_chat_input.returnPressed.connect(self._send_message)
+        self.sidebar_chat_input.returnPressed.connect(self._send_message)
+
+    def show_main_chat_view(self):
+        """Volta para a tela de chat principal."""
+        self.sidebar_chat_view.hide()
+        self.view_stack.setCurrentWidget(self.main_chat_view)
+    
+    def show_graph_view(self, year: int | None):
+        print(f"Buscando gráficos para o ano: {year if year else 'Geral'}")
+        print(f"Diretório de busca: {self.graphs_path.resolve()}")
+
+        graph_files = []
+        if year:
+            # Corrigido: padrão de busca para mapas do ano
+            graph_files.extend(sorted(list(self.graphs_path.glob(f"*mapa_coropletico*{year}*.html"))))
+        else:
+            # Corrigido: padrões de busca para gráficos gerais
+            graph_files.extend(sorted(list(self.graphs_path.glob(f"*grafico_bolhas*.html"))))
+            graph_files.extend(sorted(list(self.graphs_path.glob(f"*mapa_calor*.html"))))
+        
+        if not graph_files:
+             print(f"⚠️ Nenhum gráfico encontrado para '{year if year else 'Geral'}'")
+        
+        print(f"Gráficos encontrados: {[p.name for p in graph_files]}")
+        self.graph_carousel_view.set_graphs(graph_files)
+
+        self.sidebar_chat_view.show()
+        self.view_stack.setCurrentWidget(self.graph_carousel_view)
 
     def _send_message(self):
-        user_text = self.chat_input_line.text().strip()
+        # Descobrir qual input de texto enviou a mensagem
+        sender_input = self.sender()
+        if sender_input is self.main_chat_input:
+            user_text = self.main_chat_input.text().strip()
+            self.main_chat_input.clear()
+        elif sender_input is self.sidebar_chat_input:
+            user_text = self.sidebar_chat_input.text().strip()
+            self.sidebar_chat_input.clear()
+        else:
+            return
+
         if not user_text:
             return
 
-        self.chat_history_display.append(f"<p style=\"color: #8BE9FD;\"><b>Você:</b> {user_text}</p>")
-        self.chat_input_line.clear()
-        self.chat_history_display.ensureCursorVisible()
+        # Atualizar ambos os históricos de chat
+        formatted_user_message = f'<p style="color: #8BE9FD;"><b>Você:</b> {user_text}</p>'
+        self.main_chat_history.append(formatted_user_message)
+        self.sidebar_chat_history.append(formatted_user_message)
+        self.main_chat_history.ensureCursorVisible()
+        self.sidebar_chat_history.ensureCursorVisible()
 
-        # Feedback visual e chamada ao LLM
         if self.llm_handler:
-            # Adiciona mensagem de "digitando" e força atualização da UI
-            self.chat_history_display.append(f"<p style=\"color: #A9A9A9;\"><i>Assistente está digitando...</i></p>")
-            QApplication.processEvents() # Processa eventos pendentes para mostrar a mensagem
+            # ... (Lógica de chamar o LLM e exibir resposta)
+            # ... (A resposta do assistente também deve ser adicionada a ambos os históricos)
+            self.main_chat_history.append(f'<p style="color: #A9A9A9;"><i>Assistente está digitando...</i></p>')
+            self.sidebar_chat_history.append(f'<p style="color: #A9A9A9;"><i>Assistente está digitando...</i></p>')
+            QApplication.processEvents() 
 
             text_response, filters = self.llm_handler.get_response(user_text)
             
-            # Remove a mensagem de "digitando"
-            # Esta é uma forma simples, pode ser melhorada para IDs de mensagem se o QTextEdit suportar
-            current_html = self.chat_history_display.toHtml()
-            # Encontra a última ocorrência da mensagem de digitando e a remove
-            # Cuidado com tags HTML parciais se a mensagem for muito complexa
-            last_occurrence = current_html.rfind(f"<p style=\"color: #A9A9A9;\"><i>Assistente está digitando...</i></p>")
-            if last_occurrence != -1:
-                 # Precisamos ter cuidado ao manipular HTML diretamente
-                 # Vamos procurar a tag <p> de fechamento correspondente se houver
-                 # Simplificando por agora: remove a linha inteira baseada no texto exato.
-                 # Uma abordagem mais segura seria usar QTextCursor para selecionar e remover a última linha/bloco.
-                cursor = self.chat_history_display.textCursor()
+            # Remover "digitando" de ambos
+            for history_widget in [self.main_chat_history, self.sidebar_chat_history]:
+                cursor = history_widget.textCursor()
                 cursor.movePosition(QTextCursor.MoveOperation.End)
                 cursor.select(QTextCursor.SelectionType.BlockUnderCursor)
                 if "Assistente está digitando..." in cursor.selectedText():
                     cursor.removeSelectedText()
-                    # Pode ser necessário remover um newline extra que fica
-                    cursor.deletePreviousChar() 
-                else: # Fallback menos preciso se a seleção de bloco falhar em pegar a msg
-                    self.chat_history_display.setHtml(current_html[:last_occurrence])
+                    cursor.deletePreviousChar()
             
-            self.chat_history_display.append(f"<p style=\"color: #50FA7B;\"><b>Assistente:</b> {text_response}</p>")
+            formatted_assistant_message = f'<p style="color: #50FA7B;"><b>Assistente:</b> {text_response}</p>'
+            self.main_chat_history.append(formatted_assistant_message)
+            self.sidebar_chat_history.append(formatted_assistant_message)
+
             if filters:
-                self.chat_history_display.append(f"<p style=\"color: #D3D3D3; font-size: small;\"><i>Filtros identificados: {filters}</i></p>")
+                filter_message = f'<p style="color: #D3D3D3; font-size: small;"><i>Filtros identificados: {filters}</i></p>'
+                self.main_chat_history.append(filter_message)
+                self.sidebar_chat_history.append(filter_message)
         else:
-            self.chat_history_display.append(f"<p style=\"color: #FF6347;\"><b>Assistente:</b> LLM não está disponível.</p>")
+            # ... (Lógica de LLM não disponível)
+             error_message = f'<p style="color: #FF6347;"><b>Assistente:</b> LLM não está disponível.</p>'
+             self.main_chat_history.append(error_message)
+             self.sidebar_chat_history.append(error_message)
         
-        self.chat_history_display.ensureCursorVisible()
+        self.main_chat_history.ensureCursorVisible()
+        self.sidebar_chat_history.ensureCursorVisible()
 
     def _apply_dark_theme(self):
         app = QApplication.instance()
         if app is None:
-            print("QApplication instance not found for applying theme.")
             return
 
         app.setStyle("Fusion")
-
         dark_palette = QPalette()
         dark_palette.setColor(QPalette.ColorRole.Window, QColor(45, 45, 45))
         dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
@@ -211,26 +333,18 @@ class GeminiStyleDashboard(QMainWindow):
         dark_palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
         dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
         dark_palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
-        
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(127, 127, 127))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(127, 127, 127))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(127, 127, 127))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, QColor(40,40,40))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, QColor(40,40,40))
-
         app.setPalette(dark_palette)
 
 if __name__ == '__main__':
-    # Este bloco é para teste direto do dashboard, se necessário.
-    app = QApplication.instance() # Tenta obter a instância existente
-    if not app: # Cria uma nova se não existir (para execução direta)
+    app = QApplication.instance()
+    if not app:
         app = QApplication(sys.argv)
     
-    # Aplica o tema escuro ANTES de criar a janela, se for execução direta
-    # É melhor que a QApplication em main.py cuide disso se importado.
-    # A lógica em _apply_dark_theme já pega o app instance.
-
     window = GeminiStyleDashboard()
     window.show()
-    # sys.exit(app.exec()) # Removido sys.exit para permitir que main.py gerencie o loop do app
-    app.exec() # Apenas executa se estiver no __main__ 
+    app.exec() 

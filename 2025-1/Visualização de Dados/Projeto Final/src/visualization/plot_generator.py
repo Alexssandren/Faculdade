@@ -14,7 +14,7 @@ PROJECT_ROOT = SRC_DIR.parent # Raiz do projeto
 # Diretórios de dados e resultados
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 # Alterado para o novo local de resultados
-RESULTS_VIS_DIR = PROJECT_ROOT / "results" / "final_visualizations"
+RESULTS_VIS_DIR = PROJECT_ROOT / "results" / "visualizations"
 RESULTS_VIS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Arquivo do Banco de Dados
@@ -60,12 +60,12 @@ def load_data_from_db():
         return None
 
 def gerar_mapa_calor_relacional(df):
-    """Gera um mapa de calor interativo das correlações."""
+    """Gera um mapa de calor interativo das correlações para cada ano."""
     if df is None or df.empty:
         print("ℹ️ DataFrame vazio, pulando geração do mapa de calor.")
         return
 
-    print("🔥 Gerando Mapa de Calor Relacional Interativo...")
+    print("🔥 Gerando Mapas de Calor Relacionais Interativos (por ano)...")
     cols_correlacao = ['idh', 'Saúde', 'Educação', 'Assistência Social', 'Infraestrutura']
     # Garantir que apenas colunas existentes sejam usadas
     cols_presentes = [col for col in cols_correlacao if col in df.columns]
@@ -73,23 +73,27 @@ def gerar_mapa_calor_relacional(df):
         print("❌ Nenhuma coluna de correlação encontrada. Pulando mapa de calor.")
         return
         
-    df_corr_subset = df[cols_presentes].copy()
-    matriz_correlacao = df_corr_subset.corr()
-    
-    heatmap_fig = px.imshow(
-        matriz_correlacao,
-        text_auto=True,
-        color_continuous_scale='RdBu_r',
-        aspect="auto",
-        labels=dict(color="Correlação"),
-        title='Mapa de Calor: Correlação entre IDH e Gastos Públicos' # Removido "Per Capita" para generalizar
-    )
-    heatmap_fig.update_xaxes(title_text='')
-    heatmap_fig.update_yaxes(title_text='')
-    
-    output_path = RESULTS_VIS_DIR / "mapa_calor_correlacoes.html"
-    heatmap_fig.write_html(output_path)
-    print(f"✅ Mapa de Calor salvo em: {output_path}")
+    anos_unicos = sorted(df['ano'].dropna().unique())
+    for ano in anos_unicos:
+        print(f"  -> Gerando mapa de calor para o ano: {ano}")
+        df_ano = df[df['ano'] == ano]
+        df_corr_subset = df_ano[cols_presentes].copy()
+        matriz_correlacao = df_corr_subset.corr()
+        
+        heatmap_fig = px.imshow(
+            matriz_correlacao,
+            text_auto=True,
+            color_continuous_scale='RdBu_r',
+            aspect="auto",
+            labels=dict(color="Correlação"),
+            title=f'Mapa de Calor: Correlação IDH vs Gastos - {ano}'
+        )
+        heatmap_fig.update_xaxes(title_text='')
+        heatmap_fig.update_yaxes(title_text='')
+        
+        output_path = RESULTS_VIS_DIR / f"mapa_calor_correlacoes_{ano}.html"
+        heatmap_fig.write_html(output_path)
+        print(f"✅ Mapa de Calor ({ano}) salvo em: {output_path}")
 
 def gerar_grafico_bolhas_cruzado(df):
     """Gera gráficos de bolhas cruzados e animados (IDH vs. Gasto) para cada categoria."""
@@ -154,7 +158,7 @@ def gerar_grafico_bolhas_cruzado(df):
         print(f"✅ Gráfico de Bolhas ({categoria_nome_amigavel}) salvo em: {output_path}")
 
 def gerar_mapas_coropleticos(df):
-    """Gera mapas coropléticos relacionais (IDH, Gasto, Relação IDH/Gasto) para cada categoria."""
+    """Gera mapas coropléticos relacionais (IDH, Gasto, Relação IDH/Gasto) para cada categoria e para cada ano."""
     if df is None or df.empty:
         print("ℹ️ DataFrame vazio, pulando geração dos mapas coropléticos.")
         return
@@ -201,56 +205,62 @@ def gerar_mapas_coropleticos(df):
         elif cat_base in df.columns:
             colunas_despesa_mapa[cat_base] = cat_base
 
-    anos_unicos = sorted(df['ano'].unique(), reverse=True)
+    anos_unicos = sorted(df['ano'].dropna().unique(), reverse=True)
     if not anos_unicos:
         print("❌ Não há anos únicos no dataset para gerar mapas.")
         return
         
-    ano_para_mapa = anos_unicos[0]
-    print(f"  -> Gerando mapas para o ano: {ano_para_mapa}")
-    df_mapa_anual = df[df['ano'] == ano_para_mapa].copy()
+    for ano_para_mapa in anos_unicos:
+        print(f"  -> Gerando mapas para o ano: {ano_para_mapa}")
+        df_mapa_anual = df[df['ano'] == ano_para_mapa].copy()
 
-    # Mapa do IDH (uma vez)
-    fig_idh = px.choropleth_mapbox(
-        df_mapa_anual, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-        color='idh', color_continuous_scale="Viridis",
-        mapbox_style="carto-positron", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-        opacity=0.7, hover_name='uf', hover_data={'idh': True, 'regiao': True},
-        title=f'IDH por Estado - {ano_para_mapa}'
-    )
-    fig_idh.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-    output_path_idh = RESULTS_VIS_DIR / f"mapa_coropletico_idh_{ano_para_mapa}.html"
-    fig_idh.write_html(output_path_idh)
-    print(f"✅ Mapa Coroplético (IDH {ano_para_mapa}) salvo em: {output_path_idh}")
-
-    for categoria_nome_amigavel, coluna_gasto in colunas_despesa_mapa.items():
-        print(f"  -> Gerando mapas para categoria: {categoria_nome_amigavel} (usando coluna {coluna_gasto})")
-        df_categoria_mapa = df_mapa_anual[['uf', 'idh', coluna_gasto, 'regiao']].copy()
-        df_categoria_mapa['relacao_idh_gasto'] = df_categoria_mapa['idh'] / (df_categoria_mapa[coluna_gasto] + 1e-9)
-
-        fig_gasto = px.choropleth_mapbox(
-            df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-            color=coluna_gasto, color_continuous_scale="Blues",
-            mapbox_style="carto-positron", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-            opacity=0.7, hover_name='uf', hover_data={coluna_gasto: True, 'idh': True, 'regiao': True},
-            title=f'Gasto em {categoria_nome_amigavel} por Estado - {ano_para_mapa}'
+        # Mapa do IDH (uma vez por ano)
+        fig_idh = px.choropleth_mapbox(
+            df_mapa_anual, geojson=geo_data, locations='uf', featureidkey='properties.uf',
+            color='idh', color_continuous_scale="Viridis",
+            mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
+            opacity=0.7, hover_name='uf', hover_data={'idh': True, 'regiao': True},
+            title=f'IDH por Estado - {ano_para_mapa}'
         )
-        fig_gasto.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-        output_path_gasto = RESULTS_VIS_DIR / f"mapa_coropletico_gasto_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
-        fig_gasto.write_html(output_path_gasto)
-        print(f"✅ Mapa Coroplético (Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_gasto}")
+        fig_idh.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
+        output_path_idh = RESULTS_VIS_DIR / f"mapa_coropletico_idh_{ano_para_mapa}.html"
+        fig_idh.write_html(output_path_idh)
+        print(f"✅ Mapa Coroplético (IDH {ano_para_mapa}) salvo em: {output_path_idh}")
 
-        fig_rel = px.choropleth_mapbox(
-            df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-            color='relacao_idh_gasto', color_continuous_scale="RdYlGn",
-            mapbox_style="carto-positron", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-            opacity=0.7, hover_name='uf', hover_data={'relacao_idh_gasto': True, 'idh': True, coluna_gasto: True, 'regiao': True},
-            title=f'Relação IDH / Gasto em {categoria_nome_amigavel} - {ano_para_mapa}'
-        )
-        fig_rel.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-        output_path_rel = RESULTS_VIS_DIR / f"mapa_coropletico_relacao_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
-        fig_rel.write_html(output_path_rel)
-        print(f"✅ Mapa Coroplético (Relação IDH/Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_rel}")
+        for categoria_nome_amigavel, coluna_gasto in colunas_despesa_mapa.items():
+            print(f"  -> Gerando mapas para categoria: {categoria_nome_amigavel} (usando coluna {coluna_gasto})")
+            df_categoria_mapa = df_mapa_anual[['uf', 'idh', coluna_gasto, 'regiao']].copy()
+            if coluna_gasto not in df_categoria_mapa.columns or df_categoria_mapa[coluna_gasto].isnull().all():
+                print(f"    ⚠️ Dados de gasto para '{categoria_nome_amigavel}' ausentes no ano {ano_para_mapa}. Pulando mapas de gasto e relação.")
+                continue
+                
+            df_categoria_mapa['relacao_idh_gasto'] = df_categoria_mapa['idh'] / (df_categoria_mapa[coluna_gasto] + 1e-9)
+
+            # Mapa de Gasto
+            fig_gasto = px.choropleth_mapbox(
+                df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
+                color=coluna_gasto, color_continuous_scale="Blues",
+                mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
+                opacity=0.7, hover_name='uf', hover_data={coluna_gasto: True, 'idh': True, 'regiao': True},
+                title=f'Gasto em {categoria_nome_amigavel} por Estado - {ano_para_mapa}'
+            )
+            fig_gasto.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
+            output_path_gasto = RESULTS_VIS_DIR / f"mapa_coropletico_gasto_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
+            fig_gasto.write_html(output_path_gasto)
+            print(f"✅ Mapa Coroplético (Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_gasto}")
+
+            # Mapa de Relação
+            fig_rel = px.choropleth_mapbox(
+                df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
+                color='relacao_idh_gasto', color_continuous_scale="RdYlGn",
+                mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
+                opacity=0.7, hover_name='uf', hover_data={'relacao_idh_gasto': True, 'idh': True, coluna_gasto: True, 'regiao': True},
+                title=f'Relação IDH / Gasto em {categoria_nome_amigavel} - {ano_para_mapa}'
+            )
+            fig_rel.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
+            output_path_rel = RESULTS_VIS_DIR / f"mapa_coropletico_relacao_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
+            fig_rel.write_html(output_path_rel)
+            print(f"✅ Mapa Coroplético (Relação IDH/Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_rel}")
 
 def main():
     """Função principal para gerar as visualizações avançadas.""" # Nome da Fase removido para generalizar
