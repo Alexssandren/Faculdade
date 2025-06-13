@@ -2,7 +2,7 @@ import sys
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QHBoxLayout, QLabel, QTextEdit, QLineEdit, 
                                QPushButton, QStackedWidget, QFrame)
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, QEvent
 from PySide6.QtGui import QPalette, QColor, QPainter, QPixmap, QTextCursor
 from pathlib import Path
 
@@ -15,12 +15,12 @@ if str(SRC_DIR) not in sys.path:
 try:
     from llm.llm_handler import LLMQueryHandler
     from app.widgets.collapsible_sidebar import CollapsibleSidebar
-    from app.widgets.graph_carousel import GraphCarouselWidget
+    from app.widgets.graphs_container import GraphsContainerWidget
 except ImportError as e:
     print(f"Erro ao importar módulos: {e}. Verifique o sys.path e a estrutura do projeto.")
     LLMQueryHandler = None
     CollapsibleSidebar = None
-    GraphCarouselWidget = None
+    GraphsContainerWidget = None
 
 # Classe para o widget com imagem de fundo personalizada
 class BackgroundImageWidget(QWidget):
@@ -63,21 +63,19 @@ class GeminiStyleDashboard(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
-        # Layout que conterá as sidebars e a área de conteúdo principal
-        self.root_layout = QHBoxLayout(self.central_widget)
-        self.root_layout.setSpacing(0)
-        self.root_layout.setContentsMargins(0, 0, 0, 0)
+        # Layout principal que conterá APENAS a área de conteúdo central.
+        # As sidebars serão widgets filhos flutuantes, não gerenciadas por este layout.
+        self.main_layout = QVBoxLayout(self.central_widget)
+        self.main_layout.setSpacing(0)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # --- Barra Lateral Esquerda (Gráficos) ---
-        self._setup_left_sidebar()
-
         # --- Área de Conteúdo Central ---
-        content_container = QFrame() # Usar QFrame para permitir bordas
+        content_container = QFrame()
         content_container.setObjectName("ContentContainer")
         content_container.setStyleSheet("QFrame#ContentContainer { border: none; }")
         content_container_layout = QVBoxLayout(content_container)
         content_container_layout.setContentsMargins(10, 10, 10, 10)
-        self.root_layout.addWidget(content_container, 1)
+        self.main_layout.addWidget(content_container, 1)
 
         # Título
         self._setup_title(content_container_layout)
@@ -90,13 +88,16 @@ class GeminiStyleDashboard(QMainWindow):
         self.main_chat_view = self._create_chat_widget(is_main_view=True)
         self.view_stack.addWidget(self.main_chat_view)
 
-        # Visão 2: Carrossel de Gráficos
-        self.graph_carousel_view = GraphCarouselWidget()
+        # Visão 2: Container de Gráficos
+        self.graph_carousel_view = GraphsContainerWidget()
         self.view_stack.addWidget(self.graph_carousel_view)
 
         self.view_stack.setCurrentWidget(self.main_chat_view)
 
-        # --- Barra Lateral Direita (Chat) ---
+        # --- Barras Laterais (Agora flutuantes) ---
+        # Elas são criadas mas não são adicionadas a nenhum layout.
+        # Serão posicionadas manualmente.
+        self._setup_left_sidebar()
         self._setup_right_sidebar()
         
         # Inicialização do LLM
@@ -105,11 +106,33 @@ class GeminiStyleDashboard(QMainWindow):
         # Conectar os widgets de chat ao handler
         self._connect_chat_widgets()
 
+    def resizeEvent(self, event):
+        """Sobrescreve o evento de redimensionamento para posicionar as sidebars."""
+        super().resizeEvent(event)
+        # Posicionar as sidebars manualmente sobre o central_widget
+        self.left_sidebar.move(0, 0)
+        self.left_sidebar.setFixedHeight(self.central_widget.height())
+        
+        self._reposition_right_sidebar()
+        self.right_sidebar.setFixedHeight(self.central_widget.height())
+
+    def _reposition_right_sidebar(self):
+        """Move a sidebar direita para a posição correta, com base na sua largura atual."""
+        x_pos = self.central_widget.width() - self.right_sidebar.width()
+        self.right_sidebar.move(x_pos, 0)
+
     def _setup_left_sidebar(self):
-        self.left_sidebar = CollapsibleSidebar(self, expanded_width=200, direction=Qt.LeftEdge)
+        self.left_sidebar = CollapsibleSidebar(self.central_widget, expanded_width=200, direction=Qt.LeftEdge)
         self.left_sidebar.setObjectName("LeftSidebar")
         
         sidebar_layout = self.left_sidebar.get_inner_layout()
+
+        # Adiciona Título
+        title_label = QLabel("Gráficos")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin: 5px; color: #e0e0e0;")
+        sidebar_layout.addWidget(title_label)
+        sidebar_layout.addWidget(self._create_separator())
         
         # Botão para voltar ao Chat principal
         home_button = QPushButton("🏠 Início")
@@ -117,10 +140,10 @@ class GeminiStyleDashboard(QMainWindow):
         sidebar_layout.addWidget(home_button)
         sidebar_layout.addWidget(self._create_separator())
 
-        title_label = QLabel("Gráficos por Ano")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
-        sidebar_layout.addWidget(title_label)
+        subtitle_label = QLabel("Gráficos por Ano")
+        subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle_label.setStyleSheet("font-size: 14px; font-weight: bold; margin-bottom: 10px;")
+        sidebar_layout.addWidget(subtitle_label)
 
         for year in range(2023, 2018, -1): # Ordem decrescente
             year_button = QPushButton(str(year))
@@ -130,24 +153,29 @@ class GeminiStyleDashboard(QMainWindow):
         sidebar_layout.addWidget(self._create_separator())
         
         general_button = QPushButton("Visão Geral")
-        general_button.clicked.connect(lambda: self.show_graph_view(None)) # Passa None para gráficos gerais
+        general_button.clicked.connect(lambda: self.show_graph_view(None))
         sidebar_layout.addWidget(general_button)
 
-
         sidebar_layout.addStretch()
-        self.root_layout.addWidget(self.left_sidebar)
 
     def _setup_right_sidebar(self):
-        self.right_sidebar = CollapsibleSidebar(self, expanded_width=400, direction=Qt.RightEdge)
+        self.right_sidebar = CollapsibleSidebar(self.central_widget, expanded_width=400, direction=Qt.RightEdge)
         self.right_sidebar.setObjectName("RightSidebar")
         
-        self.sidebar_chat_view = self._create_chat_widget(is_main_view=False)
         sidebar_layout = self.right_sidebar.get_inner_layout()
+
+        # Adiciona Título
+        title_label = QLabel("Assistente")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; margin: 5px; color: #e0e0e0;")
+        sidebar_layout.addWidget(title_label)
+        sidebar_layout.addWidget(self._create_separator())
+        
+        self.sidebar_chat_view = self._create_chat_widget(is_main_view=False)
         sidebar_layout.addWidget(self.sidebar_chat_view)
 
-        self.sidebar_chat_view.hide()
-        self.root_layout.addWidget(self.right_sidebar)
-    
+        self.right_sidebar.widthChanged.connect(self._reposition_right_sidebar)
+
     def _create_separator(self):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
@@ -235,23 +263,10 @@ class GeminiStyleDashboard(QMainWindow):
         self.view_stack.setCurrentWidget(self.main_chat_view)
     
     def show_graph_view(self, year: int | None):
-        print(f"Buscando gráficos para o ano: {year if year else 'Geral'}")
-        print(f"Diretório de busca: {self.graphs_path.resolve()}")
-
-        graph_files = []
-        if year:
-            # Corrigido: padrão de busca para mapas do ano
-            graph_files.extend(sorted(list(self.graphs_path.glob(f"*mapa_coropletico*{year}*.html"))))
-        else:
-            # Corrigido: padrões de busca para gráficos gerais
-            graph_files.extend(sorted(list(self.graphs_path.glob(f"*grafico_bolhas*.html"))))
-            graph_files.extend(sorted(list(self.graphs_path.glob(f"*mapa_calor*.html"))))
+        print(f"Carregando gráficos para o ano: {year if year else 'Geral'}")
         
-        if not graph_files:
-             print(f"⚠️ Nenhum gráfico encontrado para '{year if year else 'Geral'}'")
-        
-        print(f"Gráficos encontrados: {[p.name for p in graph_files]}")
-        self.graph_carousel_view.set_graphs(graph_files)
+        # Usar o método correto do GraphsContainerWidget
+        self.graph_carousel_view.load_graphs_for_year(year)
 
         self.sidebar_chat_view.show()
         self.view_stack.setCurrentWidget(self.graph_carousel_view)
