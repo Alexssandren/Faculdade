@@ -1,0 +1,1 @@
+# Este arquivo torna o diretório 'data_collection' um pacote Python. 

@@ -1,0 +1,6 @@
+tipo,item,valor,detalhes
+RESUMO_GERAL,Total de anos comuns,5,2019-2023
+RESUMO_GERAL,Total de estados comuns,27,"AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO"
+RESUMO_GERAL,Compatível para correlação,SIM,Período ≥5 anos e Estados ≥25
+DATASET,IDH Oficial,135,"Fonte: Atlas Brasil (PNUD) + IBGE, Período: 2019-2023, Estados: 27"
+DATASET,Despesas Públicas Oficiais,810,"Fonte: Portal da Transparência, Período: 2019-2023, Estados: 27"
