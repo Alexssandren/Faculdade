@@ -17,7 +17,7 @@ class GraphsContainerWidget(QWidget):
         # --- Configuração Inicial ---
         self.project_root = Path(__file__).resolve().parent.parent.parent.parent
         self.data_path = self.project_root / "data" / "processed" / "dataset_unificado.csv"
-        self.shapefile_path = self.project_root / "data" / "BR_UF_2024.shp"
+        self.shapefile_path = self.project_root / "data" / "geospatial" / "BR_UF_2024.shp"
         
         self.df = None
         self.gdf = None
@@ -53,9 +53,9 @@ class GraphsContainerWidget(QWidget):
                 self.df = pd.DataFrame() # DataFrame vazio para evitar erros
 
             if self.shapefile_path.exists():
-                self.gdf = gpd.read_file(self.shapefile_path, layer='lim_unidade_federacao_a')
+                self.gdf = gpd.read_file(self.shapefile_path, layer='BR_UF_2024')
                 # Renomear colunas para o merge
-                self.gdf = self.gdf.rename(columns={'sigla': 'UF', 'nome': 'NOME_UF'})
+                self.gdf = self.gdf.rename(columns={'SIGLA_UF': 'uf', 'NM_UF': 'NOME_UF'})
             else:
                 print(f"⚠️  Shapefile não encontrado em: {self.shapefile_path}")
                 self.gdf = gpd.GeoDataFrame() # GeoDataFrame vazio

@@ -16,17 +16,14 @@ def _extract_year_from_query(
     3. Do ano mais recente no df para um uf_context (se fornecido).
     4. Do ano mais recente geral no df.
     """
-    print(f"DEBUG EXTRACT_YEAR: Inputs - query_ano_str: '{query_ano_str}', prev_response: {prev_response_content is not None}, df_available: {df is not None and not df.empty}, uf_context: '{uf_context}'")
 
     # 1. Tentar com query_ano_str (se fornecido e válido)
     if query_ano_str:
         try:
             year_val = int(query_ano_str) # Tenta converter para int
             if 1900 <= year_val <= 2100: # Validação básica de um ano razoável
-                print(f"DEBUG EXTRACT_YEAR: Ano '{year_val}' extraído de query_ano_str.")
                 return year_val
         except ValueError:
-            print(f"DEBUG EXTRACT_YEAR: query_ano_str '{query_ano_str}' não é um inteiro válido.")
             pass # Não é um inteiro, tentar outras formas
 
     # 2. Tentar extrair do prev_response_content usando regex
@@ -43,7 +40,6 @@ def _extract_year_from_query(
                 try:
                     year_val = int(match.group(1))
                     if 1900 <= year_val <= 2100:
-                        print(f"DEBUG EXTRACT_YEAR: Ano '{year_val}' extraído de prev_response_content com pattern '{pattern}'.")
                         return year_val
                 except ValueError:
                     continue # Encontrou algo mas não é um ano válido
@@ -54,10 +50,8 @@ def _extract_year_from_query(
         if not uf_data.empty and pd.notna(uf_data['ano'].max()):
             try:
                 latest_year_uf = int(uf_data['ano'].max())
-                print(f"DEBUG EXTRACT_YEAR: Ano mais recente '{latest_year_uf}' para UF '{uf_context}' extraído do DataFrame.")
                 return latest_year_uf
             except ValueError:
-                print(f"DEBUG EXTRACT_YEAR: Ano máximo para UF '{uf_context}' não é um inteiro válido: {uf_data['ano'].max()}")
                 pass
 
     # 4. Se df é fornecido (sem uf_context específico ou se o passo 3 falhou), buscar o ano mais recente geral
@@ -65,13 +59,10 @@ def _extract_year_from_query(
         if pd.notna(df['ano'].max()):
             try:
                 latest_year_general = int(df['ano'].max())
-                print(f"DEBUG EXTRACT_YEAR: Ano mais recente geral '{latest_year_general}' extraído do DataFrame.")
                 return latest_year_general
             except ValueError:
-                print(f"DEBUG EXTRACT_YEAR: Ano máximo geral no DataFrame não é um inteiro válido: {df['ano'].max()}")
                 pass 
 
-    print("DEBUG EXTRACT_YEAR: Nenhuma ano pôde ser extraído.")
     return None
 
 def _extract_uf_from_query(
@@ -86,13 +77,10 @@ def _extract_uf_from_query(
     2. Do prev_response_content (buscando nome completo ou sigla).
     Retorna a sigla da UF em maiúsculas ou None.
     """
-    print(f"DEBUG EXTRACT_UF: Inputs - query_uf_str: '{query_uf_str}', prev_response: {prev_response_content is not None}, df: {df is not None}")
     
     if df is None or df.empty:
-        print("DEBUG EXTRACT_UF: DataFrame não fornecido ou vazio. Não é possível validar UFs ou mapear nomes.")
         # Tentar apenas com query_uf_str se for uma sigla de 2 letras
         if query_uf_str and isinstance(query_uf_str, str) and len(query_uf_str) == 2 and query_uf_str.isalpha():
-            print(f"DEBUG EXTRACT_UF: DataFrame indisponível, retornando query_uf_str '{query_uf_str}' se for sigla válida.")
             return query_uf_str.upper()
         return None
 
@@ -104,9 +92,7 @@ def _extract_uf_from_query(
         known_ufs_set = {str(uf).strip().upper() for uf in df['uf'].dropna().unique()}
     elif 'uf' in df.columns: # Caso não tenha a coluna 'estado' mas tenha 'uf'
         known_ufs_set = {str(uf).strip().upper() for uf in df['uf'].dropna().unique()}
-        print("DEBUG EXTRACT_UF: Coluna 'estado' não encontrada no DataFrame. Extração de UF por nome completo desabilitada.")
     else:
-        print("DEBUG EXTRACT_UF: Colunas 'uf' e 'estado' não encontradas. Extração de UF limitada.")
         # Fallback para query_uf_str como acima, se df não tem as colunas necessárias
         if query_uf_str and isinstance(query_uf_str, str) and len(query_uf_str) == 2 and query_uf_str.isalpha():
             return query_uf_str.upper()
@@ -116,12 +102,10 @@ def _extract_uf_from_query(
     if query_uf_str and isinstance(query_uf_str, str):
         uf_upper = query_uf_str.strip().upper()
         if uf_upper in known_ufs_set:
-            print(f"DEBUG EXTRACT_UF: UF '{uf_upper}' encontrada diretamente de query_uf_str e validada.")
             return uf_upper
         # Verificar se é nome completo
         if map_estado_uf and query_uf_str.strip().lower() in map_estado_uf:
             found_uf = map_estado_uf[query_uf_str.strip().lower()]
-            print(f"DEBUG EXTRACT_UF: UF '{found_uf}' encontrada de query_uf_str (nome completo '{query_uf_str}')).")
             return found_uf
 
     # 2. Tentar extrair do prev_response_content
@@ -137,7 +121,6 @@ def _extract_uf_from_query(
                 # Usar \b para garantir que estamos pegando a palavra inteira
                 if re.search(r'\b' + re.escape(nome_estado_lower) + r'\b', prev_response_lower):
                     found_uf = map_estado_uf[nome_estado_lower]
-                    print(f"DEBUG EXTRACT_UF: UF '{found_uf}' extraída de nome completo ('{nome_estado_lower}') em prev_response.")
                     return found_uf
         
         # Procurar por siglas de UF (2 letras)
@@ -148,10 +131,8 @@ def _extract_uf_from_query(
             # Por simplicidade, vamos procurar a sigla exata com word boundaries.
             for uf_sigla in known_ufs_set:
                 if re.search(r'\b' + re.escape(uf_sigla) + r'\b', prev_response_upper):
-                    print(f"DEBUG EXTRACT_UF: UF '{uf_sigla}' extraída de sigla em prev_response.")
                     return uf_sigla
 
-    print("DEBUG EXTRACT_UF: Nenhuma UF pôde ser extraída.")
     return None
 
 # --- Funções Auxiliares para Cenários de Gastos ---
@@ -194,33 +175,24 @@ def _get_relevant_expense_columns(
                         nome_coluna_categoria_usada = key.title() # ex: "Saude"
                         break
                     else:
-                        print(f"DEBUG EXPENSE_COLS: Categoria '{key}' mapeia para '{col_name}' que não existe no DF.")
                         return [], False, None # Categoria especificada mas coluna não existe
             if not colunas_a_somar_ou_usar: # Categoria especificada mas não mapeada
-                print(f"DEBUG EXPENSE_COLS: Categoria de despesa '{categoria_despesa_query}' não reconhecida.")
-                return [], False, None 
-    else: # Nenhuma categoria especificada, assume-se que é o total geral
-        is_total_geral = True
-        nome_coluna_categoria_usada = "Total"
-
-    if is_total_geral:
-        if 'despesa_total_milhoes' in available_df_columns:
-            colunas_a_somar_ou_usar = ['despesa_total_milhoes']
-            print(f"DEBUG EXPENSE_COLS: Usando coluna 'despesa_total_milhoes' para gasto total.")
-        elif valid_individual_expense_cols_in_df:
-            colunas_a_somar_ou_usar = valid_individual_expense_cols_in_df
-            print(f"DEBUG EXPENSE_COLS: Calculando gasto total somando: {colunas_a_somar_ou_usar}")
-        else:
-            print("DEBUG EXPENSE_COLS: Não é possível determinar colunas para gasto total.")
-            return [], True, "Total" # Indica intenção de total, mas sem colunas
+                return [], False, None
     
-    if not colunas_a_somar_ou_usar:
-        # Isso pode acontecer se a categoria foi especificada mas não mapeada ou a coluna não existia, 
-        # e não era uma consulta de "total geral"
-        print(f"DEBUG EXPENSE_COLS: Nenhuma coluna de despesa relevante encontrada para categoria '{categoria_despesa_query}'.")
-        return [], False, nome_coluna_categoria_usada
+    # Lógica para gasto total geral ou falta de categoria específica
+    if is_total_geral or not categoria_despesa_query:
+        # Verificar se há coluna despesa_total_milhoes
+        if "despesa_total_milhoes" in available_df_columns:
+            colunas_a_somar_ou_usar = ["despesa_total_milhoes"]
+        elif valid_individual_expense_cols_in_df:
+            # Somar todas as colunas individuais disponíveis
+            colunas_a_somar_ou_usar = valid_individual_expense_cols_in_df
+        else:
+            return [], False, None
 
-    print(f"DEBUG EXPENSE_COLS: Colunas selecionadas: {colunas_a_somar_ou_usar}, IsTotal: {is_total_geral}, CategoriaUsada: {nome_coluna_categoria_usada}")
+    if not colunas_a_somar_ou_usar:
+        return [], False, None
+
     return colunas_a_somar_ou_usar, is_total_geral, nome_coluna_categoria_usada
 
 # --- Funções de Cenário Específicas ---
@@ -233,9 +205,7 @@ def _handle_idh_especifico(
     Busca o IDH para uma UF e ano específicos.
     Retorna (text_part, scenario_filters) ou (None, None).
     """
-    print(f"DEBUG IDH_ESPECIFICO: Tentando para UF='{uf}', Ano='{ano}'")
     if not uf or not ano:
-        print("DEBUG IDH_ESPECIFICO: UF ou Ano não fornecidos.")
         return None, None
 
     try:
@@ -253,10 +223,8 @@ def _handle_idh_especifico(
                 "ano_cenario": ano,
                 "valor_cenario": valor_idh
             }
-            print(f"DEBUG IDH_ESPECIFICO: Sucesso - {text_part}")
             return text_part, scenario_filters
         else:
-            print(f"DEBUG IDH_ESPECIFICO: Nenhum dado de IDH encontrado para {uf.upper()} em {ano} ou valor é NaN.")
             text_part = f"Não encontrei dados de IDH para {uf.upper()} em {ano} nos meus registros."
             # Mesmo se não encontrar, podemos retornar o filtro que tentamos, mas sem valor
             scenario_filters = {
@@ -267,7 +235,6 @@ def _handle_idh_especifico(
             return text_part, scenario_filters # Retorna a mensagem de não encontrado
 
     except Exception as e:
-        print(f"ERRO em _handle_idh_especifico para UF '{uf}', Ano '{ano}': {e}")
         return f"Ocorreu um erro ao buscar o IDH específico para {uf.upper()} em {ano}.", None
 
 def _handle_idh_maior_brasil(
@@ -277,9 +244,7 @@ def _handle_idh_maior_brasil(
     """
     Encontra o estado com o maior IDH no Brasil para um ano específico ou o mais recente.
     """
-    print(f"DEBUG IDH_MAIOR_BRASIL: Tentando para Ano='{ano if ano else 'Mais Recente'}'")
     if data_df.empty or 'idh' not in data_df.columns or 'uf' not in data_df.columns or 'ano' not in data_df.columns:
-        print("DEBUG IDH_MAIOR_BRASIL: DataFrame inválido ou colunas faltando.")
         return "Não consigo processar essa informação no momento devido a dados ausentes.", None
 
     temp_df = data_df.copy()
@@ -313,10 +278,8 @@ def _handle_idh_maior_brasil(
             "uf_cenario_resultado": uf_maior,
             "valor_cenario": valor_idh
         }
-        print(f"DEBUG IDH_MAIOR_BRASIL: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_idh_maior_brasil para Ano '{ano_usado}': {e}")
         return f"Ocorreu um erro ao tentar encontrar o maior IDH {mensagem_ano}.", None
 
 def _handle_idh_menor_brasil(
@@ -326,9 +289,7 @@ def _handle_idh_menor_brasil(
     """
     Encontra o estado com o menor IDH no Brasil para um ano específico ou o mais recente.
     """
-    print(f"DEBUG IDH_MENOR_BRASIL: Tentando para Ano='{ano if ano else 'Mais Recente'}'")
     if data_df.empty or 'idh' not in data_df.columns or 'uf' not in data_df.columns or 'ano' not in data_df.columns:
-        print("DEBUG IDH_MENOR_BRASIL: DataFrame inválido ou colunas faltando.")
         return "Não consigo processar essa informação no momento devido a dados ausentes.", None
 
     temp_df = data_df.copy()
@@ -362,10 +323,8 @@ def _handle_idh_menor_brasil(
             "uf_cenario_resultado": uf_menor,
             "valor_cenario": valor_idh
         }
-        print(f"DEBUG IDH_MENOR_BRASIL: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_idh_menor_brasil para Ano '{ano_usado}': {e}")
         return f"Ocorreu um erro ao tentar encontrar o menor IDH {mensagem_ano}.", None
 
 def _handle_idh_maior_regiao(
@@ -376,12 +335,10 @@ def _handle_idh_maior_regiao(
     """
     Encontra o estado com o maior IDH em uma região específica, para um ano ou o mais recente.
     """
-    print(f"DEBUG IDH_MAIOR_REGIAO: Tentando para Região='{regiao}', Ano='{ano if ano else 'Mais Recente'}'")
     if not regiao:
         return "A região não foi especificada para a busca do maior IDH.", None
     if (data_df.empty or 'idh' not in data_df.columns or 'uf' not in data_df.columns or
         'ano' not in data_df.columns or 'regiao' not in data_df.columns):
-        print("DEBUG IDH_MAIOR_REGIAO: DataFrame inválido ou colunas faltando.")
         return "Não consigo processar essa informação no momento devido a dados ausentes.", None
 
     temp_df = data_df[data_df['regiao'].str.lower() == regiao.lower()].copy()
@@ -419,10 +376,8 @@ def _handle_idh_maior_regiao(
             "uf_cenario_resultado": uf_maior,
             "valor_cenario": valor_idh
         }
-        print(f"DEBUG IDH_MAIOR_REGIAO: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_idh_maior_regiao para Região '{regiao}', Ano '{ano_usado}': {e}")
         return f"Ocorreu um erro ao tentar encontrar o maior IDH na região {regiao.title()} {mensagem_ano.replace(' na região', '')}.", None
 
 def _handle_idh_menor_regiao(
@@ -433,12 +388,10 @@ def _handle_idh_menor_regiao(
     """
     Encontra o estado com o menor IDH em uma região específica, para um ano ou o mais recente.
     """
-    print(f"DEBUG IDH_MENOR_REGIAO: Tentando para Região='{regiao}', Ano='{ano if ano else 'Mais Recente'}'")
     if not regiao:
         return "A região não foi especificada para a busca do menor IDH.", None
     if (data_df.empty or 'idh' not in data_df.columns or 'uf' not in data_df.columns or
         'ano' not in data_df.columns or 'regiao' not in data_df.columns):
-        print("DEBUG IDH_MENOR_REGIAO: DataFrame inválido ou colunas faltando.")
         return "Não consigo processar essa informação no momento devido a dados ausentes.", None
 
     temp_df = data_df[data_df['regiao'].str.lower() == regiao.lower()].copy()
@@ -451,7 +404,7 @@ def _handle_idh_menor_regiao(
     if ano:
         temp_df = temp_df[temp_df['ano'] == ano]
         if temp_df.empty:
-            return f"Não há dados de IDH para a região '{regiao.title()}' no ano {ano}.", {"tipo_cenario_factual": "idh_menor_regiao_sem_dados_ano", "regiao_cenario": regiao, "ano_cenario": ano}
+            return f"Não há dados para a região '{regiao.title()}' no ano {ano}.", {"tipo_cenario_factual": "idh_menor_regiao_sem_dados_ano", "regiao_cenario": regiao, "ano_cenario": ano}
     else:
         if pd.notna(temp_df['ano'].max()):
             ano_usado = int(temp_df['ano'].max())
@@ -476,10 +429,8 @@ def _handle_idh_menor_regiao(
             "uf_cenario_resultado": uf_menor,
             "valor_cenario": valor_idh
         }
-        print(f"DEBUG IDH_MENOR_REGIAO: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_idh_menor_regiao para Região '{regiao}', Ano '{ano_usado}': {e}")
         return f"Ocorreu um erro ao tentar encontrar o menor IDH na região {regiao.title()} {mensagem_ano.replace(' na região', '')}.", None
 
 def _handle_idh_medio_brasil(
@@ -489,9 +440,7 @@ def _handle_idh_medio_brasil(
     """
     Calcula o IDH médio no Brasil para um ano específico ou o mais recente.
     """
-    print(f"DEBUG IDH_MEDIO_BRASIL: Tentando para Ano='{ano if ano else 'Mais Recente'}'")
     if data_df.empty or 'idh' not in data_df.columns or 'ano' not in data_df.columns:
-        print("DEBUG IDH_MEDIO_BRASIL: DataFrame inválido ou colunas faltando.")
         return "Não consigo calcular o IDH médio no momento devido a dados ausentes.", None
 
     temp_df = data_df.copy()
@@ -522,10 +471,8 @@ def _handle_idh_medio_brasil(
             "ano_cenario": ano_usado,
             "valor_cenario": media_idh
         }
-        print(f"DEBUG IDH_MEDIO_BRASIL: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_idh_medio_brasil para Ano '{ano_usado}': {e}")
         return f"Ocorreu um erro ao tentar calcular o IDH médio {mensagem_ano_contexto}.", None
 
 # --- Cenários de Gastos ---
@@ -538,7 +485,6 @@ def _handle_gasto_especifico_uf_ano(
     """
     Busca um gasto específico (categoria ou total) para uma UF e ano.
     """
-    print(f"DEBUG GASTO_ESPECIFICO: UF='{uf}', Ano='{ano}', Categoria='{categoria_despesa}'")
     if not uf or not ano:
         return "UF ou Ano não fornecidos para a busca de gasto específico.", None
 
@@ -546,7 +492,6 @@ def _handle_gasto_especifico_uf_ano(
 
     if not relevant_cols:
         msg = f"Não foi possível identificar as colunas de despesa para a categoria '{categoria_despesa if categoria_despesa else 'Total'}'."
-        print(f"DEBUG GASTO_ESPECIFICO: {msg}")
         return msg, {"tipo_cenario_factual": "gasto_especifico_col_nao_encontrada", "uf_cenario": uf, "ano_cenario": ano, "categoria_tentada": categoria_despesa}
 
     try:
@@ -584,16 +529,13 @@ def _handle_gasto_especifico_uf_ano(
                 "categoria_cenario": nome_exibicao_categoria,
                 "valor_cenario": valor_gasto
             }
-            print(f"DEBUG GASTO_ESPECIFICO: Sucesso - {text_part}")
             return text_part, scenario_filters
         else:
             nome_exibicao_categoria = cat_usada_nome if cat_usada_nome else ("Total" if is_total else "Desconhecida")
             msg = f"O valor do gasto em {nome_exibicao_categoria} para {uf.upper()} em {ano} não está disponível ou é inválido."
-            print(f"DEBUG GASTO_ESPECIFICO: {msg} (valor_gasto={valor_gasto})")
             return msg, {"tipo_cenario_factual": "gasto_especifico_valor_nan", "uf_cenario": uf, "ano_cenario": ano, "categoria_usada": nome_exibicao_categoria}
 
     except Exception as e:
-        print(f"ERRO em _handle_gasto_especifico_uf_ano para UF '{uf}', Ano '{ano}', Categoria '{categoria_despesa}': {e}")
         return f"Ocorreu um erro ao buscar o gasto específico.", None
 
 def _handle_gasto_maior_brasil(
@@ -604,7 +546,16 @@ def _handle_gasto_maior_brasil(
     """
     Encontra o estado com o maior gasto (total ou por categoria) no Brasil.
     """
-    print(f"DEBUG GASTO_MAIOR_BRASIL: Ano='{ano if ano else 'Recente'}', Categoria='{categoria_despesa}'")
+    if ano:
+        ano_usado = ano
+        mensagem_ano_contexto = f"em {ano}"
+    else:
+        if pd.notna(data_df['ano'].max()):
+            ano_usado = int(data_df['ano'].max())
+            temp_df = data_df[data_df['ano'] == ano_usado]
+            mensagem_ano_contexto = f"no ano mais recente ({ano_usado})"
+        else:
+            return "Não foi possível determinar o ano mais recente para a análise.", {"tipo_cenario_factual": "gasto_maior_brasil_sem_ano_recente"}
 
     relevant_cols, is_total, cat_usada_nome = _get_relevant_expense_columns(data_df, categoria_despesa)
     if not relevant_cols:
@@ -624,21 +575,6 @@ def _handle_gasto_maior_brasil(
         temp_df[col_gasto_final] = temp_df[relevant_cols[0]]
     else: # Soma de múltiplas colunas (geralmente para total)
         temp_df[col_gasto_final] = temp_df[relevant_cols].sum(axis=1)
-
-    ano_usado = ano
-    mensagem_ano_contexto = f"em {ano}" if ano else "no ano mais recente disponível"
-
-    if ano:
-        temp_df = temp_df[temp_df['ano'] == ano]
-        if temp_df.empty:
-            return f"Não há dados para o ano {ano} para determinar o maior gasto.", {"tipo_cenario_factual": "gasto_maior_brasil_sem_dados_ano", "ano_cenario": ano, "categoria_usada": cat_usada_nome}
-    else:
-        if pd.notna(temp_df['ano'].max()):
-            ano_usado = int(temp_df['ano'].max())
-            temp_df = temp_df[temp_df['ano'] == ano_usado]
-            mensagem_ano_contexto = f"no ano mais recente ({ano_usado})"
-        else:
-            return "Não foi possível determinar o ano mais recente para a análise.", {"tipo_cenario_factual": "gasto_maior_brasil_sem_ano_recente", "categoria_usada": cat_usada_nome}
 
     if temp_df.empty or temp_df[col_gasto_final].isnull().all():
         return f"Não há dados de gasto válidos {mensagem_ano_contexto} para a categoria '{cat_usada_nome if cat_usada_nome else 'Total'}'.", {"tipo_cenario_factual": "gasto_maior_brasil_sem_dados_validos", "ano_cenario": ano_usado, "categoria_usada": cat_usada_nome}
@@ -660,10 +596,8 @@ def _handle_gasto_maior_brasil(
             "uf_cenario_resultado": uf_maior,
             "valor_cenario": valor_gasto
         }
-        print(f"DEBUG GASTO_MAIOR_BRASIL: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_gasto_maior_brasil: {e}")
         return f"Ocorreu um erro ao tentar encontrar o maior gasto.", None
 
 def _handle_gasto_menor_brasil(
@@ -674,7 +608,16 @@ def _handle_gasto_menor_brasil(
     """
     Encontra o estado com o menor gasto (total ou por categoria) no Brasil.
     """
-    print(f"DEBUG GASTO_MENOR_BRASIL: Ano='{ano if ano else 'Recente'}', Categoria='{categoria_despesa}'")
+    if ano:
+        ano_usado = ano
+        mensagem_ano_contexto = f"em {ano}"
+    else:
+        if pd.notna(data_df['ano'].max()):
+            ano_usado = int(data_df['ano'].max())
+            temp_df = data_df[data_df['ano'] == ano_usado]
+            mensagem_ano_contexto = f"no ano mais recente ({ano_usado})"
+        else:
+            return "Não foi possível determinar o ano mais recente para a análise.", {"tipo_cenario_factual": "gasto_menor_brasil_sem_ano_recente", "categoria_usada": categoria_despesa}
 
     relevant_cols, is_total, cat_usada_nome = _get_relevant_expense_columns(data_df, categoria_despesa)
     if not relevant_cols:
@@ -697,21 +640,6 @@ def _handle_gasto_menor_brasil(
     # Se a soma resultar em inf (porque todas as colunas somadas eram inf), essa linha não é válida para min.
     temp_df = temp_df[temp_df[col_gasto_final] != float('inf')]
 
-    ano_usado = ano
-    mensagem_ano_contexto = f"em {ano}" if ano else "no ano mais recente disponível"
-
-    if ano:
-        temp_df = temp_df[temp_df['ano'] == ano]
-        if temp_df.empty:
-            return f"Não há dados para o ano {ano} para determinar o menor gasto.", {"tipo_cenario_factual": "gasto_menor_brasil_sem_dados_ano", "ano_cenario": ano, "categoria_usada": cat_usada_nome}
-    else:
-        if pd.notna(temp_df['ano'].max()):
-            ano_usado = int(temp_df['ano'].max())
-            temp_df = temp_df[temp_df['ano'] == ano_usado]
-            mensagem_ano_contexto = f"no ano mais recente ({ano_usado})"
-        else:
-            return "Não foi possível determinar o ano mais recente para a análise.", {"tipo_cenario_factual": "gasto_menor_brasil_sem_ano_recente", "categoria_usada": cat_usada_nome}
-
     if temp_df.empty or temp_df[col_gasto_final].isnull().all():
         return f"Não há dados de gasto válidos {mensagem_ano_contexto} para a categoria '{cat_usada_nome if cat_usada_nome else 'Total'}'.", {"tipo_cenario_factual": "gasto_menor_brasil_sem_dados_validos", "ano_cenario": ano_usado, "categoria_usada": cat_usada_nome}
 
@@ -732,10 +660,8 @@ def _handle_gasto_menor_brasil(
             "uf_cenario_resultado": uf_menor,
             "valor_cenario": valor_gasto
         }
-        print(f"DEBUG GASTO_MENOR_BRASIL: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_gasto_menor_brasil: {e}")
         return f"Ocorreu um erro ao tentar encontrar o menor gasto.", None
 
 def _handle_gasto_maior_regiao(
@@ -747,7 +673,6 @@ def _handle_gasto_maior_regiao(
     """
     Encontra o estado com o maior gasto (total ou por categoria) em uma REGIAO específica.
     """
-    print(f"DEBUG GASTO_MAIOR_REGIAO: Reg='{regiao}', Ano='{ano if ano else 'Recente'}', Cat='{categoria_despesa}'")
     if not regiao:
         return "A região não foi especificada para a busca do maior gasto.", None
 
@@ -807,10 +732,8 @@ def _handle_gasto_maior_regiao(
             "uf_cenario_resultado": uf_maior,
             "valor_cenario": valor_gasto
         }
-        print(f"DEBUG GASTO_MAIOR_REGIAO: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_gasto_maior_regiao: {e}")
         return f"Ocorreu um erro ao tentar encontrar o maior gasto na região '{regiao.title()}'.", None
 
 def _handle_gasto_menor_regiao(
@@ -822,7 +745,6 @@ def _handle_gasto_menor_regiao(
     """
     Encontra o estado com o menor gasto (total ou por categoria) em uma REGIAO específica.
     """
-    print(f"DEBUG GASTO_MENOR_REGIAO: Reg='{regiao}', Ano='{ano if ano else 'Recente'}', Cat='{categoria_despesa}'")
     if not regiao:
         return "A região não foi especificada para a busca do menor gasto.", None
 
@@ -884,10 +806,8 @@ def _handle_gasto_menor_regiao(
             "uf_cenario_resultado": uf_menor,
             "valor_cenario": valor_gasto
         }
-        print(f"DEBUG GASTO_MENOR_REGIAO: Sucesso - {text_part}")
         return text_part, scenario_filters
     except Exception as e:
-        print(f"ERRO em _handle_gasto_menor_regiao: {e}")
         return f"Ocorreu um erro ao tentar encontrar o menor gasto na região '{regiao.title()}'.", None
 
 # Função Principal de Orquestração
@@ -922,9 +842,6 @@ def handle_factual_scenarios(
     if extracted_ano: updated_filters['ano'] = extracted_ano
     if extracted_regiao: updated_filters['regiao'] = extracted_regiao # Mantém se extraído do LLM
     if extracted_categoria_gasto: updated_filters['categoria_despesa'] = extracted_categoria_gasto # Mantém se extraído do LLM
-
-    print(f"DEBUG SCENARIO_HANDLER: Intent: '{final_intent_for_scenarios}', UF: '{extracted_uf}', Ano: '{extracted_ano}', Região: '{extracted_regiao}', Categoria Gasto LLM: '{extracted_categoria_gasto}'")
-    print(f"DEBUG SCENARIO_HANDLER: Query: '{user_query_lower}'")
 
     # --- Árvore de Decisão para Cenários --- #
     if final_intent_for_scenarios == "idh_especifico" and extracted_uf and extracted_ano:
@@ -966,8 +883,6 @@ def handle_factual_scenarios(
 
     if text_part and scenario_filters:
         updated_filters.update(scenario_filters) 
-        print(f"DEBUG SCENARIO_HANDLER: Scenario handled. Text: '{text_part}', Filters: {updated_filters}")
         return text_part, updated_filters
 
-    print("DEBUG SCENARIO_HANDLER: No factual scenario handled by new handler yet.")
     return None, None 

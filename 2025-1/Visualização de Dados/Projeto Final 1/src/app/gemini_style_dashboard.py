@@ -61,7 +61,6 @@ class BackgroundImageWidget(QWidget):
             
             painter.drawPixmap(int(x), int(y), scaled_pixmap)
 
-
 class GeminiStyleDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -171,9 +170,6 @@ class GeminiStyleDashboard(QMainWindow):
         print("="*60)
         print()
 
-        print(f"DEBUG: Chat fixo - Width: {chat_width}, Height: {chat_height}")
-        print(f"DEBUG: Posição X calculada (centralizada): {chat_x}")
-
     def resizeEvent(self, event):
         """Sobrescreve o evento de redimensionamento para posicionar as sidebars com debouncing."""
         if event is not None:
@@ -235,9 +231,6 @@ class GeminiStyleDashboard(QMainWindow):
         # Garantir que a posição não seja negativa
         chat_x = max(0, chat_x)
         
-        print(f"DEBUG: _calculate_main_mode_geometry - Total width: {total_width}")
-        print(f"DEBUG: _calculate_main_mode_geometry - Fixed width: {chat_width}")
-        print(f"DEBUG: _calculate_main_mode_geometry - Calculated X: {chat_x}")
         
         return chat_x, chat_width
 
@@ -246,7 +239,6 @@ class GeminiStyleDashboard(QMainWindow):
         # CORREÇÃO: Usar valor fixo pré-definido pelo usuário
         fixed_height = 756  # Altura fixa
         
-        print(f"DEBUG: _get_main_mode_height - Fixed height: {fixed_height}")
         
         return fixed_height
 
@@ -262,9 +254,6 @@ class GeminiStyleDashboard(QMainWindow):
         # Garantir que a posição não seja negativa
         sidebar_x = max(0, sidebar_x)
         
-        print(f"DEBUG: _calculate_sidebar_mode_geometry - Total width: {total_width}")
-        print(f"DEBUG: _calculate_sidebar_mode_geometry - Original width: {chat_width}")
-        print(f"DEBUG: _calculate_sidebar_mode_geometry - Calculated X: {sidebar_x}")
         
         return sidebar_x, chat_width
 
@@ -527,7 +516,6 @@ class GeminiStyleDashboard(QMainWindow):
 
     def show_main_chat_view(self):
         """Mostra a visão principal do chat, escondendo a de gráficos."""
-        print(f"DEBUG: show_main_chat_view chamado")
         
         # Configurar modo principal primeiro
         self.chat_mode = ChatLayoutMode.MAIN_VIEW
@@ -539,9 +527,6 @@ class GeminiStyleDashboard(QMainWindow):
         chat_x, chat_width = self._calculate_main_mode_geometry()
         chat_height = self._get_main_mode_height()
         
-        print(f"DEBUG: Dimensões da janela - Width: {self.central_widget.width()}, Height: {self.central_widget.height()}")
-        print(f"DEBUG: Chat fixo - Width: {chat_width}, Height: {chat_height}")
-        print(f"DEBUG: Posição X calculada (centralizada): {chat_x}")
         
         # CORREÇÃO: Configurar sidebar com dimensões corretas
         self.right_sidebar.setHoverEnabled(False)  # Desabilitar hover no modo principal
@@ -568,16 +553,9 @@ class GeminiStyleDashboard(QMainWindow):
         self.right_sidebar.raise_() # Garante que a sidebar do chat esteja no topo
         self.left_sidebar.raise_()  # CORREÇÃO: Sidebar esquerda acima da conversa
         
-        print(f"DEBUG: Após configuração - Right sidebar geometry: {self.right_sidebar.geometry()}")
-        print(f"DEBUG: Após configuração - Right sidebar visível: {self.right_sidebar.isVisible()}")
-        print(f"DEBUG: Após configuração - Chat widget visível: {self.chat_widget.isVisible()}")
-        print(f"DEBUG: Após configuração - Right sidebar expanded_width: {self.right_sidebar.expanded_width}")
-        print(f"DEBUG: Após configuração - Right sidebar actual width: {self.right_sidebar.width()}")
-        print(f"DEBUG: show_main_chat_view CONCLUÍDO\n")
 
     def show_graph_view(self, year: int | None):
         """Mostra a visão de gráficos para um ano específico."""
-        print(f"DEBUG: show_graph_view chamado para ano: {year}")
         
         # Configurar modo sidebar primeiro
         self.chat_mode = ChatLayoutMode.SIDEBAR_VIEW
@@ -613,12 +591,6 @@ class GeminiStyleDashboard(QMainWindow):
         self.right_sidebar.raise_() # Eleva a barra de chat por cima dos gráficos
         self.left_sidebar.raise_()  # CORREÇÃO: Sidebar esquerda sempre no topo
         
-        print(f"DEBUG: Após show_graph_view - Total width: {self.central_widget.width()}")
-        print(f"DEBUG: Após show_graph_view - Largura sidebar fixa: {sidebar_width}")
-        print(f"DEBUG: Após show_graph_view - Altura sidebar fixa: {sidebar_height}")
-        print(f"DEBUG: Após show_graph_view - Right sidebar visível: {self.right_sidebar.isVisible()}")
-        print(f"DEBUG: Após show_graph_view - Chat widget visível: {self.chat_widget.isVisible()}")
-        print(f"DEBUG: Após show_graph_view - Right sidebar geometry: {self.right_sidebar.geometry()}")
 
     def _append_message_to_history(self, sender: str, message: str, color: str):
         """Adiciona uma mensagem ao histórico do chat com formatação."""
@@ -714,8 +686,6 @@ class GeminiStyleDashboard(QMainWindow):
                 padding: 8px;
             }
         """)
-
-
 
     def _handle_delayed_resize(self):
         self.resizeEvent(None)

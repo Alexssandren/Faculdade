@@ -193,22 +193,14 @@ class LLMQueryHandler:
                             filters_identified_llm = parsed_json_outer.get('filtros_identificados', {})
                             text_part_llm = assistant_response_content[:marker_start_index].strip()
                     except json.JSONDecodeError:
-                        print(f"DEBUG LLM Handler: Falha ao decodificar JSON: {actual_json_str}")
                         pass # Mantém filters_identified_llm como {} e text_part_llm original
             
-            print(f"DEBUG LLM Handler: User query: {user_query}")
-            print(f"DEBUG LLM Handler: LLM raw response: {assistant_response_content}")
-            print(f"DEBUG LLM Handler: LLM text_part (inicial): {text_part_llm}")
-            print(f"DEBUG LLM Handler: LLM filters_identified (inicial): {filters_identified_llm}")
-
             if self.data_df is not None and not self.data_df.empty:
-                print(f"DEBUG LLM Handler: DataFrame carregado, processando com lógica de cenários.")
                 user_query_lower = user_query.lower()
 
                 # Se a nova pergunta for uma frase completa, desconsidere o contexto de UF anterior
                 is_full_question = len(user_query.split()) > 3
                 if is_full_question:
-                    print(f"DEBUG LLM Intent: Nova pergunta é completa. Contexto de UF anterior será ignorado se houver UF na query atual.")
                     if "uf" in filters_identified_llm:
                         pass # Mantém a UF identificada pelo LLM na query atual
                     else: # Limpa qualquer resquício de UF herdada se não houver na query atual
@@ -218,7 +210,6 @@ class LLMQueryHandler:
 
                 # Determinar a intenção da consulta atual (current_query_intent)
                 current_query_intent = self._determine_intent_from_query(user_query_lower, filters_identified_llm)
-                print(f"DEBUG LLM Intent: Intenção da query ATUAL: '{current_query_intent}'")
 
                 # Determinar a intenção herdada, se a query atual não tiver uma intenção clara
                 inherited_intent = None
@@ -227,11 +218,9 @@ class LLMQueryHandler:
                          self.conversation_history[-3]["content"].lower(),
                          self.conversation_history[-2].get('filters', {}) # Usa filtros da resposta anterior
                      )
-                     print(f"DEBUG LLM Intent: Intenção HERDADA: '{inherited_intent}'")
                 
                 # A intenção final é a da query atual, ou a herdada se a atual for ambígua.
                 final_intent_for_scenarios = current_query_intent or inherited_intent
-                print(f"DEBUG LLM Intent: Final para cenários: '{final_intent_for_scenarios}'")
 
                 # 4. Chamar o novo handler de cenários factuais
                 factual_text, factual_filters = handle_factual_scenarios(
@@ -240,16 +229,10 @@ class LLMQueryHandler:
                 )
 
                 if factual_text is not None:
-                    print(f"DEBUG LLM Handler: Cenário factual TRATADO pelo novo handler. Resposta: '{factual_text}', Filtros: {factual_filters}")
                     text_part_llm = factual_text
                     if factual_filters is not None:
                          filters_identified_llm = factual_filters
-                else:
-                    print(f"DEBUG LLM Handler: Nenhum cenário factual específico tratado pelo novo handler. Usando resposta original do LLM.")
 
-            else: 
-                print("DEBUG LLM Handler: DataFrame não carregado. Pulando lógica de cenários factuais.")
-            
             self.add_assistant_message(assistant_response_content) 
             return text_part_llm, filters_identified_llm
 
@@ -316,7 +299,6 @@ def _extract_top_n(query: str, default_n: int = 1) -> int:
                 num_str = digit_match.group(1) if digit_match.lastindex else digit_match.group(0)
                 num = int(num_str)
                 if 1 <= num <= 27: # Limite razoável para "top N" (não mais que o total de UFs)
-                    print(f"DEBUG EXTRACT_TOP_N: Encontrado dígito '{num_str}' com padrão '{pattern}' -> {num}")
                     return num
             except ValueError:
                 pass
@@ -351,10 +333,8 @@ def _extract_top_n(query: str, default_n: int = 1) -> int:
         word_pattern = r'\b(?:os|as|liste|mostre|me dê|apresente\s+)?' + re.escape(word) + r'\b'
         if re.search(word_pattern, query_lower):
             num_from_word = word_to_num[word]
-            print(f"DEBUG EXTRACT_TOP_N: Encontrada palavra-chave: '{word}' com padrão '{word_pattern}' -> {num_from_word}")
             return num_from_word
             
-    print(f"DEBUG EXTRACT_TOP_N: Nenhum N específico encontrado na query '{query}', usando default: {default_n}")
     return default_n
 
 def _extract_year_from_query(
@@ -363,12 +343,10 @@ def _extract_year_from_query(
     df: Optional[pd.DataFrame] = None, 
     uf_context: Optional[str] = None
 ) -> Optional[int]:
-    print(f"DEBUG EXTRACT_YEAR: Inputs - query_ano_str: '{query_ano_str}', prev_response: {prev_response_content is not None}, df_available: {df is not None and not df.empty}, uf_context: '{uf_context}'")
     if query_ano_str:
         try:
             year_val = int(query_ano_str)
             if 1900 <= year_val <= 2100:
-                print(f"DEBUG EXTRACT_YEAR: Ano '{year_val}' extraído de query_ano_str.")
                 return year_val
         except ValueError:
             pass
@@ -380,7 +358,6 @@ def _extract_year_from_query(
                 try:
                     year_val = int(match.group(1))
                     if 1900 <= year_val <= 2100: 
-                        print(f"DEBUG EXTRACT_YEAR: Ano '{year_val}' extraído de prev_response_content com pattern '{pattern}'.")
                         return year_val
                 except ValueError: continue
     if df is not None and not df.empty and 'ano' in df.columns and uf_context and 'uf' in df.columns:
@@ -388,16 +365,13 @@ def _extract_year_from_query(
         if not uf_data.empty and pd.notna(uf_data['ano'].max()):
             try: 
                 latest_year_uf = int(uf_data['ano'].max())
-                print(f"DEBUG EXTRACT_YEAR: Ano mais recente '{latest_year_uf}' para UF '{uf_context}' extraído do DataFrame.")
                 return latest_year_uf
             except ValueError: pass
     if df is not None and not df.empty and 'ano' in df.columns and pd.notna(df['ano'].max()):
         try: 
             latest_year_general = int(df['ano'].max())
-            print(f"DEBUG EXTRACT_YEAR: Ano mais recente geral '{latest_year_general}' extraído do DataFrame.")
             return latest_year_general
         except ValueError: pass
-    print("DEBUG EXTRACT_YEAR: Nenhuma ano pôde ser extraído.")
     return None
 
 def _extract_uf_from_query(
@@ -406,7 +380,6 @@ def _extract_uf_from_query(
     df: Optional[pd.DataFrame] = None,
     uf_context: Optional[str] = None 
 ) -> Optional[str]:
-    print(f"DEBUG EXTRACT_UF: Inputs - query_uf_str: '{query_uf_str}', prev_response: {prev_response_content is not None}, df: {df is not None}")
     if df is None or df.empty:
         if query_uf_str and isinstance(query_uf_str, str) and len(query_uf_str) == 2 and query_uf_str.isalpha(): return query_uf_str.upper()
         return None
@@ -431,7 +404,6 @@ def _extract_uf_from_query(
         if known_ufs_set:
             for uf_sigla in known_ufs_set:
                 if re.search(r'\b' + re.escape(uf_sigla) + r'\b', prev_upper): return uf_sigla
-    print("DEBUG EXTRACT_UF: Nenhuma UF pôde ser extraída.")
     return None
 
 def _get_relevant_expense_columns(data_df: pd.DataFrame, categoria_despesa_query: Optional[str] = None) -> Tuple[List[str], bool, Optional[str]]:
@@ -448,31 +420,23 @@ def _get_relevant_expense_columns(data_df: pd.DataFrame, categoria_despesa_query
                 if k in cat_lower:
                     if v_col in available_df_columns: cols_to_use, cat_usada = [v_col], k.title(); break
                     else: 
-                        print(f"DEBUG EXPENSE_COLS: Categoria '{k}' mapeia para '{v_col}' que não existe no DF.")
                         return [], False, None # Categoria especificada mas coluna não existe
             if not cols_to_use: 
-                print(f"DEBUG EXPENSE_COLS: Categoria de despesa '{categoria_despesa_query}' não reconhecida.")
                 return [], False, None
     else: 
         is_total, cat_usada = True, "Total"
     if is_total:
         if 'despesa_total_milhoes' in available_df_columns: 
             cols_to_use = ['despesa_total_milhoes']
-            print(f"DEBUG EXPENSE_COLS: Usando coluna 'despesa_total_milhoes' para gasto total.")
         elif valid_individual_cols: 
             cols_to_use = valid_individual_cols
-            print(f"DEBUG EXPENSE_COLS: Calculando gasto total somando: {cols_to_use}")
         else: 
-            print("DEBUG EXPENSE_COLS: Não é possível determinar colunas para gasto total.")
             return [], True, "Total"
     if not cols_to_use: 
-        print(f"DEBUG EXPENSE_COLS: Nenhuma coluna de despesa relevante encontrada para categoria '{categoria_despesa_query}'.")
         return [], False, cat_usada
-    print(f"DEBUG EXPENSE_COLS: Colunas selecionadas: {cols_to_use}, IsTotal: {is_total}, CategoriaUsada: {cat_usada}")
     return cols_to_use, is_total, cat_usada
 
 def _handle_idh_especifico(df: pd.DataFrame, uf: str, ano: int) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_ESPECIFICO: Tentando para UF='{uf}', Ano='{ano}'")
     if not uf or not ano: return None, None
     try:
         fd = df[(df['uf'].str.upper() == uf.upper()) & (df['ano'] == ano)]
@@ -481,11 +445,9 @@ def _handle_idh_especifico(df: pd.DataFrame, uf: str, ano: int) -> Tuple[Optiona
             return f"O IDH de {uf.upper()} em {ano} foi {v:.3f}.", {"tipo_cenario_factual": "idh_especifico", "uf_cenario": uf.upper(), "ano_cenario": ano, "valor_cenario": v}
         return f"Não encontrei dados de IDH para {uf.upper()} em {ano}.", {"tipo_cenario_factual": "idh_especifico_nao_encontrado", "uf_cenario": uf.upper(), "ano_cenario": ano}
     except Exception as e: 
-        print(f"ERRO em _handle_idh_especifico para UF '{uf}', Ano '{ano}': {e}")
         return f"Ocorreu um erro ao buscar o IDH específico para {uf.upper()} em {ano}.", None
 
 def _handle_idh_maior_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lower: str) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_MAIOR_BRASIL: Tentando para Ano='{ano if ano else 'Mais Recente'}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
     
     if df.empty or not all(c in df.columns for c in ['idh', 'uf', 'ano']): 
@@ -543,11 +505,9 @@ def _handle_idh_maior_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lo
         return text_part, scenario_filters
 
     except Exception as e:
-        print(f"ERRO em _handle_idh_maior_brasil para Ano '{ano_usado}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) maior(es) IDH(s) {msg_ano}.", None
 
 def _handle_idh_menor_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lower: str) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_MENOR_BRASIL: Tentando para Ano='{ano if ano else 'Mais Recente'}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     if df.empty or not all(c in df.columns for c in ['idh', 'uf', 'ano']): 
@@ -605,11 +565,9 @@ def _handle_idh_menor_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lo
         return text_part, scenario_filters
 
     except Exception as e:
-        print(f"ERRO em _handle_idh_menor_brasil para Ano '{ano_usado}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) menor(es) IDH(s) {msg_ano}.", None
 
 def _handle_idh_maior_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], user_query_lower: str) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_MAIOR_REGIAO: Reg='{reg}', Ano='{ano if ano else 'Recente'}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     if not reg:
@@ -670,11 +628,9 @@ def _handle_idh_maior_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], use
             }
         return text_part, scenario_filters
     except Exception as e: 
-        print(f"ERRO em _handle_idh_maior_regiao para Região '{reg}', Ano '{ano_usado}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) maior(es) IDH(s) na região {reg.title()} {msg_ano_ctx.replace(' na região', '')}.", None
 
 def _handle_idh_menor_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], user_query_lower: str) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_MENOR_REGIAO: Reg='{reg}', Ano='{ano if ano else 'Recente'}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     if not reg: 
@@ -735,11 +691,9 @@ def _handle_idh_menor_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], use
             }
         return text_part, scenario_filters
     except Exception as e: 
-        print(f"ERRO em _handle_idh_menor_regiao para Região '{reg}', Ano '{ano_usado}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) menor(es) IDH(s) na região {reg.title()} {msg_ano_ctx.replace(' na região', '')}.", None
 
 def _handle_idh_medio_brasil(df: pd.DataFrame, ano: Optional[int]) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG IDH_MEDIO_BRASIL: Ano='{ano if ano else 'Recente'}'")
     if df.empty or not all(c in df.columns for c in ['idh', 'ano']): return "Dados insuficientes.", None
     tmp, ano_u, msg_ano_ctx = df.copy(), ano, f"em {ano}" if ano else "no ano mais recente disponível"
     if not ano and pd.notna(tmp['ano'].max()): 
@@ -751,11 +705,9 @@ def _handle_idh_medio_brasil(df: pd.DataFrame, ano: Optional[int]) -> Tuple[Opti
         media = tmp['idh'].mean()
         return f"O IDH médio no Brasil {msg_ano_ctx} foi {media:.3f}.", {"tipo_cenario_factual": "idh_medio_brasil", "ano_cenario": ano_u, "valor_cenario": media}
     except Exception as e: 
-        print(f"ERRO em _handle_idh_medio_brasil para Ano '{ano_u}': {e}")
         return f"Ocorreu um erro ao tentar calcular o IDH médio {msg_ano_ctx}.", None
 
 def _handle_gasto_especifico_uf_ano(df: pd.DataFrame, uf: str, ano: int, cat_gasto: Optional[str]=None) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG GASTO_ESPECIFICO: UF='{uf}', Ano='{ano}', Categoria='{cat_gasto}'")
     if not uf or not ano: return "UF ou Ano não fornecidos.", None
     cols, _, cat_nome = _get_relevant_expense_columns(df, cat_gasto)
     if not cols: return f"Colunas de despesa não identificadas para '{cat_nome if cat_nome else 'Total'}'.", {"tipo_cenario_factual": "gasto_especifico_col_nao_encontrada", "uf_cenario": uf, "ano_cenario": ano, "categoria_tentada": cat_gasto}
@@ -773,11 +725,9 @@ def _handle_gasto_especifico_uf_ano(df: pd.DataFrame, uf: str, ano: int, cat_gas
             return f"O gasto {nome_exib} de {uf.upper()} em {ano} foi R$ {val:.2f} milhões.", {"tipo_cenario_factual": "gasto_especifico", "uf_cenario": uf.upper(), "ano_cenario": ano, "categoria_cenario": cat_nome if cat_nome else "Total", "valor_cenario": val}
         return f"Valor de gasto para {uf.upper()} em {ano} (categoria: {cat_nome if cat_nome else 'Total'}) não disponível ou inválido.", {"tipo_cenario_factual": "gasto_especifico_valor_na", "uf_cenario": uf, "ano_cenario": ano, "categoria_usada": cat_nome}
     except Exception as e: 
-        print(f"ERRO em _handle_gasto_especifico_uf_ano para UF '{uf}', Ano '{ano}', Categoria '{cat_gasto}': {e}")
         return f"Ocorreu um erro ao buscar o gasto específico.", None
 
 def _handle_gasto_maior_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lower: str, cat_gasto: Optional[str] = None) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG GASTO_MAIOR_BRASIL: Ano='{ano if ano else 'Recente'}', Cat='{cat_gasto}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     cols, _, cat_nome = _get_relevant_expense_columns(df, cat_gasto)
@@ -845,11 +795,9 @@ def _handle_gasto_maior_brasil(df: pd.DataFrame, ano: Optional[int], user_query_
         return text_part, scenario_filters
 
     except Exception as e: 
-        print(f"ERRO em _handle_gasto_maior_brasil para Ano '{ano_usado}', Cat '{cat_nome}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) maior(es) gasto(s) {msg_ano_ctx}.", None
 
 def _handle_gasto_menor_brasil(df: pd.DataFrame, ano: Optional[int], user_query_lower: str, cat_gasto: Optional[str] = None) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG GASTO_MENOR_BRASIL: Ano='{ano if ano else 'Recente'}', Cat='{cat_gasto}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     cols, _, cat_nome = _get_relevant_expense_columns(df, cat_gasto)
@@ -929,11 +877,9 @@ def _handle_gasto_menor_brasil(df: pd.DataFrame, ano: Optional[int], user_query_
         return text_part, scenario_filters
 
     except Exception as e: 
-        print(f"ERRO em _handle_gasto_menor_brasil para Ano '{ano_usado}', Categoria '{cat_nome}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) menor(es) gasto(s) {msg_ano_ctx}.", None
 
 def _handle_gasto_maior_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], user_query_lower: str, cat_gasto: Optional[str] = None) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG GASTO_MAIOR_REGIAO: Reg='{reg}', Ano='{ano if ano else 'Recente'}', Cat='{cat_gasto}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     if not reg: 
@@ -1013,11 +959,9 @@ def _handle_gasto_maior_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], u
         return text_part, scenario_filters
 
     except Exception as e: 
-        print(f"ERRO em _handle_gasto_maior_regiao para Reg '{reg}', Ano '{ano_usado}', Cat '{cat_nome}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) maior(es) gasto(s) na região {reg.title()} {msg_ano_ctx.replace(' na região', '')}.", None
 
 def _handle_gasto_menor_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], user_query_lower: str, cat_gasto: Optional[str] = None) -> Tuple[Optional[str], Optional[Dict]]:
-    print(f"DEBUG GASTO_MENOR_REGIAO: Reg='{reg}', Ano='{ano if ano else 'Recente'}', Cat='{cat_gasto}', Query='{user_query_lower}'")
     top_n = _extract_top_n(user_query_lower, default_n=1)
 
     if not reg: 
@@ -1100,7 +1044,6 @@ def _handle_gasto_menor_regiao(df: pd.DataFrame, reg: str, ano: Optional[int], u
         return text_part, scenario_filters
 
     except Exception as e: 
-        print(f"ERRO em _handle_gasto_menor_regiao para Reg '{reg}', Ano '{ano_usado}', Cat '{cat_nome}', TopN {top_n}: {e}")
         return f"Ocorreu um erro ao tentar encontrar o(s) menor(es) gasto(s) na região {reg.title()} {msg_ano_ctx.replace(' na região', '')}.", None
 
 def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: Optional[str], filters_from_llm: Dict, data_df: pd.DataFrame, conversation_history: List[Dict], is_full_question: bool) -> Tuple[Optional[str], Optional[Dict]]:
@@ -1124,7 +1067,6 @@ def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: 
     
     uf_h, ano_h, reg_h, cat_g_h = updated_filters.get('uf_final'), updated_filters.get('ano_final'), updated_filters.get('regiao_final'), updated_filters.get('categoria_despesa_final')
     
-    print(f"DEBUG SCENARIO_HANDLER: Intent: '{final_intent_for_scenarios}', UF_h: '{uf_h}', Ano_h: '{ano_h}', Reg_h: '{reg_h}', CatG_h: '{cat_g_h}', Query: '{user_query_lower}'")
 
     intent_map = {
         "idh_especifico": (_handle_idh_especifico, [data_df, uf_h, ano_h], lambda: uf_h and ano_h),
@@ -1167,19 +1109,12 @@ def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: 
                         break
             
             if required_params_present:
-                print(f"DEBUG SCENARIO_HANDLER: Chamando handler '{handler_func.__name__}' com params: {actual_params}")
                 text_part, scenario_filters = handler_func(*actual_params)
-            else:
-                print(f"DEBUG SCENARIO_HANDLER: Handler '{handler_func.__name__}' skipped, nem todos os params requeridos presentes. Estado dos params: {actual_params[:num_required_params]}")
-        else:
-            print(f"DEBUG SCENARIO_HANDLER: Condição para '{final_intent_for_scenarios}' não atendida.")
 
     if text_part and scenario_filters:
         updated_filters.update(scenario_filters) 
-        print(f"DEBUG SCENARIO_HANDLER: Cenário tratado! Texto: '{text_part}', Filtros atualizados: {updated_filters}")
         return text_part, updated_filters
     
-    print(f"DEBUG SCENARIO_HANDLER: Nenhum cenário factual específico tratado ou handler não produziu texto.")
     return None, None
 # Fim das funções copiadas
 
