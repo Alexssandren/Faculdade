@@ -130,46 +130,9 @@ class GeminiStyleDashboard(QMainWindow):
         # Forçar expansão APÓS configuração correta
         self.right_sidebar.expand()
         
-        # CORREÇÃO: Imprimir informações de tela cheia após inicialização
-        QTimer.singleShot(100, self._print_fullscreen_info)
 
-    def _print_fullscreen_info(self):
-        """Imprime informações detalhadas sobre as dimensões em modo tela cheia."""
-        print("\n" + "="*60)
-        print("📊 INFORMAÇÕES DE DIMENSIONAMENTO - MODO TELA CHEIA")
-        print("="*60)
-        print(f"🖥️  Resolução da Janela Principal:")
-        print(f"   Width: {self.width()} px")
-        print(f"   Height: {self.height()} px")
-        print(f"   Geometry: {self.geometry()}")
-        print()
-        print(f"📱 Central Widget (Área de Trabalho):")
-        print(f"   Width: {self.central_widget.width()} px")
-        print(f"   Height: {self.central_widget.height()} px")
-        print(f"   Geometry: {self.central_widget.geometry()}")
-        print()
-        print(f"💬 Chat LLM - Modo Principal (valores fixos):")
-        chat_x, chat_width = self._calculate_main_mode_geometry()
-        chat_height = self._get_main_mode_height()
-        print(f"   Largura Fixa: {chat_width} px")
-        print(f"   Altura Fixa: {chat_height} px")
-        print(f"   Posição X (centralizada): {chat_x} px")
-        print(f"   Margem de Cada Lado: {(self.central_widget.width() - chat_width) / 2} px")
-        print()
-        print(f"📊 Chat LLM - Modo Sidebar (tamanho original):")
-        sidebar_x, sidebar_width = self._calculate_sidebar_mode_geometry()
-        print(f"   Largura Original: {sidebar_width} px")
-        print(f"   Altura Fixa: {chat_height} px")
-        print(f"   Posição X: {sidebar_x} px")
-        print()
-        print(f"🎯 Estado Atual:")
-        print(f"   Modo Ativo: {self.chat_mode.value}")
-        print(f"   Right Sidebar Geometry: {self.right_sidebar.geometry()}")
-        print(f"   Right Sidebar Visível: {self.right_sidebar.isVisible()}")
-        print(f"   Chat Widget Visível: {self.chat_widget.isVisible()}")
-        print("="*60)
-        print()
 
+    
     def resizeEvent(self, event):
         """Sobrescreve o evento de redimensionamento para posicionar as sidebars com debouncing."""
         if event is not None:
@@ -341,7 +304,24 @@ class GeminiStyleDashboard(QMainWindow):
         sidebar_layout = self.left_sidebar.get_inner_layout()
 
         # Adiciona margem superior para não sobrepor o título principal
-        sidebar_layout.setContentsMargins(10, 70, 10, 10)
+        sidebar_layout.setContentsMargins(3, 10, 3, 10)  # Margens laterais menores para centralizar
+
+        # Adiciona ícone de três riscos (hamburger menu)
+        hamburger_icon = QLabel("☰")  # Mudando para ícone mais visível
+        hamburger_icon.setObjectName("HamburgerIcon")  # Identificador único
+        hamburger_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hamburger_icon.setStyleSheet("""
+            font-size: 12px; 
+            font-weight: bold; 
+            color: #ffffff; 
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 2px;
+            border-radius: 2px;
+            margin: 0px;
+        """)
+        hamburger_icon.setToolTip("Menu de Navegação")
+        hamburger_icon.setFixedSize(18, 18)  # Tamanho ajustado para caber na sidebar de 25px
+        sidebar_layout.addWidget(hamburger_icon, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Adiciona Título
         title_label = QLabel("Gráficos")
@@ -373,6 +353,9 @@ class GeminiStyleDashboard(QMainWindow):
         sidebar_layout.addWidget(general_button)
 
         sidebar_layout.addStretch()
+        
+        # Forçar atualização da visibilidade após todos os widgets serem adicionados
+        self.left_sidebar.update_content_visibility()
 
     def _setup_right_sidebar(self):
         """Cria a barra lateral direita flutuante para o chat."""
@@ -394,7 +377,24 @@ class GeminiStyleDashboard(QMainWindow):
         sidebar_layout = self.right_sidebar.get_inner_layout()
 
         # Margem normal - a geometria da sidebar já considera o espaço do título
-        sidebar_layout.setContentsMargins(15, 15, 15, 15)
+        sidebar_layout.setContentsMargins(3, 10, 3, 10)  # Margens laterais menores para centralizar
+        
+        # Adiciona ícone de três riscos (hamburger menu) para sidebar direita
+        hamburger_icon_right = QLabel("☰")
+        hamburger_icon_right.setObjectName("HamburgerIconRight")  # Identificador único
+        hamburger_icon_right.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hamburger_icon_right.setStyleSheet("""
+            font-size: 12px; 
+            font-weight: bold; 
+            color: #ffffff; 
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 2px;
+            border-radius: 2px;
+            margin: 0px;
+        """)
+        hamburger_icon_right.setToolTip("Chat LLM")
+        hamburger_icon_right.setFixedSize(18, 18)  # Tamanho ajustado para caber na sidebar de 25px
+        sidebar_layout.addWidget(hamburger_icon_right, 0, Qt.AlignmentFlag.AlignCenter)
         
         # Chat Widget
         self.chat_widget = self._create_chat_widget()
@@ -402,6 +402,9 @@ class GeminiStyleDashboard(QMainWindow):
 
         # CRÍTICO: Posicionar sidebar inicialmente fora da tela para evitar flash
         self.right_sidebar.setGeometry(-2000, 0, initial_width, self.central_widget.height())
+        
+        # Forçar atualização da visibilidade após todos os widgets serem adicionados
+        self.right_sidebar.update_content_visibility()
 
     def _create_separator(self):
         separator = QFrame()

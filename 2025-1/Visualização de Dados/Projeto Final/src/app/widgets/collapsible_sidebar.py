@@ -56,10 +56,17 @@ class CollapsibleSidebar(QWidget):
         self.animation = QPropertyAnimation(self, b"current_width", self)
         self.animation.setEasingCurve(QEasingCurve.InOutQuad)
         self.animation.setDuration(self.animation_duration)
+        
+        # Configurar visibilidade inicial baseada na largura inicial
+        self._update_content_visibility()
 
     def get_inner_layout(self):
         # Retorna o layout principal para que outros widgets possam adicionar conteúdo.
         return self.content_layout
+    
+    def update_content_visibility(self):
+        """Método público para forçar atualização da visibilidade do conteúdo."""
+        self._update_content_visibility()
 
     def setHoverEnabled(self, enabled: bool):
         """Ativa ou desativa o comportamento de expandir/recolher com o mouse."""
@@ -90,8 +97,27 @@ class CollapsibleSidebar(QWidget):
             self.animation.setEndValue(self.collapsed_width)
             self.animation.start()
 
+    def _update_content_visibility(self):
+        """Atualiza a visibilidade do conteúdo baseado na largura atual."""
+        is_collapsed = self.width() <= self.collapsed_width
+        content_visible = not is_collapsed
+        
+        for i in range(self.content_layout.count()):
+            item = self.content_layout.itemAt(i)
+            if item and item.widget():
+                widget = item.widget()
+                widget_name = widget.objectName()
+                
+                # Ícones hamburger: visíveis apenas quando collapsed
+                if widget_name in ["HamburgerIcon", "HamburgerIconRight"]:
+                    widget.setVisible(is_collapsed)
+                else:
+                    # Outros widgets: visíveis apenas quando expanded
+                    widget.setVisible(content_visible)
+
     def set_current_width(self, width):
         self.setFixedWidth(width)
+        self._update_content_visibility()
         self.widthChanged.emit(width) # Emite o sinal com a nova largura
 
     def get_current_width(self):
