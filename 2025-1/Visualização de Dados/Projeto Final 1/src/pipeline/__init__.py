@@ -1,1 +1,0 @@
-# Pacote para scripts que definem e executam fases do pipeline 

@@ -53,7 +53,7 @@ class GraphsContainerWidget(QWidget):
                 self.df = pd.DataFrame() # DataFrame vazio para evitar erros
 
             if self.shapefile_path.exists():
-                self.gdf = gpd.read_file(self.shapefile_path)
+                self.gdf = gpd.read_file(self.shapefile_path, layer='BR_UF_2024')
                 # Renomear colunas para o merge
                 self.gdf = self.gdf.rename(columns={'SIGLA_UF': 'uf', 'NM_UF': 'NOME_UF'})
             else:

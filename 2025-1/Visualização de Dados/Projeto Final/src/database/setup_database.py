@@ -29,7 +29,6 @@ def criar_tabelas(cursor):
 
     df_unified = pd.read_csv(UNIFIED_DATASET_CSV, nrows=0) # Ler apenas o cabeçalho
     cols_with_types = []
-    print("🔍 Colunas lidas do CSV (antes da limpeza):")
     for i, col_name_original in enumerate(df_unified.columns):
         print(f"  Coluna {i}: '{col_name_original}' (Tipo: {type(col_name_original)})")
     
@@ -48,7 +47,6 @@ def criar_tabelas(cursor):
         
         cols_with_types.append(f'\"{clean_col_name}\" {col_type}')
     
-    print("🔍 Definições de colunas para SQL (cols_with_types):")
     for i, definition in enumerate(cols_with_types):
         print(f"  Item {i}: {definition}")
 
@@ -74,7 +72,6 @@ def carregar_dados(conexao, cursor):
 
     print(f"🔄 Carregando dados de {UNIFIED_DATASET_CSV} para o banco de dados...")
     df_unified = pd.read_csv(UNIFIED_DATASET_CSV)
-    print(f"🔍 DataFrame '{UNIFIED_DATASET_CSV}' carregado com {len(df_unified)} linhas e colunas: {df_unified.columns.tolist()}")
 
     if df_unified.empty:
         print(f"❌ DataFrame lido de {UNIFIED_DATASET_CSV} está vazio. Abortando carregamento.")
@@ -99,10 +96,6 @@ def carregar_dados(conexao, cursor):
         df_unified.to_sql("analise_unificada", conexao, if_exists="replace", index=False) 
         conexao.commit() # Commit após a inserção bem-sucedida
         print(f"✅ {len(df_unified)} registros carregados com sucesso na tabela 'analise_unificada' e salvos no BD.")
-        # Adicionar uma verificação aqui
-        cursor.execute("SELECT COUNT(*) FROM analise_unificada")
-        num_registros_apos_carga = cursor.fetchone()[0]
-        print(f"🔍 Verificação: Tabela 'analise_unificada' agora contém {num_registros_apos_carga} registros.")
         return True
     except Exception as e:
         print(f"❌ ERRO DETALHADO ao carregar dados para 'analise_unificada': {repr(e)}")

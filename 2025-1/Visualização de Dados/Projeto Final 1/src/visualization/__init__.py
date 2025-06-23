@@ -1,1 +1,0 @@
-# Pacote para scripts de geração de visualizações 

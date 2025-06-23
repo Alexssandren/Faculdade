@@ -11,7 +11,8 @@ class CollapsibleSidebar(QWidget):
         collapsed_width: int = 20,
         expanded_width: int = 250,
         animation_duration: int = 300,
-        direction: Qt.Edge = Qt.LeftEdge
+        direction: Qt.Edge = Qt.LeftEdge,
+        enable_hover: bool = True
     ):
         super().__init__(parent)
         
@@ -19,7 +20,7 @@ class CollapsibleSidebar(QWidget):
         self.expanded_width = expanded_width
         self.animation_duration = animation_duration
         self.direction = direction
-        self.hover_enabled = True # Flag para controlar o comportamento de hover
+        self.hover_enabled = enable_hover # Usar o parâmetro fornecido
 
         self.setAutoFillBackground(True) # Garante que o widget desenhe seu fundo.
         self.setFixedWidth(self.collapsed_width)

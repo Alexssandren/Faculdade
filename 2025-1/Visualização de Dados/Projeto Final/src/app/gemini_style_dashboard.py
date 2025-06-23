@@ -1,10 +1,11 @@
 import sys
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QHBoxLayout, QLabel, QTextEdit, QLineEdit, 
-                               QPushButton, QStackedWidget, QFrame)
-from PySide6.QtCore import Qt, QUrl, QEvent, QRect
+                               QPushButton, QFrame)
+from PySide6.QtCore import Qt, QUrl, QEvent, Property, QPropertyAnimation, QEasingCurve, QRect, QTimer
 from PySide6.QtGui import QPalette, QColor, QPainter, QPixmap, QTextCursor
 from pathlib import Path
+from enum import Enum
 
 # Adicionar o diretório 'src' ao sys.path
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -22,15 +23,34 @@ except ImportError as e:
     CollapsibleSidebar = None
     GraphsContainerWidget = None
 
+class ChatLayoutMode(Enum):
+    """Enum para definir os modos de layout do chat."""
+    MAIN_VIEW = "main_view"      # 90% centralizado, sem funcionalidade de collapse
+    SIDEBAR_VIEW = "sidebar_view" # Barra lateral direita com funcionalidade de collapse
+
 # Classe para o widget com imagem de fundo personalizada
 class BackgroundImageWidget(QWidget):
     def __init__(self, pixmap, parent=None):
         super().__init__(parent)
         self.pixmap = pixmap
-        self.setContentsMargins(15, 15, 15, 15) # Margens para o conteúdo do chat
+        self._solid_background_mode = False
+        self.setContentsMargins(15, 15, 15, 15)
+
+    def set_background_mode(self, is_solid: bool):
+        """Controla se o fundo do widget deve ser sólido ou transparente."""
+        if self._solid_background_mode != is_solid:
+            self._solid_background_mode = is_solid
+            self.update() # Força uma nova pintura
 
     def paintEvent(self, event):
         painter = QPainter(self)
+
+        # 1. Pinta o fundo manualmente para ter controle total da ordem.
+        if self._solid_background_mode:
+            painter.fillRect(self.rect(), QColor("#2b2b2b"))
+        # Se não, o fundo fica transparente por padrão.
+
+        # 2. Pinta a imagem do mapa por cima do fundo.
         if not self.pixmap.isNull():
             # Escalar o pixmap para caber no widget mantendo a proporção
             scaled_pixmap = self.pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
@@ -40,24 +60,27 @@ class BackgroundImageWidget(QWidget):
             y = (self.height() - scaled_pixmap.height()) / 2
             
             painter.drawPixmap(int(x), int(y), scaled_pixmap)
-        else:
-            # Fallback se o pixmap não for válido (opcional, pode só não desenhar)
-            painter.fillRect(self.rect(), QColor("#2a2a2a")) # Pinta com a cor de fundo
-
-        super().paintEvent(event) # Chama o paintEvent da classe base se necessário
-
 
 class GeminiStyleDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-        print("🚀 [INIT] Iniciando GeminiStyleDashboard")
-        
         self.setWindowTitle("Brasil em Dados")
         self.setGeometry(100, 100, 1400, 900) # Aumentado o tamanho padrão
+        self.showMaximized()  # Forçar janela maximizada para garantir tamanho total
 
         # Configuração do Projeto
         self.project_root = Path(__file__).resolve().parent.parent.parent
         self.graphs_path = self.project_root / "results" / "visualizations"
+
+        # Estado do modo de layout do chat
+        self.chat_mode = ChatLayoutMode.MAIN_VIEW
+        self.transition_animation = None  # Para armazenar a animação de transição
+        
+        # Timer para debouncing de redimensionamento
+        self.resize_timer = QTimer()
+        self.resize_timer.setSingleShot(True)
+        self.resize_timer.timeout.connect(self._handle_delayed_resize)
+        self.resize_timer.setInterval(50)  # 50ms de delay para debouncing
 
         self._apply_dark_theme()
         
@@ -66,11 +89,12 @@ class GeminiStyleDashboard(QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         # Layout principal que conterá APENAS a área de conteúdo central.
-        # As sidebars serão widgets filhos flutuantes, não gerenciadas por este layout.
         self.main_layout = QVBoxLayout(self.central_widget)
         self.main_layout.setSpacing(0)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         
+        self._setup_main_title()
+
         # --- Área de Conteúdo Central ---
         content_container = QFrame()
         content_container.setObjectName("ContentContainer")
@@ -79,118 +103,245 @@ class GeminiStyleDashboard(QMainWindow):
         content_container_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.addWidget(content_container, 1)
 
-        # Título
-        self._setup_title(content_container_layout)
+        # O contêiner de conteúdo agora abriga diretamente a visão de gráficos
+        self.graphs_view = GraphsContainerWidget()
+        content_container_layout.addWidget(self.graphs_view, 1)
 
-        # Stack para alternar entre Chat e Gráficos
-        self.view_stack = QStackedWidget()
-        content_container_layout.addWidget(self.view_stack, 1)
-        
-        # Visão 1: Chat Central
-        print("💬 [INIT] Criando widget de chat principal")
-        self.main_chat_view = self._create_chat_widget(is_main_view=True)
-        print(f"💬 [INIT] Chat criado: {self.main_chat_view}")
-        self.view_stack.addWidget(self.main_chat_view)
-        print(f"📊 [INIT] View stack após adicionar chat tem {self.view_stack.count()} widgets")
-
-        # Visão 2: Container de Gráficos
-        print("📈 [INIT] Criando widget de gráficos")
-        self.graph_carousel_view = GraphsContainerWidget()
-        self.view_stack.addWidget(self.graph_carousel_view)
-        print(f"📊 [INIT] View stack após adicionar gráficos tem {self.view_stack.count()} widgets")
-
-        print("📺 [INIT] Definindo chat como widget atual")
-        self.view_stack.setCurrentWidget(self.main_chat_view)
-        print(f"📺 [INIT] Widget atual no stack: {self.view_stack.currentWidget()}")
-
-        # --- Barra Lateral Esquerda ---
-        print("⬅️  [INIT] Configurando sidebar esquerda")
+        # --- Barras Laterais (Agora flutuantes) ---
         self._setup_left_sidebar()
+        self._setup_right_sidebar()
         
-        # Controle de estado do chat (modo principal ou sidebar)
-        print("🎛️  [INIT] Inicializando controles de estado do chat")
-        self.chat_in_sidebar_mode = False
-        self.chat_animation = None
-        print(f"🎛️  [INIT] Estado inicial - chat_in_sidebar_mode: {self.chat_in_sidebar_mode}")
+        # Conecta o sinal de mudança de largura para reposicionar a barra
+        self.right_sidebar.widthChanged.connect(self._reposition_right_sidebar)
         
-        # Configurar chat para ser flutuante (pode ficar sobre outros widgets)
-        self._setup_floating_chat()
-        
-        # Inicialização do LLM
-        print("🤖 [INIT] Inicializando LLM handler")
-        self._initialize_llm_handler()
+        self.title_label.raise_() # Eleva o título para garantir que fique visível
 
-        # Conectar apenas o chat principal
-        print("🔌 [INIT] Conectando eventos do chat")
-        self.main_chat_input.returnPressed.connect(self._send_message)
-        print("✅ [INIT] Dashboard inicializado com sucesso")
+        # Inicialização do LLM
+        self._initialize_llm_handler()
+        
+        # CORREÇÃO: Garantir que o chat seja visível no estado inicial
+        self.right_sidebar.show()
+        self.chat_widget.show()
+        
+        # CORREÇÃO: Configurar primeiro, depois expandir
+        # Define o estado inicial do dashboard (será configurado após a janela ser mostrada)
+        self.show_main_chat_view()
+        
+        # Forçar expansão APÓS configuração correta
+        self.right_sidebar.expand()
+        
+        # CORREÇÃO: Imprimir informações de tela cheia após inicialização
+        QTimer.singleShot(100, self._print_fullscreen_info)
+
+    def _print_fullscreen_info(self):
+        """Imprime informações detalhadas sobre as dimensões em modo tela cheia."""
+        print("\n" + "="*60)
+        print("📊 INFORMAÇÕES DE DIMENSIONAMENTO - MODO TELA CHEIA")
+        print("="*60)
+        print(f"🖥️  Resolução da Janela Principal:")
+        print(f"   Width: {self.width()} px")
+        print(f"   Height: {self.height()} px")
+        print(f"   Geometry: {self.geometry()}")
+        print()
+        print(f"📱 Central Widget (Área de Trabalho):")
+        print(f"   Width: {self.central_widget.width()} px")
+        print(f"   Height: {self.central_widget.height()} px")
+        print(f"   Geometry: {self.central_widget.geometry()}")
+        print()
+        print(f"💬 Chat LLM - Modo Principal (valores fixos):")
+        chat_x, chat_width = self._calculate_main_mode_geometry()
+        chat_height = self._get_main_mode_height()
+        print(f"   Largura Fixa: {chat_width} px")
+        print(f"   Altura Fixa: {chat_height} px")
+        print(f"   Posição X (centralizada): {chat_x} px")
+        print(f"   Margem de Cada Lado: {(self.central_widget.width() - chat_width) / 2} px")
+        print()
+        print(f"📊 Chat LLM - Modo Sidebar (tamanho original):")
+        sidebar_x, sidebar_width = self._calculate_sidebar_mode_geometry()
+        print(f"   Largura Original: {sidebar_width} px")
+        print(f"   Altura Fixa: {chat_height} px")
+        print(f"   Posição X: {sidebar_x} px")
+        print()
+        print(f"🎯 Estado Atual:")
+        print(f"   Modo Ativo: {self.chat_mode.value}")
+        print(f"   Right Sidebar Geometry: {self.right_sidebar.geometry()}")
+        print(f"   Right Sidebar Visível: {self.right_sidebar.isVisible()}")
+        print(f"   Chat Widget Visível: {self.chat_widget.isVisible()}")
+        print("="*60)
+        print()
 
     def resizeEvent(self, event):
-        """Sobrescreve o evento de redimensionamento para posicionar as sidebars."""
+        """Sobrescreve o evento de redimensionamento para posicionar as sidebars com debouncing."""
+        if event is not None:
+            # Usar debouncing para evitar múltiplas operações durante redimensionamento contínuo
+            self.resize_timer.start()
+            return
+            
         super().resizeEvent(event)
+        
+        # Verificar se a janela tem tamanho válido
+        if self.central_widget.width() <= 0 or self.central_widget.height() <= 0:
+            return
+        
+        # Posiciona o título principal para que seja independente
+        self.title_label.setGeometry(0, 10, self.central_widget.width(), 50)
+        self.title_label.raise_()
+
         # Posicionar a sidebar esquerda
         self.left_sidebar.move(0, 0)
         self.left_sidebar.setFixedHeight(self.central_widget.height())
         
-        # Reposicionar o chat conforme o modo atual
-        if self.chat_in_sidebar_mode:
-            self._position_chat_sidebar()
-        else:
-            self._position_chat_main()
+        # CORREÇÃO: NÃO forçar altura total - usar valores fixos
+        # self.right_sidebar.setFixedHeight(self.central_widget.height())  # REMOVIDO
+        
+        # Parar animação atual se estiver rodando durante redimensionamento
+        if self.transition_animation and self.transition_animation.state() == QPropertyAnimation.State.Running:
+            self.transition_animation.stop()
+        
+        if self.chat_mode == ChatLayoutMode.MAIN_VIEW:
+            # CORREÇÃO: Usar valores fixos para o redimensionamento
+            chat_x, chat_width = self._calculate_main_mode_geometry()
+            chat_height = self._get_main_mode_height()
+            # Atualizar também a largura expandida da sidebar
+            self.right_sidebar.expanded_width = chat_width
+            self.right_sidebar.setFixedWidth(chat_width)
+            self.right_sidebar.setGeometry(chat_x, 70, chat_width, chat_height)
+        else:  # SIDEBAR_VIEW
+            # CORREÇÃO: Usar valores fixos para o modo sidebar
+            sidebar_x, sidebar_width = self._calculate_sidebar_mode_geometry()
+            sidebar_height = self._get_main_mode_height()
+            self.right_sidebar.expanded_width = sidebar_width
+            self.right_sidebar.setFixedWidth(sidebar_width)
+            self.right_sidebar.setGeometry(sidebar_x, 70, sidebar_width, sidebar_height)
 
-    def _setup_floating_chat(self):
-        """Configura o chat para ser flutuante e fazer transições animadas."""
-        print("🌟 [SETUP] Configurando chat flutuante")
-        
-        # Remover o chat do view_stack e torná-lo flutuante
-        self.view_stack.removeWidget(self.main_chat_view)
-        self.main_chat_view.setParent(self.central_widget)
-        
-        # Posição inicial (modo principal - centro)
-        self._position_chat_main()
-        
-        # Configurar animações
-        from PySide6.QtCore import QPropertyAnimation, QEasingCurve, QParallelAnimationGroup
-        
-        self.chat_position_animation = QPropertyAnimation(self.main_chat_view, b"geometry")
-        self.chat_position_animation.setEasingCurve(QEasingCurve.InOutQuad)
-        self.chat_position_animation.setDuration(300)
-        
-        print(f"✅ [SETUP] Chat flutuante configurado: {self.main_chat_view}")
+    def _reposition_right_sidebar(self):
+        """Move a sidebar direita para a posição correta, com base na sua largura atual."""
+        x_pos = self.central_widget.width() - self.right_sidebar.width()
+        self.right_sidebar.move(x_pos, 0)
+        # CORREÇÃO: NÃO forçar altura total - usar altura fixa
+        # self.right_sidebar.setFixedHeight(self.central_widget.height())  # REMOVIDO
 
-    def _position_chat_main(self):
-        """Posiciona o chat no modo principal (centro, grande)."""
-        # Margem ao redor do chat
-        margin = 20
-        x = margin
-        y = 60  # Espaço para o título
-        width = self.central_widget.width() - (2 * margin)
-        height = self.central_widget.height() - y - margin
+    def _calculate_main_mode_geometry(self):
+        """Calcula geometria para modo principal com valores pré-definidos."""
+        # CORREÇÃO: Usar valores fixos pré-definidos pelo usuário
+        chat_width = 1382  # Largura fixa
+        total_width = self.central_widget.width()
+        chat_x = int((total_width - chat_width) / 2)  # Centralizar
         
-        print(f"📍 [POSICIONAMENTO] Chat modo principal: x={x}, y={y}, w={width}, h={height}")
-        self.main_chat_view.setGeometry(x, y, width, height)
-        self.main_chat_view.show()
+        # Garantir que a posição não seja negativa
+        chat_x = max(0, chat_x)
+        
+        
+        return chat_x, chat_width
 
-    def _position_chat_sidebar(self):
-        """Posiciona o chat no modo sidebar (direita, compacto)."""
-        if not self.chat_in_sidebar_mode:
-            return
+    def _get_main_mode_height(self):
+        """Retorna altura fixa pré-definida para modo principal."""
+        # CORREÇÃO: Usar valor fixo pré-definido pelo usuário
+        fixed_height = 756  # Altura fixa
+        
+        
+        return fixed_height
+
+    def _calculate_sidebar_mode_geometry(self):
+        """Calcula geometria para modo barra lateral com tamanho original."""
+        # CORREÇÃO: Restaurar tamanho original da sidebar (400px)
+        chat_width = self.sidebar_original_expanded_width  # 400px - tamanho original
+        total_width = self.central_widget.width()
+        
+        # Para sidebar, posicionar na direita (manter comportamento atual de sidebar)
+        sidebar_x = total_width - chat_width
+        
+        # Garantir que a posição não seja negativa
+        sidebar_x = max(0, sidebar_x)
+        
+        
+        return sidebar_x, chat_width
+
+    def transition_to_main_mode(self):
+        """Executa transição animada para modo principal (90% centralizado)."""
+        if self.chat_mode == ChatLayoutMode.MAIN_VIEW:
+            return  # Já está no modo correto
             
-        # Dimensões da sidebar (igual à esquerda)
-        sidebar_width = 400 if hasattr(self, 'sidebar_expanded') and self.sidebar_expanded else 50
-        x = self.central_widget.width() - sidebar_width
-        y = 0
-        height = self.central_widget.height()
+        self.chat_mode = ChatLayoutMode.MAIN_VIEW
+        self._animate_chat_transition()
+
+    def transition_to_sidebar_mode(self):
+        """Executa transição animada para modo barra lateral."""
+        if self.chat_mode == ChatLayoutMode.SIDEBAR_VIEW:
+            return  # Já está no modo correto
+            
+        self.chat_mode = ChatLayoutMode.SIDEBAR_VIEW
+        self._animate_chat_transition()
+
+    def _animate_chat_transition(self):
+        """Executa animação de transição entre os modos com valores fixos."""
+        # Validar se a janela tem tamanho suficiente para animação
+        if self.central_widget.width() <= 0 or self.central_widget.height() <= 0:
+            return  # Silenciosamente ignorar se janela não tem tamanho válido
         
-        print(f"📍 [POSICIONAMENTO] Chat modo sidebar: x={x}, y={y}, w={sidebar_width}, h={height}")
-        self.main_chat_view.setGeometry(x, y, sidebar_width, height)
-        self.main_chat_view.show()
+        # CORREÇÃO: Usar valores fixos para ambos os modos
+        fixed_height = self._get_main_mode_height()
+        
+        # Determinar geometria alvo baseada no modo atual
+        if self.chat_mode == ChatLayoutMode.MAIN_VIEW:
+            target_x, target_width = self._calculate_main_mode_geometry()
+            target_height = fixed_height
+            # CORREÇÃO: Atualizar largura expandida da sidebar para o modo principal
+            self.right_sidebar.expanded_width = target_width
+            enable_hover = False
+        else:  # SIDEBAR_VIEW
+            target_x, target_width = self._calculate_sidebar_mode_geometry()
+            target_height = fixed_height  # Mesma altura fixa
+            # CORREÇÃO: Restaurar largura expandida para o modo sidebar
+            self.right_sidebar.expanded_width = target_width
+            enable_hover = True
+        
+        # Verificar se a geometria alvo é válida
+        if target_width <= 0 or target_x < 0:
+            return  # Silenciosamente ignorar geometria inválida
+        
+        # CORREÇÃO: Atualizar setFixedWidth antes da animação
+        self.right_sidebar.setFixedWidth(target_width)
+        
+        # Verificar se já está na posição correta (otimização)
+        current_rect = self.right_sidebar.geometry()
+        if current_rect.x() == target_x and current_rect.width() == target_width:
+            # Apenas ajustar hover se necessário
+            self.right_sidebar.setHoverEnabled(enable_hover)
+            return
+        
+        # Parar animação anterior se estiver rodando
+        if self.transition_animation and self.transition_animation.state() == QPropertyAnimation.State.Running:
+            self.transition_animation.stop()
+            self.transition_animation.deleteLater()
+        
+        # Criar nova animação
+        self.transition_animation = QPropertyAnimation(self.right_sidebar, b"geometry")
+        self.transition_animation.setDuration(300)  # Mesmo tempo da sidebar existente
+        self.transition_animation.setEasingCurve(QEasingCurve.Type.InOutQuad)  # Mesmo easing da sidebar existente
+        
+        # Configurar estados inicial e final
+        start_rect = self.right_sidebar.geometry()
+        # CORREÇÃO: Usar altura fixa para ambos os modos
+        end_rect = QRect(target_x, 70, target_width, target_height)
+        
+        self.transition_animation.setStartValue(start_rect)
+        self.transition_animation.setEndValue(end_rect)
+        
+        # Conectar finalização da animação para ajustar funcionalidade de hover
+        self.transition_animation.finished.connect(lambda: self.right_sidebar.setHoverEnabled(enable_hover))
+        
+        # Iniciar animação
+        self.transition_animation.start()
 
     def _setup_left_sidebar(self):
-        self.left_sidebar = CollapsibleSidebar(self.central_widget, expanded_width=200, direction=Qt.LeftEdge)
+        self.left_sidebar = CollapsibleSidebar(self.central_widget, collapsed_width=25, expanded_width=200, direction=Qt.LeftEdge)
         self.left_sidebar.setObjectName("LeftSidebar")
         
         sidebar_layout = self.left_sidebar.get_inner_layout()
+
+        # Adiciona margem superior para não sobrepor o título principal
+        sidebar_layout.setContentsMargins(10, 70, 10, 10)
 
         # Adiciona Título
         title_label = QLabel("Gráficos")
@@ -223,7 +374,34 @@ class GeminiStyleDashboard(QMainWindow):
 
         sidebar_layout.addStretch()
 
+    def _setup_right_sidebar(self):
+        """Cria a barra lateral direita flutuante para o chat."""
+        self.sidebar_original_expanded_width = 400
+        
+        # DEPURAÇÃO CORREÇÃO 1: Usar valores fixos desde o início
+        initial_width = 1382  # CORRIGIDO: Usar largura fixa definida pelo usuário
+        
+        self.right_sidebar = CollapsibleSidebar(
+            self.central_widget, 
+            collapsed_width=25, 
+            expanded_width=initial_width,  # CORRIGIDO: Usar valor fixo
+            direction=Qt.RightEdge,
+            enable_hover=False  # Inicialmente desabilitado para modo principal
+        )
+        
+        # NÃO forçar largura inicial aqui - será ajustada em show_main_chat_view
+        
+        sidebar_layout = self.right_sidebar.get_inner_layout()
 
+        # Margem normal - a geometria da sidebar já considera o espaço do título
+        sidebar_layout.setContentsMargins(15, 15, 15, 15)
+        
+        # Chat Widget
+        self.chat_widget = self._create_chat_widget()
+        sidebar_layout.addWidget(self.chat_widget, 1)  # stretch=1 para ocupar espaço disponível
+
+        # CRÍTICO: Posicionar sidebar inicialmente fora da tela para evitar flash
+        self.right_sidebar.setGeometry(-2000, 0, initial_width, self.central_widget.height())
 
     def _create_separator(self):
         separator = QFrame()
@@ -231,8 +409,9 @@ class GeminiStyleDashboard(QMainWindow):
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         separator.setStyleSheet("background-color: #424242;")
         return separator
-
-    def _setup_title(self, layout):
+        
+    def _setup_main_title(self):
+        """Cria o título principal 'Brasil em Dados' como um widget flutuante."""
         title_text = "Brasil em Dados"
         colors = ["#009B3A", "#FFCC29", "#FFFFFF"] # Verde, Amarelo, Branco
         styled_title = ""
@@ -245,294 +424,227 @@ class GeminiStyleDashboard(QMainWindow):
                 styled_title += f'<span style="color: {color};">{char}</span>'
                 color_index += 1
         
-        self.title_label = QLabel(styled_title)
+        self.title_label = QLabel(styled_title, self.central_widget) # Parented to central widget
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         font = self.title_label.font()
         font.setPointSize(24)
         font.setBold(True)
         self.title_label.setFont(font)
-        layout.addWidget(self.title_label, alignment=Qt.AlignmentFlag.AlignTop)
+        self.title_label.setStyleSheet(
+            "font-size: 28px; font-weight: bold; margin-bottom: 10px; background-color: transparent;"
+        )
 
-    def _create_chat_widget(self, is_main_view: bool):
-        if is_main_view:
-            background_pixmap = QPixmap()
-            image_path = SCRIPT_DIR / "assets" / "Mapa Brasil.png"
-            if image_path.exists():
-                background_pixmap.load(str(image_path.resolve()))
-            chat_container = BackgroundImageWidget(background_pixmap)
-        else:
-            chat_container = QWidget() # Sem imagem de fundo na sidebar
-        
-        chat_container.setObjectName("ChatContainerWidget")
-        chat_container.setStyleSheet("background-color: transparent; border-radius: 8px;")
-        
+    def _create_chat_widget(self):
+        """Cria o widget de chat único e reutilizável com layout vertical otimizado."""
+        # O container principal do chat agora tem sempre a imagem de fundo
+        chat_container = BackgroundImageWidget(QPixmap(str(self.project_root / "src/app/assets/Mapa Brasil.png")))
         chat_layout = QVBoxLayout(chat_container)
-        chat_layout.setContentsMargins(0, 0, 0, 0) if not is_main_view else chat_layout.setContentsMargins(15, 15, 15, 15)
-        
-        history_display = QTextEdit()
-        history_display.setReadOnly(True)
-        history_display.setObjectName("ChatHistoryDisplay")
-        history_display.setStyleSheet("background-color: rgba(43, 43, 43, 0.8); color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 4px;")
-        
-        input_line = QLineEdit()
-        input_line.setPlaceholderText("Digite sua mensagem...")
-        input_line.setObjectName("ChatInputLine")
-        input_line.setStyleSheet("background-color: #222222; color: #dcdcdc; border: 1px solid #3c3c3c; border-radius: 8px; padding: 10px; font-size: 14px;")
-        input_line.setFixedHeight(50)
-        
-        chat_layout.addWidget(history_display, 1)
-        chat_layout.addWidget(input_line)
+        chat_layout.setContentsMargins(15, 15, 15, 15)
+        chat_layout.setSpacing(10)  # Espaçamento entre elementos
 
-        # Armazenar referências aos widgets de chat
-        if is_main_view:
-            self.main_chat_history = history_display
-            self.main_chat_input = input_line
-            
+        # CORREÇÃO: Histórico da Conversa (área maior, fica em cima)
+        history = QTextEdit()
+        history.setReadOnly(True)
+        history.setObjectName("ChatHistory")
+        # Aumentar o stretch factor para dar mais espaço para a conversa
+        chat_layout.addWidget(history, 6)  # Aumentado de 5 para 6 para mais espaço
+
+        # CORREÇÃO: Layout para a entrada de texto (fica embaixo)
+        input_container = QFrame()
+        input_container.setObjectName("InputContainer")
+        input_container.setStyleSheet("""
+            QFrame#InputContainer {
+                background-color: rgba(53, 53, 53, 0.9);
+                border: 1px solid #666;
+                border-radius: 8px;
+                padding: 8px;
+            }
+        """)
+        
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(8, 8, 8, 8)
+        input_layout.setSpacing(10)
+        
+        # CORREÇÃO: Caixa de Entrada de Texto com altura fixa
+        input_box = QLineEdit()
+        input_box.setPlaceholderText("Digite sua pergunta aqui...")
+        input_box.setObjectName("ChatInput")
+        input_box.setMinimumHeight(35)  # Altura mínima para melhor usabilidade
+        input_box.setStyleSheet("""
+            QLineEdit#ChatInput {
+                background-color: rgba(35, 35, 35, 0.95);
+                color: #e0e0e0;
+                border: 1px solid #555;
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            QLineEdit#ChatInput:focus {
+                border: 2px solid #42a5f5;
+                background-color: rgba(35, 35, 35, 1.0);
+            }
+        """)
+        input_box.returnPressed.connect(self._send_message)
+        input_layout.addWidget(input_box, 1)
+
+        # CORREÇÃO: Adicionar o container de input ao layout principal
+        # Stretch factor 0 para que mantenha tamanho fixo
+        chat_layout.addWidget(input_container, 0)
+
+        # Armazena os widgets do chat como atributos do contêiner para fácil acesso
+        chat_container.history = history
+        chat_container.input_box = input_box
+        
         return chat_container
 
     def _initialize_llm_handler(self):
-        self.llm_handler = None
+        """Inicializa o handler do LLM."""
         if LLMQueryHandler:
             try:
                 self.llm_handler = LLMQueryHandler()
-                print("LLMQueryHandler inicializado com sucesso.")
+                print("INFO: LLMQueryHandler inicializado com sucesso.")
             except Exception as e:
-                print(f"Erro ao inicializar LLMQueryHandler: {e}")
+                print(f"ERRO: Erro ao inicializar LLMQueryHandler: {e}")
+                self.llm_handler = None
+        else:
+            self.llm_handler = None
+            print("AVISO: Classe LLMQueryHandler não foi encontrada/importada.")
     
-
-
-    def _transition_chat_to_sidebar(self):
-        """Faz transição animada do chat do centro para o modo sidebar."""
-        print("🔄 [TRANSIÇÃO] Iniciando transição chat -> sidebar")
-        
-        if self.chat_in_sidebar_mode:
-            print("⚠️  [TRANSIÇÃO] Chat já está no modo sidebar, abortando")
-            return
-            
-        print("🎬 [TRANSIÇÃO] Iniciando animação para modo sidebar")
-        
-        # Configurar geometria final (sidebar compacta)
-        sidebar_width = 50  # Largura compacta inicial
-        target_x = self.central_widget.width() - sidebar_width
-        target_y = 0
-        target_width = sidebar_width
-        target_height = self.central_widget.height()
-        
-        # Geometria atual (modo principal)
-        current_geometry = self.main_chat_view.geometry()
-        target_geometry = QRect(target_x, target_y, target_width, target_height)
-        
-        print(f"🎯 [TRANSIÇÃO] Geometria atual: {current_geometry}")
-        print(f"🎯 [TRANSIÇÃO] Geometria alvo: {target_geometry}")
-        
-        # Configurar e iniciar animação
-        self.chat_position_animation.setStartValue(current_geometry)
-        self.chat_position_animation.setEndValue(target_geometry)
-        
-        # Callback para quando a animação terminar
-        from PySide6.QtCore import QRect
-        self.chat_position_animation.finished.connect(self._on_sidebar_animation_finished)
-        
-        self.chat_position_animation.start()
-        self.chat_in_sidebar_mode = True
-        
-        # Configurar hover para expandir/contrair (igual sidebar esquerda)
-        self._setup_chat_hover_behavior()
-        
-        print("✅ [TRANSIÇÃO] Animação para sidebar iniciada")
-
-    def _transition_chat_to_main(self):
-        """Faz transição animada do chat do modo sidebar para o centro."""
-        print("🔄 [TRANSIÇÃO] Iniciando transição sidebar -> chat principal")
-        
-        if not self.chat_in_sidebar_mode:
-            print("⚠️  [TRANSIÇÃO] Chat não está no modo sidebar, abortando")
-            return
-            
-        print("🎬 [TRANSIÇÃO] Iniciando animação para modo principal")
-        
-        # Remover comportamento de hover
-        self._remove_chat_hover_behavior()
-        
-        # Configurar geometria final (modo principal)
-        margin = 20
-        target_x = margin
-        target_y = 60  # Espaço para o título
-        target_width = self.central_widget.width() - (2 * margin)
-        target_height = self.central_widget.height() - target_y - margin
-        
-        # Geometria atual (sidebar)
-        current_geometry = self.main_chat_view.geometry()
-        target_geometry = QRect(target_x, target_y, target_width, target_height)
-        
-        print(f"🎯 [TRANSIÇÃO] Geometria atual: {current_geometry}")
-        print(f"🎯 [TRANSIÇÃO] Geometria alvo: {target_geometry}")
-        
-        # Configurar e iniciar animação
-        self.chat_position_animation.setStartValue(current_geometry)
-        self.chat_position_animation.setEndValue(target_geometry)
-        
-        # Callback para quando a animação terminar
-        self.chat_position_animation.finished.connect(self._on_main_animation_finished)
-        
-        self.chat_position_animation.start()
-        
-        print("✅ [TRANSIÇÃO] Animação para modo principal iniciada")
-
-    def _on_sidebar_animation_finished(self):
-        """Callback chamado quando a animação para sidebar termina."""
-        print("🎬 [ANIMAÇÃO] Transição para sidebar concluída")
-        self.chat_position_animation.finished.disconnect()
-
-    def _on_main_animation_finished(self):
-        """Callback chamado quando a animação para modo principal termina."""
-        print("🎬 [ANIMAÇÃO] Transição para modo principal concluída")
-        self.chat_in_sidebar_mode = False
-        self.chat_position_animation.finished.disconnect()
-
-    def _setup_chat_hover_behavior(self):
-        """Configura comportamento de hover para expandir/contrair quando no modo sidebar."""
-        print("🖱️  [HOVER] Configurando comportamento de hover no chat")
-        
-        # Instalar event filter para detectar mouse enter/leave
-        self.main_chat_view.installEventFilter(self)
-        self.sidebar_expanded = False
-
-    def _remove_chat_hover_behavior(self):
-        """Remove comportamento de hover do chat."""
-        print("🖱️  [HOVER] Removendo comportamento de hover do chat")
-        self.main_chat_view.removeEventFilter(self)
-        if hasattr(self, 'sidebar_expanded'):
-            delattr(self, 'sidebar_expanded')
-
-    def eventFilter(self, obj, event):
-        """Filtro de eventos para detectar hover no chat quando em modo sidebar."""
-        if obj == self.main_chat_view and self.chat_in_sidebar_mode:
-            from PySide6.QtCore import QEvent
-            
-            if event.type() == QEvent.Enter:
-                print("🖱️  [HOVER] Mouse entrou no chat - expandindo")
-                self._expand_chat_sidebar()
-            elif event.type() == QEvent.Leave:
-                print("🖱️  [HOVER] Mouse saiu do chat - contraindo")
-                self._collapse_chat_sidebar()
-                
-        return super().eventFilter(obj, event)
-
-    def _expand_chat_sidebar(self):
-        """Expande o chat quando em modo sidebar (igual sidebar esquerda)."""
-        if not self.chat_in_sidebar_mode or self.sidebar_expanded:
-            return
-            
-        print("📏 [HOVER] Expandindo chat sidebar")
-        expanded_width = 400
-        x = self.central_widget.width() - expanded_width
-        y = 0
-        height = self.central_widget.height()
-        
-        target_geometry = QRect(x, y, expanded_width, height)
-        current_geometry = self.main_chat_view.geometry()
-        
-        self.chat_position_animation.setStartValue(current_geometry)
-        self.chat_position_animation.setEndValue(target_geometry)
-        self.chat_position_animation.start()
-        
-        self.sidebar_expanded = True
-
-    def _collapse_chat_sidebar(self):
-        """Contrai o chat quando em modo sidebar (igual sidebar esquerda)."""
-        if not self.chat_in_sidebar_mode or not self.sidebar_expanded:
-            return
-            
-        print("📏 [HOVER] Contraindo chat sidebar")
-        collapsed_width = 50
-        x = self.central_widget.width() - collapsed_width
-        y = 0
-        height = self.central_widget.height()
-        
-        target_geometry = QRect(x, y, collapsed_width, height)
-        current_geometry = self.main_chat_view.geometry()
-        
-        self.chat_position_animation.setStartValue(current_geometry)
-        self.chat_position_animation.setEndValue(target_geometry)
-        self.chat_position_animation.start()
-        
-        self.sidebar_expanded = False
+    def _connect_chat_widgets(self):
+        # Esta função não é mais necessária, a conexão é feita em _create_chat_widget
+        pass
 
     def show_main_chat_view(self):
-        """Volta para a tela de chat principal."""
-        print("🏠 [NAVEGAÇÃO] Botão 'Início' clicado - voltando para chat principal")
-        print(f"🔍 [NAVEGAÇÃO] Estado atual - chat_in_sidebar_mode: {self.chat_in_sidebar_mode}")
+        """Mostra a visão principal do chat, escondendo a de gráficos."""
         
-        # Fazer transição do chat para modo principal
-        self._transition_chat_to_main()
+        # Configurar modo principal primeiro
+        self.chat_mode = ChatLayoutMode.MAIN_VIEW
         
-        # Mostrar uma view vazia no stack (chat agora é flutuante)
-        # Criamos um placeholder se não existe
-        if not hasattr(self, 'empty_view'):
-            self.empty_view = QWidget()
-            self.view_stack.addWidget(self.empty_view)
-            
-        print(f"📺 [NAVEGAÇÃO] Definindo view_stack para empty_view (chat é flutuante)")
-        self.view_stack.setCurrentWidget(self.empty_view)
-        print(f"📺 [NAVEGAÇÃO] View atual no stack: {self.view_stack.currentWidget()}")
-    
-    def show_graph_view(self, year: int | None):
-        print(f"📊 [NAVEGAÇÃO] Botão de gráfico clicado para ano: {year if year else 'Geral'}")
-        print(f"🔍 [NAVEGAÇÃO] Estado atual - chat_in_sidebar_mode: {self.chat_in_sidebar_mode}")
+        # CORREÇÃO: Aguardar processamento de eventos para garantir dimensões corretas
+        QApplication.processEvents()
         
-        # Usar o método correto do GraphsContainerWidget
-        print("🔧 [NAVEGAÇÃO] Carregando gráficos no container")
-        self.graph_carousel_view.load_graphs_for_year(year)
+        # CORREÇÃO: Usar valores fixos pré-definidos
+        chat_x, chat_width = self._calculate_main_mode_geometry()
+        chat_height = self._get_main_mode_height()
+        
+        
+        # CORREÇÃO: Configurar sidebar com dimensões corretas
+        self.right_sidebar.setHoverEnabled(False)  # Desabilitar hover no modo principal
+        
+        # Atualizar a largura expandida da sidebar para o modo principal
+        self.right_sidebar.expanded_width = chat_width
+        self.right_sidebar.setFixedWidth(chat_width)
+        
+        # CORREÇÃO: Usar animação para transição suave ao modo principal
+        self._animate_chat_transition()
+        
+        # Configurar aparência
+        self.chat_widget.set_background_mode(is_solid=False)
+        
+        # Mostrar/ocultar elementos
+        self.graphs_view.hide()
+        self.right_sidebar.show()
+        self.chat_widget.show()  # Garantir que o chat widget seja mostrado explicitamente
+        
+        # CRÍTICO: Forçar expansão da sidebar para garantir visibilidade do chat
+        self.right_sidebar.expand()
+        
+        # CORREÇÃO: Garantir ordem de camadas correta - sidebar esquerda sempre no topo
+        self.right_sidebar.raise_() # Garante que a sidebar do chat esteja no topo
+        self.left_sidebar.raise_()  # CORREÇÃO: Sidebar esquerda acima da conversa
+        
 
-        # Mostrar a view de gráficos
-        print(f"📺 [NAVEGAÇÃO] Definindo view_stack para graph_carousel_view")
-        self.view_stack.setCurrentWidget(self.graph_carousel_view)
-        print(f"📺 [NAVEGAÇÃO] View atual no stack: {self.view_stack.currentWidget()}")
+    def show_graph_view(self, year: int | None):
+        """Mostra a visão de gráficos para um ano específico."""
         
-        # Fazer transição do chat para modo sidebar
-        print("🔄 [NAVEGAÇÃO] Iniciando transição para sidebar")
-        self._transition_chat_to_sidebar()
+        # Configurar modo sidebar primeiro
+        self.chat_mode = ChatLayoutMode.SIDEBAR_VIEW
+        
+        # CORREÇÃO: Usar valores fixos para modo sidebar também
+        sidebar_x, sidebar_width = self._calculate_sidebar_mode_geometry()
+        sidebar_height = self._get_main_mode_height()  # Mesma altura do modo principal
+        
+        # Atualizar dimensões da sidebar
+        self.right_sidebar.expanded_width = sidebar_width
+        self.right_sidebar.setFixedWidth(sidebar_width)
+        
+        # Configurar sidebar para modo barra lateral
+        self.right_sidebar.setHoverEnabled(True)  # Habilitar hover no modo sidebar
+        
+        # CORREÇÃO: Posicionar com valores fixos
+        self.right_sidebar.setGeometry(sidebar_x, 70, sidebar_width, sidebar_height)
+        
+        # Configurar aparência
+        self.chat_widget.set_background_mode(is_solid=True)
+        
+        # Mostrar/ocultar elementos
+        self.graphs_view.show()
+        self.graphs_view.raise_()
+        
+        # Carrega os gráficos para o ano selecionado
+        self.graphs_view.load_graphs_for_year(year)
+
+        # CORREÇÃO: Colapsar automaticamente a sidebar no modo gráficos para dar mais espaço
+        self.right_sidebar.collapse()
+
+        # CORREÇÃO: Garantir ordem de camadas correta
+        self.right_sidebar.raise_() # Eleva a barra de chat por cima dos gráficos
+        self.left_sidebar.raise_()  # CORREÇÃO: Sidebar esquerda sempre no topo
+        
+
+    def _append_message_to_history(self, sender: str, message: str, color: str):
+        """Adiciona uma mensagem ao histórico do chat com formatação."""
+        history = self.chat_widget.history
+        
+        # .append() é o método correto e mais robusto.
+        # Ele garante que a mensagem seja adicionada em um novo parágrafo (bloco)
+        # e renderiza o HTML dentro dele, evitando sobreposições.
+        html_message = f"<b style='color: {color};'>{sender}:</b> {message}"
+        history.append(html_message)
+        
+        # Rolar para o final
+        history.verticalScrollBar().setValue(history.verticalScrollBar().maximum())
 
     def _send_message(self):
-        user_text = self.main_chat_input.text().strip()
-        if not user_text:
+        input_box = self.chat_widget.input_box
+        history = self.chat_widget.history
+        
+        user_message = input_box.text().strip()
+        if not user_message:
             return
-            
-        self.main_chat_input.clear()
 
-        # Atualizar o histórico de chat
-        formatted_user_message = f'<p style="color: #8BE9FD;"><b>Você:</b> {user_text}</p>'
-        self.main_chat_history.append(formatted_user_message)
-        self.main_chat_history.ensureCursorVisible()
+        self._append_message_to_history("Você", user_message, "#8be9fd")
+        input_box.clear()
+        
+        QApplication.processEvents()
 
         if self.llm_handler:
-            # Lógica de chamar o LLM e exibir resposta
-            self.main_chat_history.append(f'<p style="color: #A9A9A9;"><i>Assistente está digitando...</i></p>')
-            QApplication.processEvents() 
+            try:
+                # Exibe uma mensagem de "pensando..."
+                self._append_message_to_history("Assistente", "...", "#f1fa8c")
+                QApplication.processEvents()
 
-            text_response, filters = self.llm_handler.get_response(user_text)
-            
-            # Remover "digitando"
-            cursor = self.main_chat_history.textCursor()
-            cursor.movePosition(QTextCursor.MoveOperation.End)
-            cursor.select(QTextCursor.SelectionType.BlockUnderCursor)
-            if "Assistente está digitando..." in cursor.selectedText():
-                cursor.removeSelectedText()
-                cursor.deletePreviousChar()
-            
-            formatted_assistant_message = f'<p style="color: #50FA7B;"><b>Assistente:</b> {text_response}</p>'
-            self.main_chat_history.append(formatted_assistant_message)
+                # Obtém a resposta do LLM
+                response = self.llm_handler.get_response(user_message)
 
-            if filters:
-                filter_message = f'<p style="color: #D3D3D3; font-size: small;"><i>Filtros identificados: {filters}</i></p>'
-                self.main_chat_history.append(filter_message)
+                # Remove a mensagem "pensando..." de forma segura com undo()
+                # Isso desfaz a última operação de append.
+                history.undo()
+
+                # Extrai apenas o texto se a resposta for uma tupla
+                if isinstance(response, tuple) and len(response) > 0:
+                    llm_text = response[0]
+                else:
+                    llm_text = str(response)
+
+                self._append_message_to_history("Assistente", llm_text, "#50fa7b")
+
+            except Exception as e:
+                # Garante que a mensagem "..." seja removida mesmo em caso de erro
+                history.undo()
+                self._append_message_to_history("Erro", f"Não foi possível obter a resposta. {e}", "#ff5555")
         else:
-            # Lógica de LLM não disponível
-            error_message = f'<p style="color: #FF6347;"><b>Assistente:</b> LLM não está disponível.</p>'
-            self.main_chat_history.append(error_message)
-        
-        self.main_chat_history.ensureCursorVisible()
+            self._append_message_to_history("Assistente", "O handler do LLM não está inicializado.", "#ffb86c")
 
     def _apply_dark_theme(self):
         app = QApplication.instance()
@@ -560,6 +672,36 @@ class GeminiStyleDashboard(QMainWindow):
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, QColor(40,40,40))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, QColor(40,40,40))
         app.setPalette(dark_palette)
+
+        # O estilo do chat volta a ser global e semi-transparente
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1e1e1e;
+            }
+            QTextEdit#ChatHistory {
+                background-color: rgba(43, 43, 43, 0.85); /* Fundo semi-transparente */
+                color: #e0e0e0;
+                border: none;
+                border-radius: 4px;
+                padding: 8px;
+            }
+        """)
+
+    def _handle_delayed_resize(self):
+        self.resizeEvent(None)
+
+    def closeEvent(self, event):
+        """Limpeza ao fechar a janela."""
+        # Parar e limpar animação se estiver rodando
+        if self.transition_animation and self.transition_animation.state() == QPropertyAnimation.State.Running:
+            self.transition_animation.stop()
+            self.transition_animation.deleteLater()
+        
+        # Parar timer de redimensionamento
+        if self.resize_timer.isActive():
+            self.resize_timer.stop()
+        
+        super().closeEvent(event)
 
 if __name__ == '__main__':
     app = QApplication.instance()

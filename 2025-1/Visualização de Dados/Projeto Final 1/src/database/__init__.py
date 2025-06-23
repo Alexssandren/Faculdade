@@ -1,1 +1,0 @@
-# Pacote para scripts e módulos de banco de dados 

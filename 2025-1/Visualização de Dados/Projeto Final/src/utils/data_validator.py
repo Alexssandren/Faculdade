@@ -9,7 +9,6 @@ from pathlib import Path
 def verificar_dados():
     """Verifica os dados coletados"""
     
-    print("🔍 VERIFICAÇÃO DOS DADOS COLETADOS - FASE 1")
     print("=" * 50)
     
     # Verificar IDH
