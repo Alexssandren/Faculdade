@@ -64,9 +64,9 @@ class CollapsibleSidebar(QWidget):
         # Retorna o layout principal para que outros widgets possam adicionar conteúdo.
         return self.content_layout
     
-    def update_content_visibility(self):
+    def update_content_visibility(self, force_hide_right_hamburger=False):
         """Método público para forçar atualização da visibilidade do conteúdo."""
-        self._update_content_visibility()
+        self._update_content_visibility(force_hide_right_hamburger)
 
     def setHoverEnabled(self, enabled: bool):
         """Ativa ou desativa o comportamento de expandir/recolher com o mouse."""
@@ -97,7 +97,7 @@ class CollapsibleSidebar(QWidget):
             self.animation.setEndValue(self.collapsed_width)
             self.animation.start()
 
-    def _update_content_visibility(self):
+    def _update_content_visibility(self, force_hide_right_hamburger=False):
         """Atualiza a visibilidade do conteúdo baseado na largura atual."""
         is_collapsed = self.width() <= self.collapsed_width
         content_visible = not is_collapsed
@@ -108,15 +108,19 @@ class CollapsibleSidebar(QWidget):
                 widget = item.widget()
                 widget_name = widget.objectName()
                 
-                # Ícones hamburger: visíveis apenas quando collapsed
-                if widget_name in ["HamburgerIcon", "HamburgerIconRight"]:
+                # Ícone hamburger esquerdo: sempre visível quando collapsed
+                if widget_name == "HamburgerIcon":
                     widget.setVisible(is_collapsed)
+                # Ícone hamburger direito: visível apenas quando collapsed E em modo sidebar
+                elif widget_name == "HamburgerIconRight":
+                    widget.setVisible(is_collapsed and not force_hide_right_hamburger)
                 else:
                     # Outros widgets: visíveis apenas quando expanded
                     widget.setVisible(content_visible)
 
     def set_current_width(self, width):
         self.setFixedWidth(width)
+        # Para set_current_width, manter comportamento padrão (não forçar ocultar)
         self._update_content_visibility()
         self.widthChanged.emit(width) # Emite o sinal com a nova largura
 

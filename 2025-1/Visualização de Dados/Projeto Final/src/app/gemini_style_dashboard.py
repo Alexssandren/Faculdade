@@ -552,6 +552,9 @@ class GeminiStyleDashboard(QMainWindow):
         # CRÍTICO: Forçar expansão da sidebar para garantir visibilidade do chat
         self.right_sidebar.expand()
         
+        # No modo principal, o ícone hamburger direito deve estar sempre oculto
+        self.right_sidebar.update_content_visibility(force_hide_right_hamburger=True)
+        
         # CORREÇÃO: Garantir ordem de camadas correta - sidebar esquerda sempre no topo
         self.right_sidebar.raise_() # Garante que a sidebar do chat esteja no topo
         self.left_sidebar.raise_()  # CORREÇÃO: Sidebar esquerda acima da conversa
@@ -589,6 +592,9 @@ class GeminiStyleDashboard(QMainWindow):
 
         # CORREÇÃO: Colapsar automaticamente a sidebar no modo gráficos para dar mais espaço
         self.right_sidebar.collapse()
+        
+        # No modo sidebar, o ícone hamburger direito pode ser exibido normalmente
+        self.right_sidebar.update_content_visibility(force_hide_right_hamburger=False)
 
         # CORREÇÃO: Garantir ordem de camadas correta
         self.right_sidebar.raise_() # Eleva a barra de chat por cima dos gráficos
