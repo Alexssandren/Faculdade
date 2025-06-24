@@ -100,7 +100,7 @@ class GeminiStyleDashboard(QMainWindow):
         content_container.setObjectName("ContentContainer")
         content_container.setStyleSheet("QFrame#ContentContainer { border: none; }")
         content_container_layout = QVBoxLayout(content_container)
-        content_container_layout.setContentsMargins(10, 10, 10, 10)
+        content_container_layout.setContentsMargins(10, 60, 10, 10)  # Margem superior para acomodar título
         self.main_layout.addWidget(content_container, 1)
 
         # O contêiner de conteúdo agora abriga diretamente a visão de gráficos

@@ -1,363 +1,229 @@
-# 🎯 Projeto Final - Visualização de Dados
+# Projeto de Visualização de Dados
 
-## 📊 Correlação entre IDH e Despesas Públicas Federais por Estado Brasileiro
+## Correlação entre IDH e Despesas Públicas Federais por Estado Brasileiro
 
-Este projeto analisa a correlação entre o **Índice de Desenvolvimento Humano (IDH)** e as **despesas e investimentos governamentais federais** por estado brasileiro em diversas áreas como educação, saúde, assistência social e infraestrutura, utilizando **dados 100% REAIS e OFICIAIS** de fontes governamentais.
+**Dashboard interativo com IA integrada** para análise da correlação entre o **Índice de Desenvolvimento Humano (IDH)** e as **despesas públicas federais** por estado brasileiro, utilizando **dados 100% oficiais** de fontes governamentais (2019-2023).
 
-## ❓ Perguntas de Pesquisa
+---
 
-### 🔍 Questões Centrais a serem Respondidas:
-1. **🔗 Há relação entre IDH e investimentos públicos federais?**
-2. **🏥 Estados que recebem mais investimentos em saúde possuem IDH-Longevidade mais alto?**
-3. **📍 O investimento público acompanha as regiões de maior vulnerabilidade social?**
-4. **📈 O IDH tem melhorado proporcionalmente aos investimentos públicos federais nas últimas décadas?**
+## Como Executar
 
-## 📋 Regras e Requisitos do Projeto
-
-### ✅ Critérios Obrigatórios Atendidos:
-- ✅ **Correlação de dados**: IDH por estado × Despesas governamentais por área
-- ✅ **100% dados REAIS e OFICIAIS**: Fontes governamentais verificadas
-- ✅ **Mais de 10.000 linhas**: 10.936+ registros totais
-- ✅ **Período de 5 anos**: 2019-2023
-- ✅ **Correlação temporal**: Mesmos anos e estados para análise
-- ✅ **Interface gráfica interativa**: Dashboard moderno com PySide6/Qt
-- ✅ **Integração com LLM**: Consultas em linguagem natural com OpenAI
-- ✅ **Banco de dados**: Persistência em SQLite
-
-## 🏛️ Datasets Oficiais Utilizados
-
-### 📊 1. Índice de Desenvolvimento Humano (IDH)
-- **Fonte**: Atlas Brasil - PNUD (Programa das Nações Unidas para o Desenvolvimento)
-- **URL**: http://www.atlasbrasil.org.br/
-- **Registros**: 136 (27 estados + DF × 5 anos)
-- **Período**: 2019-2023
-- **Componentes**: IDH Geral, IDH-Educação, IDH-Longevidade, IDH-Renda, População
-
-### 💰 2. Execução da Despesa Pública Federal
-- **Fonte**: Portal da Transparência - Governo Federal
-- **URL**: https://portaldatransparencia.gov.br/
-- **Registros**: 10.800+ (27 estados × 4 categorias × 5 anos × 20 subcategorias)
-- **Período**: 2019-2023
-- **Categorias**: Saúde, Educação, Assistência Social, Infraestrutura
-- **Valor Total**: R$ 1,013+ trilhão
-
-## 🚀 Progresso do Projeto - Estado Atual
-
-### ✅ FASE 1: Coleta e Preparação dos Dados - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-
-#### Implementações Realizadas:
-- ✅ **Coleta Automatizada**: Módulos especializados em `src/data_collection/`
-  - `idh_oficial_collector.py` - Coleta dados do Atlas Brasil
-  - `despesas_oficiais_collector.py` - Coleta dados do Portal da Transparência
-- ✅ **Validação de Dados**: Sistema de validação em `src/utils/data_validator.py`
-- ✅ **Limpeza e Estruturação**: Pipeline automatizado em `src/pipeline/fase1b_clean_data.py`
-
-### ✅ FASE 2: Análise Exploratória e Correlações - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-
-#### Análises Implementadas:
-- ✅ **Análise Descritiva**: Estatísticas completas dos datasets
-- ✅ **Análise de Correlações**: Pearson e Spearman por categoria, ano, estado e região
-- ✅ **Dataset Unificado**: `data/processed/dataset_unificado.csv` como base consolidada
-- ✅ **Visualizações Exploratórias**: 15+ gráficos e mapas interativos
-- ✅ **Análises Avançadas**: Clustering, análises de eficiência e tendências temporais
-
-### ✅ FASE 2.5: Persistência de Dados em Banco de Dados - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-
-#### Sistema de Banco de Dados:
-- ✅ **SQLite Database**: `data/processed/projeto_visualizacao.db`
-- ✅ **Setup Automatizado**: Módulo `src/database/setup_database.py`
-- ✅ **Esquema Dinâmico**: Criação automática baseada no dataset unificado
-- ✅ **Prevenção de Duplicatas**: Sistema robusto de validação
-
-### ✅ FASE 3: Visualizações Estáticas - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-
-#### Visualizações Geradas:
-- ✅ **Mapas Coropléticos**: IDH e gastos por estado (2019-2023)
-- ✅ **Gráficos de Bolhas**: Correlações interativas IDH vs Gastos
-- ✅ **Mapas de Calor**: Correlações temporais e regionais
-- ✅ **30+ Visualizações HTML**: Todas interativas usando Plotly
-- ✅ **Geração Automatizada**: Sistema de batch processing
-
-### ✅ FASE 4: Dashboard Interativo Moderno - **CONCLUÍDA** 
-**Status**: ✅ Finalizada em 100%
-**Tecnologia**: `PySide6/Qt (Gemini Style Dashboard)`
-
-#### 🎨 Interface Moderna Implementada:
-- ✅ **Design Gemini-Inspired**: Interface limpa e moderna
-- ✅ **Sidebar Recolhível**: Navegação intuitiva e responsiva
-- ✅ **Sistema de Abas**: Organização clara do conteúdo
-- ✅ **Visualizações Integradas**: Matplotlib embedado com Qt
-- ✅ **Chat LLM Interface**: Interface de conversação fluida
-- ✅ **Filtros Dinâmicos**: Controles interativos por ano, região, categoria
-
-#### 🛠️ Arquitetura Modular:
-- ✅ **Componentes Reutilizáveis**: Widgets especializados
-  - `CollapsibleSidebar` - Navegação lateral
-  - `GraphsContainer` - Container para visualizações
-- ✅ **Separação de Responsabilidades**: UI, lógica e dados separados
-- ✅ **Sistema de Eventos**: Comunicação entre componentes
-
-### ✅ FASE 4.5: Integração de LLM - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-**Tecnologia**: `OpenAI (gpt-4o-mini)`
-
-#### 🤖 Sistema LLM Avançado:
-- ✅ **Consultas Factuais**: Busca inteligente por IDH e gastos específicos
-- ✅ **Herança de Contexto**: Continuidade em conversas
-- ✅ **Consultas Top N**: "os 3 maiores IDHs", "5 menores gastos em saúde"
-- ✅ **Filtros Inteligentes**: Aplicação automática de filtros baseada em perguntas
-- ✅ **Cenários Múltiplos**: 15+ tipos de consulta factual implementados
-
-#### 🧠 Funcionalidades Inteligentes:
-- ✅ **Extração de Intenções**: Identificação automática de UF, ano, categoria
-- ✅ **Validação Contextual**: Verificação de dados antes da resposta
-- ✅ **Respostas Estruturadas**: Formatação clara e informativa
-- ✅ **Tratamento de Erros**: Respostas adequadas para dados não encontrados
-
-### ✅ FASE 5: Pipeline Integrado - **CONCLUÍDA**
-**Status**: ✅ Finalizada em 100%
-
-#### 🔄 Sistema de Orquestração:
-- ✅ **Execução Inteligente**: Verificação automática de artefatos existentes
-- ✅ **Pipeline Completo**: `main.py` executa todas as fases automaticamente
-- ✅ **Validação de Dependências**: Verificação de pré-requisitos entre fases
-- ✅ **Logs Detalhados**: Acompanhamento completo do progresso
-- ✅ **Inicialização Automática**: Dashboard inicia após conclusão do pipeline
-
-## 🛠️ Tecnologias Principais
-
-### 🔧 Stack Tecnológico Implementado:
-- **🖥️ Interface**: `PySide6/Qt` - Dashboard moderno e responsivo ✅
-- **🤖 IA**: `OpenAI (gpt-4o-mini)` - Consultas em linguagem natural ✅
-- **🗄️ Banco de Dados**: `SQLite` - Persistência local eficiente ✅
-- **📊 Visualização**: `Matplotlib`, `Plotly`, `Seaborn` ✅
-- **🔄 Processamento**: `pandas`, `numpy`, `scipy` ✅
-- **🗺️ Geoespacial**: `geopandas`, `shapely` ✅
-- **🌐 Coleta**: `requests`, `BeautifulSoup` ✅
-
-### 📦 Dependências Completas:
+### Execução Rápida (Recomendado)
 ```bash
+# 1. Instalar dependências
 pip install -r requirements.txt
-```
 
-**Bibliotecas principais:**
-- `PySide6>=6.0.0` - Interface gráfica moderna ✅
-- `openai>=1.0.0` - Integração LLM ✅
-- `pandas>=2.0.0` - Manipulação de dados ✅
-- `matplotlib>=3.7.0` - Visualizações ✅
-- `plotly>=5.0.0` - Gráficos interativos ✅
-- `geopandas>=0.10.0` - Dados geoespaciais ✅
-- `sqlite3` - Banco de dados (built-in) ✅
+# 2. Configurar API do Gemini
+# Edite o arquivo Chave.env e adicione sua GEMINI_API_KEY
 
-## 🚀 Como Executar
-
-### 🎯 Execução Completa (Recomendado)
-```bash
+# 3. Executar projeto completo
 python main.py
 ```
+
 **Este comando único:**
-- ✅ Executa todo o pipeline automaticamente
-- ✅ Verifica artefatos existentes (evita reprocessamento)
-- ✅ Inicia o dashboard moderno automaticamente
-- ✅ Valida dependências entre fases
+- Processa todos os dados automaticamente
+- Gera análises e visualizações
+- Inicia o dashboard moderno
+- Habilita chat com IA
 
-### 🔧 Execução Manual por Fases
+---
 
-#### Fase 1: Coleta de Dados
-```bash
-python -m src.pipeline.fase1_collect_data
-```
+## Funcionalidades Principais
 
-#### Fase 1b: Limpeza de Dados
-```bash
-python -m src.pipeline.fase1b_clean_data
-```
+### Dashboard Moderno
+- **Interface Gemini-Style**: Design limpo e moderno
+- **Navegação Intuitiva**: Sidebar recolhível com abas organizadas
+- **Visualizações Interativas**: 30+ gráficos e mapas dinâmicos
+- **Filtros Inteligentes**: Por ano, região e categoria de despesa
 
-#### Fase 2: Análise Exploratória
-```bash
-python -m src.pipeline.fase2_explore_data
-```
+### Chat com IA (Gemini)
+- **Consultas em Português**: Perguntas naturais sobre os dados
+- **Respostas Factuais**: Dados precisos e contextualizados
+- **Análises Inteligentes**: Rankings, comparações e tendências
+- **Contexto Preservado**: Conversas fluidas e sequenciais
 
-#### Fase 2b: Análises Avançadas
-```bash
-python -m src.pipeline.fase2b_advanced_analysis
-```
+### Análises Disponíveis
+- **Correlações Detalhadas**: IDH vs Gastos por múltiplas dimensões
+- **Mapas Coropléticos**: Representação geográfica temporal
+- **Rankings Dinâmicos**: Estados com maiores/menores indicadores
+- **Tendências Temporais**: Evolução 2019-2023
 
-#### Configuração do Banco de Dados
-```bash
-python -m src.database.setup_database
-```
+---
 
-#### Dashboard Apenas
-```bash
-python -m src.app.gemini_style_dashboard
-```
+## Exemplos de Perguntas para a IA
 
-## 📁 Estrutura Técnica do Projeto
+### IDH e Rankings
+- "Qual foi o maior IDH de 2023?"
+- "Quais os 3 estados com menor IDH na região Norte?"
+- "Como evoluiu o IDH de São Paulo entre 2019 e 2023?"
 
-```
-Projeto Final 1/
-├── 🚀 main.py                          # Script principal - orquestração completa
-├── 🔑 Chave.env                        # Chave API OpenAI (não commitado)
-├── 📋 requirements.txt                 # Dependências Python
-├── 📖 README.md                        # Esta documentação
-│
-├── 📊 data/                            # Dados do projeto
-│   ├── raw/                           # Dados brutos originais
-│   ├── processed/                     # Dados processados e limpos  
-│   │   ├── dataset_unificado.csv      # Dataset consolidado principal
-│   │   └── projeto_visualizacao.db    # Banco de dados SQLite
-│   └── geospatial/                    # Shapefiles e dados geográficos
-│
-├── 🎯 src/                            # Código fonte modularizado
-│   ├── app/                           # Dashboard PySide6/Qt
-│   │   ├── gemini_style_dashboard.py  # Dashboard principal
-│   │   ├── assets/                    # Recursos gráficos
-│   │   └── widgets/                   # Componentes UI reutilizáveis
-│   │       ├── collapsible_sidebar.py # Sidebar recolhível
-│   │       └── graphs_container.py    # Container de gráficos
-│   │
-│   ├── 🤖 llm/                        # Sistema LLM
-│   │   └── llm_handler.py             # Handler principal do LLM
-│   │
-│   ├── 🔄 pipeline/                   # Pipeline de processamento
-│   │   ├── fase1_collect_data.py      # Coleta de dados
-│   │   ├── fase1b_clean_data.py       # Limpeza de dados
-│   │   ├── fase2_explore_data.py      # Análise exploratória
-│   │   └── fase2b_advanced_analysis.py # Análises avançadas
-│   │
-│   ├── 📈 visualization/              # Sistema de visualizações
-│   │   └── plot_generator.py          # Gerador de gráficos
-│   │
-│   ├── 🗄️ database/                   # Sistema de banco de dados
-│   │   └── setup_database.py          # Configuração SQLite
-│   │
-│   ├── 🌐 data_collection/            # Coletores especializados
-│   │   ├── idh_oficial_collector.py   # Coletor IDH
-│   │   └── despesas_oficiais_collector.py # Coletor despesas
-│   │
-│   └── 🛠️ utils/                      # Utilitários
-│       └── data_validator.py          # Validação de dados
-│
-└── 📊 results/                        # Resultados gerados
-    ├── exploratory_analysis/          # Análises exploratórias
-    ├── advanced_analysis/             # Análises avançadas
-    └── visualizations/                # Visualizações HTML
-```
+### Gastos Públicos
+- "Qual estado gastou mais em saúde em 2023?"
+- "Quanto o Brasil investiu em educação em 2022?"
+- "Qual o menor gasto em infraestrutura da região Nordeste?"
 
-## 📊 Resultados Obtidos
+### Correlações e Comparações
+- "Há correlação entre gastos em saúde e IDH?"
+- "Compare os investimentos do Sudeste vs Nordeste"
+- "Estados com maior IDH gastam mais em educação?"
 
-### 💰 Resumo Financeiro (2019-2023):
+---
+
+## Dados Utilizados
+
+### Fontes Oficiais
+- **IDH**: Atlas Brasil - PNUD (Programa das Nações Unidas)
+- **Despesas**: Portal da Transparência - Governo Federal
+- **Período**: 2019-2023 (5 anos)
+- **Cobertura**: 27 estados + DF
+
+### Resumo Financeiro (2019-2023)
 - **Total Investido**: R$ 1,013+ trilhão
 - **Saúde**: R$ 345,4+ bilhões (34,1%)
 - **Educação**: R$ 264,4+ bilhões (26,1%)
 - **Infraestrutura**: R$ 224,3+ bilhões (22,1%)
 - **Assistência Social**: R$ 178,8+ bilhões (17,7%)
 
-### 📈 Análises Geradas:
-- **📊 30+ Visualizações Interativas**: Mapas, gráficos de bolha, heatmaps
-- **📋 15+ Análises Estatísticas**: Correlações detalhadas por múltiplas dimensões
-- **🗺️ Mapas Coropléticos**: Representação geográfica temporal
-- **🤖 Sistema LLM**: 15+ cenários de consulta factual implementados
-- **📈 Análises de Tendência**: Evolução temporal por estado e região
+---
 
-### 🔗 Principais Descobertas:
-- **Correlações Identificadas**: Métodos Pearson e Spearman
-- **Outliers Documentados**: Estados com padrões atípicos
-- **Padrões Regionais**: Análise por macrorregião brasileira
-- **Eficiência de Investimentos**: Análise de retorno social por real investido
+## Tecnologias
 
-## 🎨 Interface do Dashboard
+### Stack Principal
+- **Interface**: `PySide6/Qt` - Dashboard moderno e responsivo
+- **IA**: `Google Gemini` - Consultas em linguagem natural
+- **Banco**: `SQLite` - Persistência local eficiente
+- **Visualização**: `Matplotlib`, `Plotly`, `Seaborn`
+- **Análise**: `pandas`, `numpy`, `scipy`, `scikit-learn`
+- **Geoespacial**: `geopandas` - Mapas e dados geográficos
 
-### 🖥️ Características da Interface:
-- **🎨 Design Moderno**: Inspirado no Gemini (Google AI)
-- **📱 Layout Responsivo**: Adaptável a diferentes resoluções
-- **🎛️ Controles Intuitivos**: Filtros e navegação simplificada
-- **💬 Chat Inteligente**: Interação em linguagem natural
-- **📊 Visualizações Integradas**: Gráficos embedados e interativos
+### Dependências Principais
+```txt
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.6.0
+seaborn>=0.12.0
+plotly>=5.0.0
+geopandas>=0.13.0
+scikit-learn>=1.3.0
+scipy>=1.10.0
+google-generativeai
+python-dotenv
+PySide6>=6.7.0
+requests>=2.28.0
+openpyxl>=3.1.0
+```
 
-### 🔧 Funcionalidades Implementadas:
-- **🗂️ Navegação por Abas**: Visão geral, correlações, mapas, chat
-- **📊 Filtros Dinâmicos**: Por ano, região, categoria de despesa
-- **🤖 Consultas LLM**: Perguntas em português sobre os dados
-- **📈 Gráficos Interativos**: Zoom, pan, hover para detalhes
-- **🎯 Análises Contextuais**: Insights automáticos baseados em seleções
+---
 
-## 🔍 Funcionalidades do LLM
+## Estrutura do Projeto
 
-### 🤖 Tipos de Consulta Suportados:
-- **📊 Consultas Específicas**: "Qual o IDH de São Paulo em 2023?"
-- **🏆 Rankings**: "Os 5 estados com maior IDH"
-- **💰 Análises de Gastos**: "Menores investimentos em saúde por região"
-- **🔗 Correlações**: "Relação entre IDH e gastos em educação"
-- **📈 Comparações**: "Evolução do IDH no Nordeste vs Sudeste"
+```
+Projeto Final/
+├── main.py                    # Script principal
+├── Chave.env                  # API Key do Gemini
+├── requirements.txt           # Dependências
+│
+├── data/                      # Dados do projeto
+│   ├── raw/                   # Dados brutos oficiais
+│   ├── processed/             # Dados processados
+│   │   ├── dataset_unificado.csv # Dataset principal
+│   │   └── projeto_visualizacao.db # Banco SQLite
+│   └── geospatial/            # Dados geográficos
+│
+├── src/                       # Código fonte
+│   ├── app/                   # Dashboard PySide6
+│   │   ├── gemini_style_dashboard.py
+│   │   └── widgets/           # Componentes UI
+│   ├── llm/                   # Sistema IA
+│   │   └── llm_handler.py     # Handler do Gemini
+│   ├── pipeline/              # Processamento de dados
+│   ├── visualization/         # Geração de gráficos
+│   ├── database/              # Sistema de banco
+│   ├── data_collection/       # Coleta de dados
+│   └── utils/                 # Utilitários
+│
+└── results/                   # Resultados gerados
+    ├── exploratory_analysis/  # Análises exploratórias
+    ├── advanced_analysis/     # Análises avançadas
+    └── visualizations/        # Visualizações HTML
+```
 
-### 🧠 Inteligência Contextual:
-- **🔄 Herança de Contexto**: Perguntas de acompanhamento
-- **📍 Reconhecimento Geográfico**: Estados, regiões, siglas
-- **📅 Contexto Temporal**: Anos específicos ou períodos
-- **💡 Sugestões Inteligentes**: Análises relacionadas automáticas
+---
 
-## 🛡️ Garantias de Qualidade
+## Configuração
 
-- ✅ **Dados 100% Oficiais**: Fontes governamentais verificadas
-- ✅ **Validação Automática**: Sistema robusto de verificação
-- ✅ **Documentação Completa**: Código bem documentado
-- ✅ **Rastreabilidade Total**: Todas as fontes identificadas
-- ✅ **Análises Robustas**: Múltiplas metodologias estatísticas
-- ✅ **Arquitetura Modular**: Código escalável e manutenível
-- ✅ **Testes Integrados**: Validação em múltiplos cenários
+### 1. API Key do Gemini
+1. Acesse [Google AI Studio](https://aistudio.google.com/)
+2. Crie uma API Key gratuita
+3. Edite o arquivo `Chave.env`:
+```env
+GEMINI_API_KEY="sua_chave_aqui"
+```
 
-## 🔬 Metodologia Científica
-
-### 📊 Processo de Análise:
-1. **Coleta**: APIs oficiais e web scraping estruturado
-2. **Validação**: Verificação de integridade e consistência
-3. **Processamento**: Limpeza, padronização e agregação
-4. **Análise**: Correlações Pearson/Spearman multidimensionais
-5. **Visualização**: Três tipos específicos de gráficos relacionais
-6. **Interpretação**: LLM para análises em linguagem natural
-
-### 🎯 Critérios de Validação:
-- **Consistência Temporal**: Mesmos períodos para todos os dados
-- **Consistência Geográfica**: Padronização de nomenclaturas
-- **Integridade Estatística**: Tratamento adequado de outliers
-- **Reprodutibilidade**: Pipeline completamente automatizado
-
-## 🏆 Status Final do Projeto
-
-**📊 Progresso Total**: ✅ **100% CONCLUÍDO**
-
-### ✅ Todas as Fases Implementadas:
-- ✅ **Fase 1**: Coleta de dados oficiais (100%)
-- ✅ **Fase 2**: Análise exploratória e correlações (100%)
-- ✅ **Fase 2.5**: Banco de dados SQLite (100%)
-- ✅ **Fase 3**: Visualizações estáticas (100%)
-- ✅ **Fase 4**: Dashboard moderno PySide6/Qt (100%)
-- ✅ **Fase 4.5**: Integração LLM avançada (100%)
-- ✅ **Fase 5**: Pipeline integrado e orquestração (100%)
-
-### 🎯 Objetivos Alcançados:
-- ✅ **Correlação IDH vs Despesas**: Análise completa implementada
-- ✅ **Interface Moderna**: Dashboard responsivo e intuitivo
-- ✅ **IA Integrada**: Consultas em linguagem natural funcionais
-- ✅ **Dados Oficiais**: 100% de fontes governamentais verificadas
-- ✅ **Análises Robustas**: Múltiplas metodologias estatísticas
-- ✅ **Visualizações Interativas**: 30+ gráficos e mapas
-- ✅ **Sistema Escalável**: Arquitetura modular e bem documentada
-
-### 🚀 Execução:
+### 2. Instalação
 ```bash
-# Comando único para execução completa
+# Clonar/baixar o projeto
+cd "Projeto Final"
+
+# Instalar dependências
+pip install -r requirements.txt
+
+# Executar
 python main.py
 ```
 
 ---
 
-**🎉 Projeto de Visualização de Dados Completo e Funcional!**
+## Principais Descobertas
 
-**📈 Análise completa da correlação entre IDH e investimentos públicos federais no Brasil (2019-2023) com interface moderna, IA integrada e dados 100% oficiais.**
+### Análises Realizadas
+- **Correlações Identificadas**: Métodos Pearson e Spearman
+- **Padrões Regionais**: Análise por macrorregião brasileira
+- **Outliers Documentados**: Estados com padrões atípicos
+- **Eficiência de Investimentos**: Retorno social por real investido
+- **Tendências Temporais**: Evolução 2019-2023
+
+### Perguntas de Pesquisa Respondidas
+1. **Relação IDH vs Investimentos**: Correlações identificadas e quantificadas
+2. **Saúde vs IDH-Longevidade**: Padrões regionais mapeados
+3. **Investimentos vs Vulnerabilidade**: Análise de direcionamento
+4. **Evolução Temporal**: Tendências de 5 anos analisadas
+
+---
+
+## Objetivos Alcançados
+
+- **Dashboard Moderno**: Interface responsiva e intuitiva
+- **IA Integrada**: Chat funcional com Gemini
+- **Dados Oficiais**: 100% fontes governamentais
+- **Análises Robustas**: Múltiplas metodologias estatísticas
+- **Visualizações Interativas**: 30+ gráficos e mapas
+- **Sistema Escalável**: Arquitetura modular
+
+---
+
+## Suporte
+
+### Execução Manual por Módulos
+```bash
+# Apenas coleta de dados
+python -m src.pipeline.fase1_collect_data
+
+# Apenas análises
+python -m src.pipeline.fase2_explore_data
+
+# Apenas dashboard
+python -m src.app.gemini_style_dashboard
+```
+
+### Requisitos
+- Python 3.8+
+- Conexão com internet (para coleta de dados)
+- API Key do Google Gemini
+- ~2GB espaço em disco
+
+---
+
+**Projeto Completo de Visualização de Dados com IA**
+
+Análise completa da correlação entre IDH e investimentos públicos federais no Brasil (2019-2023) com dashboard moderno e chat inteligente.

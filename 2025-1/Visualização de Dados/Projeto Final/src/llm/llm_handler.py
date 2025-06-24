@@ -2,13 +2,15 @@
 Módulo para lidar com a interação com o Large Language Model (LLM).
 """
 import os
-from openai import OpenAI
+import google.generativeai as genai
 from dotenv import load_dotenv
 import json # Para carregar e analisar JSON da resposta do LLM
 import pandas as pd # Adicionado Pandas
 from pathlib import Path # Já estava sendo usado em find_dotenv, garantir que está no topo
 import re # Adicionar import re
 from typing import Tuple, Dict, Optional, List # Adicionado typing
+
+# Funções de cenários já estão implementadas neste arquivo
 
 class LLMQueryHandler:
     def __init__(self, dataset_schema_description: str = None):
@@ -23,12 +25,14 @@ class LLMQueryHandler:
         dotenv_path = self.find_dotenv()
         load_dotenv(dotenv_path=dotenv_path)
         
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            raise ValueError("Chave da API da OpenAI não encontrada. "
-                             "Verifique seu arquivo .env e a variável OPENAI_API_KEY.")
-        self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4o-mini" # Modelo a ser usado
+            raise ValueError("Chave da API do Gemini não encontrada. "
+                             "Verifique seu arquivo .env e a variável GEMINI_API_KEY.")
+        
+        # Configurar o Gemini
+        genai.configure(api_key=self.api_key)
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
         self.conversation_history = []
         
         # Carregar o dataset
@@ -41,39 +45,50 @@ class LLMQueryHandler:
         self.add_system_message(
             f"""Você é um assistente de análise de dados especializado em dados sobre IDH e Despesas Públicas Federais no Brasil.
             Seu objetivo é responder perguntas dos usuários com base nos dados fornecidos e extrair intenções de filtro.
+            
+            IMPORTANTE: Para perguntas sobre dados específicos (como "qual o maior IDH?", "menor IDH?", "gastos em saúde?"), 
+            você DEVE SEMPRE incluir um objeto JSON no final da sua resposta com os filtros identificados.
+
             Quando uma pergunta implicar filtros (como ano, UF, região, ou tipo de despesa),
             você DEVE incluir um objeto JSON na sua resposta com a chave 'filtros_identificados'.
-            O JSON deve conter pares chave-valor para os filtros. Chaves válidas para filtros são: 'ano' (inteiro), 'uf' (string, sigla do estado), 'regiao' (string), 'categoria_despesa' (string).
-            Se nenhum filtro for identificado, o valor de 'filtros_identificados' deve ser null ou um objeto vazio.
-            Responda de forma concisa e informativa.
-            Para perguntas diretas que solicitam um fato específico (por exemplo, "Qual o estado com maior IDH?", "Qual o valor do gasto em X?", "Que estado é esse?"), forneça a resposta diretamente, sem introduções ou definições genéricas desnecessárias.
-            Quando responder a perguntas de acompanhamento curtas (ex: 'E para SC?', 'E em 2021?', 'Qual o valor?'), se você identificar que o usuário está se referindo a uma entidade (UF, ano) e um tipo de dado (IDH, despesa) de uma pergunta anterior, tente responder factualmente.
+            O JSON deve conter pares chave-valor para os filtros. 
             
-            Tipos de intenção que você pode identificar para cenários factuais (a serem usados internamente pelo sistema para buscar dados):
-            - idh_especifico: IDH para uma UF e ano.
-            - idh_maior_brasil: Maior IDH no Brasil (pode ter filtro de ano).
-            - idh_menor_brasil: Menor IDH no Brasil (pode ter filtro de ano).
-            - idh_maior_regiao: Maior IDH em uma Região (pode ter filtro de ano).
-            - idh_menor_regiao: Menor IDH em uma Região (pode ter filtro de ano).
-            - idh_medio_brasil: IDH médio no Brasil (pode ter filtro de ano).
-            - gasto_especifico: Gasto (total ou categoria) para uma UF e ano.
-            - gasto_maior_brasil: Maior gasto (total ou categoria) no Brasil (pode ter filtro de ano).
-            - gasto_menor_brasil: Menor gasto (total ou categoria) no Brasil (pode ter filtro de ano).
-            - gasto_maior_regiao: Maior gasto (total ou categoria) em uma Região (pode ter filtro de ano).
-            - gasto_menor_regiao: Menor gasto (total ou categoria) em uma Região (pode ter filtro de ano).
+            Chaves válidas para filtros são: 
+            - 'ano' (inteiro)
+            - 'uf' (string, sigla do estado) 
+            - 'regiao' (string)
+            - 'categoria_despesa' (string)
+            - 'tipo_intenção_llm' (string, obrigatório para consultas de dados)
             
-            Se você herdar claramente o tipo de consulta, como um IDH específico para uma UF, de uma pergunta anterior, adicione ao JSON de filtros: `\\"tipo_consulta_herdada\\": \\"idh_especifico\\"` (substitua `idh_especifico` pelo tipo de intenção relevante da lista acima).
+                         Tipos de intenção OBRIGATÓRIOS para consultas de dados:
+             - "idh_maior_brasil": Para "qual o maior IDH?", "estado com maior IDH"
+             - "idh_menor_brasil": Para "qual o menor IDH?", "pior IDH", "menor IDH"
+             - "gasto_especifico": Para gastos específicos por estado/categoria
+             - "gasto_maior_brasil": Para "maiores gastos", "quem mais gasta"
+             - "gasto_menor_brasil": Para "menores gastos", "quem menos gasta"
+             - "gasto_total_brasil": Para "gasto total", "quanto gastou o brasil", "total gasto"
+            
+            SEMPRE inclua o tipo_intenção_llm no JSON quando a pergunta for sobre dados específicos.
 
             O esquema principal dos dados com os quais você vai trabalhar é (simplificado):
             {self.dataset_schema}
 
-            Exemplo de resposta com filtros:
-            Pergunta do usuário: Qual o IDH de São Paulo em 2021?
-            Sua Resposta: O IDH de São Paulo em 2021 foi X. {{"filtros_identificados": {{"ano": 2021, "uf": "SP", "tipo_intenção_llm": "idh_especifico"}}}}
+            EXEMPLOS OBRIGATÓRIOS:
+            
+            Pergunta: "qual foi o maior idh de 2023?"
+            Resposta: Vou buscar essa informação. {{"filtros_identificados": {{"ano": 2023, "tipo_intenção_llm": "idh_maior_brasil"}}}}
 
-            Exemplo de resposta sem filtros diretos:
-            Pergunta do usuário: Quais são as principais categorias de despesa?
-            Sua Resposta: As principais categorias de despesa incluem Educação, Saúde, etc. {{"filtros_identificados": {{}}}}
+            Pergunta: "e em 2020?"
+            Resposta: Vou buscar essa informação. {{"filtros_identificados": {{"ano": 2020, "tipo_intenção_llm": "idh_maior_brasil"}}}}
+
+            Pergunta: "e qual o menor no mesmo ano?"
+            Resposta: Vou buscar essa informação. {{"filtros_identificados": {{"ano": 2020, "tipo_intenção_llm": "idh_menor_brasil"}}}}
+
+                         Pergunta: "Quais foram os gastos em saúde em 2023?"
+             Resposta: Vou buscar essa informação. {{"filtros_identificados": {{"ano": 2023, "categoria_despesa": "saude", "tipo_intenção_llm": "gasto_total_brasil"}}}}
+             
+             Pergunta: "qual foi o gasto total com saúde no brasil em 2023?"
+             Resposta: Vou buscar essa informação. {{"filtros_identificados": {{"ano": 2023, "categoria_despesa": "saude", "tipo_intenção_llm": "gasto_total_brasil"}}}}
             """
         )
 
@@ -161,13 +176,25 @@ class LLMQueryHandler:
         self.add_user_message(user_query)
 
         try:
-            llm_api_response = self.client.chat.completions.create(
-                model=self.model,
-                messages=self.conversation_history,
-                temperature=0.2, # Baixa temperatura para respostas mais factuais/consistentes
+            # Construir a conversa para o Gemini
+            conversation_text = ""
+            for message in self.conversation_history:
+                if message["role"] == "system":
+                    conversation_text += f"Instruções: {message['content']}\n\n"
+                elif message["role"] == "user":
+                    conversation_text += f"Usuário: {message['content']}\n\n"
+                elif message["role"] == "assistant":
+                    conversation_text += f"Assistente: {message['content']}\n\n"
+            
+            # Gerar resposta com o Gemini
+            response = self.model.generate_content(
+                conversation_text,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.2,  # Baixa temperatura para respostas mais factuais/consistentes
+                )
             )
             
-            assistant_response_content = llm_api_response.choices[0].message.content
+            assistant_response_content = response.text
             text_part_llm = assistant_response_content # Resposta padrão do LLM
             filters_identified_llm = {} # Filtros extraídos da resposta do LLM
             
@@ -209,7 +236,9 @@ class LLMQueryHandler:
                              pass
 
                 # Determinar a intenção da consulta atual (current_query_intent)
-                current_query_intent = self._determine_intent_from_query(user_query_lower, filters_identified_llm)
+                # PRIORIZAR a intenção que o Gemini identificou, se existir
+                gemini_intent = filters_identified_llm.get('tipo_intenção_llm')
+                current_query_intent = gemini_intent or self._determine_intent_from_query(user_query_lower, filters_identified_llm)
 
                 # Determinar a intenção herdada, se a query atual não tiver uma intenção clara
                 inherited_intent = None
@@ -237,7 +266,7 @@ class LLMQueryHandler:
             return text_part_llm, filters_identified_llm
 
         except Exception as e:
-            print(f"❌ Erro ao chamar a API da OpenAI ou ao processar cenários: {e}")
+            print(f"❌ Erro ao chamar a API do Gemini ou ao processar cenários: {e}")
             import traceback
             traceback.print_exc()
             self.add_assistant_message(f"Erro interno: {e}")
@@ -408,7 +437,16 @@ def _extract_uf_from_query(
 
 def _get_relevant_expense_columns(data_df: pd.DataFrame, categoria_despesa_query: Optional[str] = None) -> Tuple[List[str], bool, Optional[str]]:
     available_df_columns = data_df.columns.tolist()
-    base_expense_cols = {"saude": "despesa_saude", "educacao": "despesa_educacao", "educação": "despesa_educacao", "infraestrutura": "despesa_infraestrutura", "assistencia social": "despesa_assistencia_social", "assistência social": "despesa_assistencia_social"}
+    base_expense_cols = {
+        "saude": "despesa_saude", 
+        "educacao": "despesa_educacao", 
+        "educação": "despesa_educacao", 
+        "infraestrutura": "despesa_infraestrutura", 
+        "assistencia social": "despesa_assistencia_social", 
+        "assistência social": "despesa_assistencia_social",
+        "assistencia_social": "despesa_assistencia_social",
+        "assistência_social": "despesa_assistencia_social"
+    }
     valid_individual_cols = sorted(list(set(col for bm in base_expense_cols.values() for col in [bm] if col in available_df_columns)))
     is_total, cols_to_use, cat_usada = False, [], None
     if categoria_despesa_query:
@@ -706,6 +744,58 @@ def _handle_idh_medio_brasil(df: pd.DataFrame, ano: Optional[int]) -> Tuple[Opti
         return f"O IDH médio no Brasil {msg_ano_ctx} foi {media:.3f}.", {"tipo_cenario_factual": "idh_medio_brasil", "ano_cenario": ano_u, "valor_cenario": media}
     except Exception as e: 
         return f"Ocorreu um erro ao tentar calcular o IDH médio {msg_ano_ctx}.", None
+
+def _handle_gasto_total_brasil(df: pd.DataFrame, ano: Optional[int], cat_gasto: Optional[str] = None) -> Tuple[Optional[str], Optional[Dict]]:
+    """Calcula o gasto total agregado do Brasil (soma de todos os estados) para uma categoria ou total."""
+    
+    cols, _, cat_nome = _get_relevant_expense_columns(df, cat_gasto)
+    if not cols: 
+        return f"Colunas de despesa não identificadas para '{cat_nome if cat_nome else 'Total'}'.", {"tipo_cenario_factual": "gasto_total_brasil_col_nao_encontrada", "categoria_tentada": cat_gasto}
+    
+    tmp_df = df.copy()
+    ano_usado = ano
+    msg_ano_ctx = f"em {ano}" if ano else "no ano mais recente"
+    
+    if not ano_usado and pd.notna(tmp_df['ano'].max()): 
+        ano_usado = int(tmp_df['ano'].max())
+        msg_ano_ctx = f"no ano mais recente ({ano_usado})"
+    
+    if ano_usado:
+        tmp_df = tmp_df[tmp_df['ano'] == ano_usado]
+    
+    if tmp_df.empty:
+        return f"Sem dados para {msg_ano_ctx}.", {"tipo_cenario_factual": "gasto_total_brasil_sem_dados", "ano_cenario": ano_usado, "categoria_usada": cat_nome}
+
+    # Converter colunas para numérico e somar todos os estados
+    for c in cols: 
+        if c not in tmp_df.columns: 
+            return f"Coluna de despesa '{c}' não encontrada.", None
+        tmp_df[c] = pd.to_numeric(tmp_df[c], errors='coerce').fillna(0)
+    
+    try:
+        if len(cols) == 1:
+            total_gasto = tmp_df[cols[0]].sum()
+        else:
+            total_gasto = tmp_df[cols].sum().sum()  # Soma todas as colunas, depois soma todos os estados
+        
+        nome_categoria = cat_nome if cat_nome and cat_nome != "Total" else "público total"
+        if cat_nome == "Total": 
+            nome_categoria = "público total"
+        else: 
+            nome_categoria = f"em {cat_nome.lower() if cat_nome else 'gastos públicos'}"
+            
+        text_part = f"O gasto total {nome_categoria} do Brasil {msg_ano_ctx} foi de R$ {total_gasto:.2f} milhões."
+        scenario_filters = {
+            "tipo_cenario_factual": "gasto_total_brasil",
+            "ano_cenario": ano_usado,
+            "categoria_cenario": cat_nome if cat_nome else "Total",
+            "valor_cenario": total_gasto,
+            "estados_incluidos": len(tmp_df)
+        }
+        return text_part, scenario_filters
+        
+    except Exception as e: 
+        return f"Ocorreu um erro ao calcular o gasto total {msg_ano_ctx}.", None
 
 def _handle_gasto_especifico_uf_ano(df: pd.DataFrame, uf: str, ano: int, cat_gasto: Optional[str]=None) -> Tuple[Optional[str], Optional[Dict]]:
     if not uf or not ano: return "UF ou Ano não fornecidos.", None
@@ -1076,11 +1166,23 @@ def handle_factual_scenarios(user_query_lower: str, final_intent_for_scenarios: 
         "idh_menor_regiao": (_handle_idh_menor_regiao, [data_df, reg_h, ano_h, user_query_lower], lambda: filters_from_llm.get('regiao') and not filters_from_llm.get('uf')),
         "idh_medio_brasil": (_handle_idh_medio_brasil, [data_df, ano_h], lambda: not filters_from_llm.get('uf') and not filters_from_llm.get('regiao')),
         "gasto_especifico": (_handle_gasto_especifico_uf_ano, [data_df, uf_h, ano_h, cat_g_h], lambda: uf_h and ano_h),
+        "gasto_total_brasil": (_handle_gasto_total_brasil, [data_df, ano_h, cat_g_h], lambda: not filters_from_llm.get('uf') and not filters_from_llm.get('regiao')),
         "gasto_maior_brasil": (_handle_gasto_maior_brasil, [data_df, ano_h, user_query_lower, cat_g_h], lambda: not filters_from_llm.get('uf') and not filters_from_llm.get('regiao')),
         "gasto_menor_brasil": (_handle_gasto_menor_brasil, [data_df, ano_h, user_query_lower, cat_g_h], lambda: not filters_from_llm.get('uf') and not filters_from_llm.get('regiao')), 
         "gasto_maior_regiao": (_handle_gasto_maior_regiao, [data_df, reg_h, ano_h, user_query_lower, cat_g_h], lambda: filters_from_llm.get('regiao') and not filters_from_llm.get('uf')), 
         "gasto_menor_regiao": (_handle_gasto_menor_regiao, [data_df, reg_h, ano_h, user_query_lower, cat_g_h], lambda: filters_from_llm.get('regiao') and not filters_from_llm.get('uf')), 
     }
+
+    # CORREÇÃO: Redirecionamento automático baseado nos filtros
+    # Se o Gemini identificou uma intenção geral, mas há filtros específicos, redirecionar
+    if final_intent_for_scenarios == "idh_maior_brasil" and filters_from_llm.get('regiao'):
+        final_intent_for_scenarios = "idh_maior_regiao"
+    elif final_intent_for_scenarios == "idh_menor_brasil" and filters_from_llm.get('regiao'):
+        final_intent_for_scenarios = "idh_menor_regiao"
+    elif final_intent_for_scenarios == "gasto_maior_brasil" and filters_from_llm.get('regiao'):
+        final_intent_for_scenarios = "gasto_maior_regiao"
+    elif final_intent_for_scenarios == "gasto_menor_brasil" and filters_from_llm.get('regiao'):
+        final_intent_for_scenarios = "gasto_menor_regiao"
 
     if final_intent_for_scenarios in intent_map:
         handler_func, params_template, condition_func = intent_map[final_intent_for_scenarios]
