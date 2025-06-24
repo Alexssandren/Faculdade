@@ -6,6 +6,9 @@ Script principal para orquestrar a execução completa do projeto de visualizaç
 
 import sys
 from pathlib import Path
+import pandas as pd
+import json
+from datetime import datetime
 
 # Adicionar o diretório 'src' ao sys.path para permitir importações diretas dos módulos
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -45,11 +48,6 @@ def check_outputs_exist(output_paths: list[Path], phase_name: str) -> bool:
     return all_exist
 
 try:
-    from pipeline import fase1_collect_data
-    from pipeline import fase1b_clean_data
-    from database import setup_database
-    from pipeline import fase2_explore_data
-    from pipeline import fase2b_advanced_analysis
     from visualization import plot_generator
     # from app import dashboard_ui # Comentado o antigo dashboard Tkinter
     from app.gemini_style_dashboard import GeminiStyleDashboard # Importando o novo dashboard
@@ -59,131 +57,176 @@ except ImportError as e:
     print(f"Verifique se a estrutura de diretórios e os arquivos __init__.py estão corretos em '{SRC_DIR}'.")
     sys.exit(1)
 
+def ensure_graphs_cache():
+    """Garante que o cache de gráficos está atualizado antes de iniciar o dashboard."""
+    print("🔍 Verificando cache de gráficos...")
+    
+    try:
+        # Importar apenas o necessário para verificação
+        data_path = PROJECT_ROOT / "data" / "processed" / "dataset_unificado.csv"
+        cache_dir = PROJECT_ROOT / "results" / "visualizations" / "dashboard_cache"
+        cache_info_path = cache_dir / "cache_info.json"
+        
+        # Verificar se dados existem
+        if not data_path.exists():
+            print("⚠️ Dataset não encontrado. Pule a geração de cache.")
+            return
+            
+        # Carregar dados para verificação
+        df = pd.read_csv(data_path)
+        if df.empty:
+            print("⚠️ Dataset vazio. Pule a geração de cache.")
+            return
+            
+        anos_unicos = sorted(df['ano'].dropna().unique())
+        data_modification_time = data_path.stat().st_mtime
+        
+        # Verificar se o cache existe e está atualizado
+        cache_valid = False
+        if cache_info_path.exists():
+            try:
+                with open(cache_info_path, 'r') as f:
+                    cache_info = json.load(f)
+                    
+                if cache_info.get('data_modification_time', 0) >= data_modification_time:
+                    # Verificar se todos os arquivos esperados existem
+                    all_files_exist = True
+                    
+                    for ano in anos_unicos:
+                        expected_files = [
+                            f"mapa_coropletico_{ano}.html",
+                            f"grafico_pizza_{ano}.html", 
+                            f"grafico_bolhas_{ano}.html",
+                            f"treemap_{ano}.html"
+                        ]
+                        
+                        for filename in expected_files:
+                            if not (cache_dir / filename).exists():
+                                all_files_exist = False
+                                break
+                        
+                        if not all_files_exist:
+                            break
+                    
+                    cache_valid = all_files_exist
+            except Exception as e:
+                print(f"⚠️ Erro ao verificar cache: {e}")
+                cache_valid = False
+        
+        if not cache_valid:
+            print("🔄 Gerando cache de gráficos...")
+            print("⏳ Este processo pode levar alguns minutos na primeira execução...")
+            
+            # Criar QApplication temporária para geração de cache
+            from PySide6.QtWidgets import QApplication
+            import sys
+            
+            # Verificar se já existe uma QApplication
+            app = QApplication.instance()
+            if app is None:
+                app = QApplication(sys.argv)
+                app_created = True
+            else:
+                app_created = False
+            
+            try:
+                # Importar e executar geração de cache
+                from app.widgets.graphs_container import GraphsContainerWidget
+                
+                # Criar instância temporária apenas para gerar cache
+                temp_widget = GraphsContainerWidget()
+                
+                print(f"✅ Cache de gráficos gerado com sucesso!")
+                print(f"📊 Total de gráficos: {len(anos_unicos) * 4}")
+                
+            finally:
+                # Limpar widget temporário
+                if 'temp_widget' in locals():
+                    temp_widget.deleteLater()
+                
+                # Se criamos a aplicação, não precisamos fechá-la aqui
+                # pois será reutilizada no dashboard
+        else:
+            print("✅ Cache de gráficos válido encontrado.")
+            
+    except Exception as e:
+        print(f"❌ Erro ao verificar/gerar cache: {e}")
+        print("⚠️ Dashboard será iniciado sem cache (pode ser mais lento)")
+
 def run_complete_pipeline():
-    """Executa todas as fases do pipeline de dados."""
-    print("🚀 INICIANDO PIPELINE DE DADOS COMPLETO...")
+    """Verifica se os dados necessários existem. Pipeline simplificado."""
+    print("🚀 VERIFICANDO DADOS DO SISTEMA...")
     print("=" * 50)
 
-    # --- Fase 1: Coleta de Dados ---
-    fase1_outputs = [
+    # Verificar se os dados essenciais existem
+    required_files = [
         PROJECT_ROOT / "data/raw/idh_oficial_real.csv",
-        PROJECT_ROOT / "data/raw/despesas_publicas_oficiais_real.csv"
+        PROJECT_ROOT / "data/raw/despesas_publicas_oficiais_real.csv",
+        PROJECT_ROOT / "data/processed/dataset_unificado.csv",
+        PROJECT_ROOT / "data/processed/projeto_visualizacao.db"
     ]
-    print("\n🔷 FASE 1: Coleta de Dados...")
-    if check_outputs_exist(fase1_outputs, "Fase 1"):
-        print("⏭️  Fase 1 já concluída (artefatos encontrados). Pulando.")
-        success_f1 = True
-    else:
-        print("🔧 Executando Fase 1: Coleta de Dados...")
-        success_f1 = fase1_collect_data.main()
-        if not success_f1:
-            print("❌ Erro na Fase 1: Coleta de Dados. Abortando pipeline.")
-            return False
-    print("✅ Fase 1: Coleta de Dados verificada/concluída.")
-    print("-" * 50)
-
-    # --- Fase 1b: Limpeza e Estruturação de Dados ---
-    fase1b_outputs = [PROJECT_ROOT / "data/processed/dataset_unificado.csv"]
-    print("\n🔷 FASE 1b: Limpeza e Estruturação de Dados...")
-    if check_outputs_exist(fase1b_outputs, "Fase 1b"):
-        print("⏭️  Fase 1b já concluída (artefatos encontrados). Pulando.")
-        success_f1b = True
-    else:
-        print("🔧 Executando Fase 1b: Limpeza de Dados...")
-        success_f1b = fase1b_clean_data.main()
-        if not success_f1b:
-            print("❌ Erro na Fase 1b: Limpeza de Dados. Abortando pipeline.")
-            return False
-    print("✅ Fase 1b: Limpeza e Estruturação de Dados verificada/concluída.")
-    print("-" * 50)
-
-    # --- Fase 2.5: Configuração do Banco de Dados ---
-    fase2_5_outputs = [PROJECT_ROOT / "data/processed/projeto_visualizacao.db"]
-    print("\n🔷 FASE 2.5: Configuração do Banco de Dados...")
-    if check_outputs_exist(fase2_5_outputs, "Fase 2.5"):
-        print("⏭️  Fase 2.5 já concluída (artefatos encontrados). Pulando.")
-        success_db = True
-    else:
-        print("🔧 Executando Fase 2.5: Configuração do Banco de Dados...")
-        success_db = setup_database.main()
-        if not success_db:
-            print("❌ Erro na Fase 2.5: Configuração do Banco de Dados. Abortando pipeline.")
-            return False
-    print("✅ Fase 2.5: Configuração do Banco de Dados verificada/concluída.")
-    print("-" * 50)
     
-    # --- Fase 2 (Exploração): Análise Exploratória de Dados ---
-    fase2_outputs = [PROJECT_ROOT / "results/exploratory_analysis"] # Verifica o diretório
-    print("\n🔷 FASE 2 (Exploração): Análise Exploratória de Dados...")
-    if check_outputs_exist(fase2_outputs, "Fase 2 (Exploração)"):
-        print("⏭️  Fase 2 (Exploração) já concluída (artefatos encontrados). Pulando.")
-    else:
-        print("🔧 Executando Fase 2 (Exploração): Análise Exploratória de Dados...")
-        try:
-            fase2_explore_data.run_exploratory_analysis()
-        except Exception as e_f2exp:
-            print(f"❌ Erro na Fase 2 (Exploração): Análise Exploratória. Detalhes: {e_f2exp}")
-            # Decidir se o pipeline deve parar aqui. Por ora, continua mas marca como falha implícita.
-            # Para ser mais explícito, poderíamos ter um success_f2 = False aqui.
-    print("✅ Fase 2 (Exploração): Análise Exploratória de Dados verificada/concluída.")
-    print("-" * 50)
-
-    # --- Fase 2b (Avançada): Análises Estatísticas Avançadas ---
-    fase2b_outputs = [
-        PROJECT_ROOT / "results/advanced_analysis/analises_avancadas.json",
-        PROJECT_ROOT / "results/advanced_analysis/graficos" # Verifica o diretório de gráficos
-    ]
-    print("\n🔷 FASE 2b (Avançada): Análises Estatísticas Avançadas...")
-    if check_outputs_exist(fase2b_outputs, "Fase 2b (Avançada)"):
-        print("⏭️  Fase 2b (Avançada) já concluída (artefatos encontrados). Pulando.")
-        # Assume que se os arquivos existem, a "execução" foi um sucesso para o pipeline
-        resultados_f2b_ok = True 
-    else:
-        print("🔧 Executando Fase 2b (Avançada): Análises Estatísticas Avançadas...")
-        resultados_f2b = fase2b_advanced_analysis.main()
-        if resultados_f2b is None: # A main de analises_avancadas retorna None em caso de erro
-            print("⚠️  Fase 2b (Avançada): Análises Avançadas encontraram problemas ou não retornaram resultados.")
-            resultados_f2b_ok = False # Explicitamente marcar falha para lógica de pipeline
+    print("\n🔷 Verificando arquivos essenciais...")
+    all_files_exist = True
+    
+    for file_path in required_files:
+        if file_path.exists():
+            print(f"  ✅ {file_path.relative_to(PROJECT_ROOT)}")
         else:
-            resultados_f2b_ok = True
+            print(f"  ❌ {file_path.relative_to(PROJECT_ROOT)} - ARQUIVO AUSENTE")
+            all_files_exist = False
     
-    if resultados_f2b_ok: # Ajustado para usar a flag
-        print("✅ Fase 2b (Avançada): Análises Estatísticas Avançadas verificadas/concluídas.")
-    else:
-        # Decide se quer abortar o pipeline aqui. Por ora, apenas loga.
-        print("❗ Fase 2b (Avançada) não foi concluída com sucesso.")
-    print("-" * 50)
+    # Verificar diretórios de resultados
+    result_dirs = [
+        PROJECT_ROOT / "results/exploratory_analysis",
+        PROJECT_ROOT / "results/advanced_analysis", 
+        PROJECT_ROOT / "results/visualizations"
+    ]
+    
+    print("\n🔷 Verificando diretórios de resultados...")
+    for dir_path in result_dirs:
+        if dir_path.exists() and any(dir_path.iterdir()):
+            print(f"  ✅ {dir_path.relative_to(PROJECT_ROOT)} (com conteúdo)")
+        elif dir_path.exists():
+            print(f"  ⚠️ {dir_path.relative_to(PROJECT_ROOT)} (vazio)")
+        else:
+            print(f"  ❌ {dir_path.relative_to(PROJECT_ROOT)} - DIRETÓRIO AUSENTE")
+            dir_path.mkdir(parents=True, exist_ok=True)
+            print(f"     ➤ Diretório criado automaticamente")
 
-    # --- Fase 3: Geração de Visualizações Estáticas ---
-    fase3_outputs = [PROJECT_ROOT / "results/visualizations"] # CORRIGIDO: Verifica o diretório novo
-    print("\n🔷 FASE 3: Geração de Visualizações Estáticas...")
-    if check_outputs_exist(fase3_outputs, "Fase 3"):
-        print("⏭️  Fase 3 já concluída (artefatos encontrados). Pulando.")
-    else:
-        print("🔧 Executando Fase 3: Geração de Visualizações Estáticas...")
+    # Executar geração de visualizações se os dados existem
+    if all_files_exist:
+        print("\n🔷 FASE 3: Geração de Visualizações Estáticas...")
         try:
             plot_generator.main()
+            print("✅ Visualizações geradas com sucesso.")
         except Exception as e_f3:
-            print(f"❌ Erro na Fase 3: Geração de Visualizações. Detalhes: {e_f3}")
-    print("✅ Fase 3: Geração de Visualizações Estáticas verificada/concluída.")
-    print("-" * 50)
+            print(f"❌ Erro na geração de visualizações: {e_f3}")
+            print("⚠️ Sistema continuará sem visualizações estáticas.")
+    else:
+        print("\n⚠️ Alguns arquivos essenciais estão ausentes.")
+        print("   O sistema funcionará apenas com os dados disponíveis.")
 
-    print("\n🎉 PIPELINE DE DADOS COMPLETO VERIFICADO/CONCLUÍDO!")
+    print("\n🎉 VERIFICAÇÃO DE DADOS CONCLUÍDA!")
     print("=" * 50)
     return True
 
 def start_dashboard_application():
     """Inicia a aplicação de Dashboard Interativo."""
-    print("\n🚀 Iniciando Dashboard Interativo...")
+    print("🚀 Iniciando Dashboard Interativo...")
     try:
-        # app = dashboard_ui.DashboardApp() # Comentada a antiga app Tkinter
-        # app.mainloop()
-
-        # Iniciando a aplicação PySide6
-        q_app = QApplication(sys.argv)
-        # window = PySideDashboardApp() # Comentada a instanciação anterior
-        window = GeminiStyleDashboard() # Instanciando o novo dashboard
+        # Verificar se já existe uma QApplication (criada durante cache)
+        q_app = QApplication.instance()
+        if q_app is None:
+            q_app = QApplication(sys.argv)
+        
+        # Instanciar e mostrar o dashboard
+        window = GeminiStyleDashboard()
         window.show()
+        
+        print("✅ Dashboard inicializado com sucesso!")
+        print("📱 Interface disponível - você pode começar a usar o sistema.")
+        
         sys.exit(q_app.exec())
 
     except Exception as e:
@@ -191,13 +234,46 @@ def start_dashboard_application():
         import traceback
         traceback.print_exc()
 
-if __name__ == "__main__":
-    pipeline_success = run_complete_pipeline()
+def main():
+    """Função principal do sistema."""
+    print("=" * 60)
+    print("🚀 INICIANDO SISTEMA DE VISUALIZAÇÃO DE DADOS")
+    print("=" * 60)
+    
+    # Verificar se os dados processados existem
+    data_path = PROJECT_ROOT / "data" / "processed" / "dataset_unificado.csv"
+    if not data_path.exists():
+        print("Dados processados não encontrados. Executando pipeline completo...")
+        pipeline_success = run_complete_pipeline()
+    else:
+        print("Dados processados encontrados. Verificando integridade...")
+        
+        # Verificar se os dados estão íntegros
+        try:
+            df = pd.read_csv(data_path)
+            if df.empty or len(df) < 50:  # Verificação básica de integridade
+                print("Dados incompletos. Executando pipeline...")
+                pipeline_success = run_complete_pipeline()
+            else:
+                print(f"Dados válidos encontrados ({len(df)} registros).")
+                pipeline_success = True
+        except Exception as e:
+            print(f"Erro ao verificar dados: {e}")
+            print("Executando pipeline completo...")
+            pipeline_success = run_complete_pipeline()
 
-    if pipeline_success: # Esta flag agora reflete se as fases *necessárias* foram executadas com sucesso
-        print("\nPipeline de dados verificado/concluído com sucesso. Iniciando o Dashboard Interativo...")
+    if pipeline_success:
+        print("\nPipeline de dados verificado/concluído com sucesso.")
+        
+        # 1. Verificar e gerar cache de gráficos ANTES da UI
+        ensure_graphs_cache()
+        
+        print("\n🖥️ Iniciando interface do dashboard...")
         start_dashboard_application()
     else:
-        print("\n O pipeline de dados não foi concluído com sucesso. O Dashboard não será iniciado.")
+        print("\n❌ O pipeline de dados não foi concluído com sucesso. O Dashboard não será iniciado.")
 
-    print("\nPrograma finalizado.") 
+    print("\nPrograma finalizado.")
+
+if __name__ == "__main__":
+    main() 

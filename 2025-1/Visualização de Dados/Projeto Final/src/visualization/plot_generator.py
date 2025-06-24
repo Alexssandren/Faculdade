@@ -60,104 +60,18 @@ def load_data_from_db():
         return None
 
 def gerar_mapa_calor_relacional(df):
-    """Gera um mapa de calor interativo das correlações para cada ano."""
-    if df is None or df.empty:
-        print("ℹ️ DataFrame vazio, pulando geração do mapa de calor.")
-        return
-
-    print("🔥 Gerando Mapas de Calor Relacionais Interativos (por ano)...")
-    cols_correlacao = ['idh', 'Saúde', 'Educação', 'Assistência Social', 'Infraestrutura']
-    # Garantir que apenas colunas existentes sejam usadas
-    cols_presentes = [col for col in cols_correlacao if col in df.columns]
-    if not cols_presentes:
-        print("❌ Nenhuma coluna de correlação encontrada. Pulando mapa de calor.")
-        return
-        
-    anos_unicos = sorted(df['ano'].dropna().unique())
-    for ano in anos_unicos:
-        print(f"  -> Gerando mapa de calor para o ano: {ano}")
-        df_ano = df[df['ano'] == ano]
-        df_corr_subset = df_ano[cols_presentes].copy()
-        matriz_correlacao = df_corr_subset.corr()
-        
-        heatmap_fig = px.imshow(
-            matriz_correlacao,
-            text_auto=True,
-            color_continuous_scale='RdBu_r',
-            aspect="auto",
-            labels=dict(color="Correlação"),
-            title=f'Mapa de Calor: Correlação IDH vs Gastos - {ano}'
-        )
-        heatmap_fig.update_xaxes(title_text='')
-        heatmap_fig.update_yaxes(title_text='')
-        
-        output_path = RESULTS_VIS_DIR / f"mapa_calor_correlacoes_{ano}.html"
-        heatmap_fig.write_html(output_path)
-        print(f"✅ Mapa de Calor ({ano}) salvo em: {output_path}")
+    """Função removida - não gera mais gráficos."""
+    print("📊 Geração de mapas de calor removida - foco em dados tabulares.")
 
 def gerar_grafico_bolhas_cruzado(df):
-    """Gera gráficos de bolhas cruzados e animados (IDH vs. Gasto) para cada categoria."""
-    if df is None or df.empty:
-        print("ℹ️ DataFrame vazio, pulando geração dos gráficos de bolhas.")
-        return
-
-    print("🫧 Gerando Gráficos de Bolhas Cruzados Interativos...")
-    # As colunas de despesa no dataset_unificado.csv podem ter prefixo "despesa_"
-    # e sufixo "_per_capita". Vamos ajustar para procurar por elas.
-    # Ex: 'despesa_saude_per_capita'
-    categorias_despesa_base = ['Saúde', 'Educação', 'Assistência Social', 'Infraestrutura']
-    colunas_despesa_plot = []
-    for cat_base in categorias_despesa_base:
-        col_per_capita = f"despesa_{cat_base.lower().replace(' ', '_').replace('ç', 'c').replace('ú', 'u')}_per_capita"
-        if col_per_capita in df.columns:
-            colunas_despesa_plot.append(col_per_capita)
-        elif cat_base in df.columns: # Fallback para nome simples da categoria
-            colunas_despesa_plot.append(cat_base)
-        else:
-            print(f"⚠️ Coluna de despesa para '{cat_base}' (tentativa: '{col_per_capita}') não encontrada. Pulando esta categoria.")
-
-    if not colunas_despesa_plot:
-        print("❌ Nenhuma coluna de despesa encontrada para gráficos de bolhas.")
-        return
-
-    if 'populacao' not in df.columns:
-        print("❌ ERRO: Coluna 'populacao' não encontrada. Gráficos de Bolhas não podem ser gerados.")
-        return
-    
-    df_plot = df.dropna(subset=['populacao'] + colunas_despesa_plot + ['idh'])
-    if df_plot['populacao'].min(skipna=True) <= 0:
-        print("⚠️ População contém valores zero ou negativos. Ajustando para um valor mínimo pequeno para visualização.")
-        df_plot['populacao'] = df_plot['populacao'].clip(lower=1)
-
-    for idx, coluna_gasto in enumerate(colunas_despesa_plot):
-        categoria_nome_amigavel = categorias_despesa_base[idx] # Para título e nome do arquivo
-        print(f"  -> Gerando para categoria: {categoria_nome_amigavel} (usando coluna: {coluna_gasto})")
-        
-        fig = px.scatter(
-            df_plot.sort_values(by='ano'),
-            x=coluna_gasto,
-            y='idh',
-            size='populacao',
-            color='regiao',
-            hover_name='uf',
-            animation_frame='ano',
-            animation_group='uf',
-            log_x=True,
-            size_max=60,
-            title=f'IDH vs Gasto em {categoria_nome_amigavel} (População por Estado)',
-            labels={coluna_gasto: f'Gasto em {categoria_nome_amigavel} (log)', 'idh': 'IDH Médio', 'populacao': 'População'}
-        )
-        fig.update_layout(
-            xaxis_title=f'Gasto em {categoria_nome_amigavel} (Escala Logarítmica)',
-            yaxis_title='IDH Médio Anual',
-            legend_title_text='Região'
-        )
-        
-        output_path = RESULTS_VIS_DIR / f"grafico_bolhas_{categoria_nome_amigavel.lower().replace(' ', '_')}.html"
-        fig.write_html(output_path)
-        print(f"✅ Gráfico de Bolhas ({categoria_nome_amigavel}) salvo em: {output_path}")
+    """Função removida - não gera mais gráficos."""
+    print("📊 Geração de gráficos de bolhas removida - foco em dados tabulares.")
 
 def gerar_mapas_coropleticos(df):
+    """Função removida - não gera mais gráficos."""
+    print("📊 Geração de mapas coropléticos removida - foco em dados tabulares.")
+
+def gerar_mapas_coropleticos_removido(df):
     """Gera mapas coropléticos relacionais (IDH, Gasto, Relação IDH/Gasto) para cada categoria e para cada ano."""
     if df is None or df.empty:
         print("ℹ️ DataFrame vazio, pulando geração dos mapas coropléticos.")
