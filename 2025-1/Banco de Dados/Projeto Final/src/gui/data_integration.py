@@ -82,22 +82,66 @@ class DataProvider:
                 if not self.has_real_data or not self.analytics:
                     raise Exception("Sistema analítico não disponível")
                 
-                # Forçar uso do SQLite para evitar erros do PostgreSQL
-                from src.database.connection import DatabaseConnection
-                db_sqlite = DatabaseConnection()
-                db_sqlite.force_sqlite = True
-                
-                with db_sqlite.get_session() as session:
+                # Usar a conexão já configurada
+                with self.db_connection.get_session() as session:
                     from src.models.entities import Estado, Periodo, IndicadorIDH, Despesa
                     
                     # Total de estados
                     total_estados = session.query(Estado).count()
                     
-                    # Período de dados
-                    periodos = session.query(Periodo.ano).distinct().all()
-                    anos = [p[0] for p in periodos] if periodos else [2019, 2020, 2021, 2022, 2023]
-                    periodo_inicio = min(anos) if anos else 2019
-                    periodo_fim = max(anos) if anos else 2023
+                    # Período de dados - com proteção robusta
+                    try:
+                        periodos_query = session.query(Periodo.ano).distinct().all()
+                        anos = []
+                        
+                        for periodo_result in periodos_query:
+                            if periodo_result and periodo_result[0] is not None:
+                                ano_valor = periodo_result[0]
+                                
+                                # Múltiplas tentativas de conversão
+                                try:
+                                    if isinstance(ano_valor, (int, float)):
+                                        anos.append(int(ano_valor))
+                                    elif isinstance(ano_valor, str):
+                                        anos.append(int(ano_valor))
+                                    elif isinstance(ano_valor, bytes):
+                                        # Tentar diferentes métodos de conversão de bytes
+                                        try:
+                                            # Método 1: bytes para int direto (little endian)
+                                            if len(ano_valor) >= 4:
+                                                anos.append(int.from_bytes(ano_valor[:4], byteorder='little'))
+                                            else:
+                                                anos.append(int.from_bytes(ano_valor, byteorder='little'))
+                                        except:
+                                            # Método 2: tentar decodificar como string primeiro
+                                            try:
+                                                anos.append(int(ano_valor.decode('utf-8')))
+                                            except:
+                                                # Método 3: usar valor padrão
+                                                pass
+                                    else:
+                                        # Tentar conversão direta
+                                        anos.append(int(ano_valor))
+                                        
+                                except (ValueError, TypeError, OverflowError) as e:
+                                    # Log do erro específico para debugging
+                                    print(f"⚠️ Erro ao converter ano {ano_valor} (tipo: {type(ano_valor)}): {e}")
+                                    continue
+                        
+                        # Se não conseguiu nenhum ano, usar valores padrão
+                        if not anos:
+                            anos = [2019, 2020, 2021, 2022, 2023]
+                            print("⚠️ Usando anos padrão pois não foi possível ler do banco")
+                        
+                        periodo_inicio = min(anos)
+                        periodo_fim = max(anos)
+                        
+                    except Exception as e:
+                        print(f"⚠️ Erro ao processar períodos: {e}")
+                        # Valores padrão em caso de erro
+                        periodo_inicio = 2019
+                        periodo_fim = 2023
+                        anos = [2019, 2020, 2021, 2022, 2023]
                     
                     # Total de registros
                     total_idh = session.query(IndicadorIDH).count()

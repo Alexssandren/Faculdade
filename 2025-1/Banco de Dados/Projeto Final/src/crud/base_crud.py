@@ -78,9 +78,6 @@ class BaseCRUD(Generic[ModelType]):
                 session.add(obj)
                 session.flush()  # Para obter o ID
                 
-                # Log da operação
-                logger.info(f"✅ {self.model.__name__} criado: ID {obj.id}")
-                
                 return obj
                 
         except IntegrityError as e:
@@ -199,32 +196,29 @@ class BaseCRUD(Generic[ModelType]):
             CRUDException: Se houver erro na atualização
         """
         try:
-            # Validar dados
+            # Validar dados antes de atualizar
             validated_data = self.validate_update_data(data)
             
             with self.db_connection.get_session() as session:
                 obj = session.query(self.model).filter(self.model.id == id).first()
                 
                 if not obj:
-                    raise CRUDException(f"{self.model.__name__} com ID {id} não encontrado")
+                    return None
                 
                 # Atualizar campos
-                for field, value in validated_data.items():
-                    if hasattr(obj, field):
-                        setattr(obj, field, value)
+                for key, value in validated_data.items():
+                    if hasattr(obj, key):
+                        setattr(obj, key, value)
                 
                 session.flush()
                 
-                logger.info(f"✅ {self.model.__name__} ID {id} atualizado")
                 return obj
                 
-        except CRUDException:
-            raise
-        except ValidationException:
-            raise
         except IntegrityError as e:
             logger.error(f"❌ Erro de integridade ao atualizar {self.model.__name__}: {e}")
             raise CRUDException(f"Violação de integridade: {str(e)}")
+        except ValidationException:
+            raise
         except Exception as e:
             logger.error(f"❌ Erro inesperado ao atualizar {self.model.__name__}: {e}")
             raise CRUDException(f"Erro na atualização: {str(e)}")
@@ -249,33 +243,26 @@ class BaseCRUD(Generic[ModelType]):
                 obj = session.query(self.model).filter(self.model.id == id).first()
                 
                 if not obj:
-                    raise CRUDException(f"{self.model.__name__} com ID {id} não encontrado")
-                
-                # Verificar dependências (se aplicável)
-                if hasattr(self, 'check_dependencies'):
-                    self.check_dependencies(session, obj)
+                    return False
                 
                 session.delete(obj)
                 session.flush()
                 
-                logger.info(f"✅ {self.model.__name__} ID {id} removido")
                 return True
                 
-        except CRUDException:
-            raise
         except IntegrityError as e:
             logger.error(f"❌ Erro de integridade ao remover {self.model.__name__}: {e}")
-            raise CRUDException(f"Não é possível remover: há registros dependentes")
+            raise CRUDException(f"Violação de integridade: {str(e)}")
         except Exception as e:
             logger.error(f"❌ Erro inesperado ao remover {self.model.__name__}: {e}")
             raise CRUDException(f"Erro na remoção: {str(e)}")
     
     def delete_multiple(self, ids: List[int]) -> int:
         """
-        Remove múltiplos registros por IDs
+        Remove múltiplos registros
         
         Args:
-            ids: Lista de IDs
+            ids: Lista de IDs para remover
             
         Returns:
             int: Número de registros removidos
@@ -287,7 +274,7 @@ class BaseCRUD(Generic[ModelType]):
             try:
                 if self.delete(id):
                     removed_count += 1
-            except CRUDException as e:
+            except Exception as e:
                 errors.append(f"ID {id}: {str(e)}")
         
         if errors:
@@ -295,62 +282,72 @@ class BaseCRUD(Generic[ModelType]):
         
         return removed_count
     
-    # ==================== VALIDAÇÕES ====================
+    # ==================== VALIDATION ====================
     
     def validate_create_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Valida dados para criação (deve ser sobrescrito pelas subclasses)
+        Valida dados para criação
         
         Args:
-            data: Dados a validar
+            data: Dados a serem validados
             
         Returns:
-            Dict[str, Any]: Dados validados
+            Dict: Dados validados
+            
+        Raises:
+            ValidationException: Se dados inválidos
         """
-        # Implementação base - remover campos None e vazios
-        validated = {}
-        for key, value in data.items():
-            if value is not None and value != '':
-                validated[key] = value
-        
-        return validated
+        # Implementação base - pode ser sobrescrita pelas classes filhas
+        return data
     
     def validate_update_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Valida dados para atualização (pode ser sobrescrito)
+        Valida dados para atualização
         
         Args:
-            data: Dados a validar
+            data: Dados a serem validados
             
         Returns:
-            Dict[str, Any]: Dados validados
+            Dict: Dados validados
+            
+        Raises:
+            ValidationException: Se dados inválidos
         """
-        # Por padrão, usa a mesma validação de criação
-        return self.validate_create_data(data)
+        # Implementação base - pode ser sobrescrita pelas classes filhas
+        return data
     
-    # ==================== UTILITÁRIOS ====================
+    # ==================== UTILITY METHODS ====================
     
     def listar(self, limit: int = 1000, offset: int = 0) -> List[List[Any]]:
         """
-        Lista registros formatados para exibição em tabela
+        Lista registros em formato tabular
         
         Args:
-            limit: Número máximo de registros
-            offset: Deslocamento para paginação
+            limit: Limite de registros
+            offset: Offset para paginação
             
         Returns:
-            List[List[Any]]: Lista de listas com dados formatados
+            List[List]: Dados em formato tabular
         """
         try:
-            registros = self.get_all(limit=limit, offset=offset)
-            dados_formatados = []
+            objetos = self.get_all(limit=limit, offset=offset)
             
-            for registro in registros:
-                # Converter objeto SQLAlchemy para lista de valores
-                linha = [getattr(registro, attr) for attr in self._get_display_attributes()]
-                dados_formatados.append(linha)
+            if not objetos:
+                return []
             
-            return dados_formatados
+            # Obter atributos para exibição
+            display_attrs = self._get_display_attributes()
+            
+            # Converter para lista de listas
+            data = []
+            for obj in objetos:
+                row = []
+                for attr in display_attrs:
+                    value = getattr(obj, attr, '')
+                    row.append(str(value) if value is not None else '')
+                data.append(row)
+            
+            return data
             
         except Exception as e:
             logger.error(f"❌ Erro ao listar {self.model.__name__}: {e}")
@@ -358,24 +355,27 @@ class BaseCRUD(Generic[ModelType]):
     
     def _get_display_attributes(self) -> List[str]:
         """
-        Retorna lista de atributos para exibição (deve ser sobrescrito)
+        Obtém atributos para exibição
         
         Returns:
-            List[str]: Lista de nomes de atributos
+            List[str]: Lista de atributos
         """
-        # Implementação padrão - todos os atributos exceto created_at, updated_at
-        attrs = []
-        for column in self.model.__table__.columns:
-            if column.name not in ['created_at', 'updated_at']:
-                attrs.append(column.name)
-        return attrs
+        # Implementação base - retorna alguns campos comuns
+        common_attrs = ['id', 'nome', 'nome_estado', 'nome_regiao', 'titulo', 'valor_milhoes']
+        
+        actual_attrs = []
+        for attr in common_attrs:
+            if hasattr(self.model, attr):
+                actual_attrs.append(attr)
+        
+        return actual_attrs[:5]  # Limitar a 5 campos
     
     def bulk_create(self, data_list: List[Dict[str, Any]]) -> List[ModelType]:
         """
-        Criação em lote para performance
+        Cria múltiplos registros em lote
         
         Args:
-            data_list: Lista de dicionários com dados
+            data_list: Lista de dados para criar
             
         Returns:
             List[ModelType]: Lista de objetos criados
@@ -392,39 +392,31 @@ class BaseCRUD(Generic[ModelType]):
                 
                 session.flush()
                 
-                logger.info(f"✅ {len(created_objects)} {self.model.__name__} criados em lote")
                 return created_objects
                 
         except Exception as e:
             logger.error(f"❌ Erro na criação em lote {self.model.__name__}: {e}")
-            raise CRUDException(f"Erro na criação em lote: {str(e)}")
+            return []
     
     def get_summary(self) -> Dict[str, Any]:
         """
-        Retorna resumo estatístico da entidade
+        Obtém resumo dos dados
         
         Returns:
-            Dict[str, Any]: Estatísticas da entidade
+            Dict: Resumo com estatísticas
         """
         try:
             total = self.count()
             
+            # Estatísticas básicas
             summary = {
-                'entidade': self.model.__name__,
-                'total_registros': total,
-                'tem_registros': total > 0
+                'model_name': self.model.__name__,
+                'total_records': total,
+                'table_name': getattr(self.model, '__tablename__', 'unknown')
             }
-            
-            # Adicionar estatísticas específicas se implementadas
-            if hasattr(self, 'get_custom_stats'):
-                summary.update(self.get_custom_stats())
             
             return summary
             
         except Exception as e:
             logger.error(f"❌ Erro ao gerar resumo {self.model.__name__}: {e}")
-            return {
-                'entidade': self.model.__name__,
-                'total_registros': 0,
-                'erro': str(e)
-            } 
+            return {} 

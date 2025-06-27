@@ -1,233 +1,247 @@
 """
-Gerenciador de Conexão com Banco PostgreSQL - DEC7588
-Configuração SQLAlchemy para sistema de dados socioeconômicos
+Módulo de conexão e configuração do banco de dados
+Suporte para PostgreSQL com fallback automático para SQLite
 """
 
 import os
-import sys
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import SQLAlchemyError
-from contextlib import contextmanager
 import logging
-from typing import Optional, Generator
+from typing import Optional, Any, Dict, List
+from pathlib import Path
+from contextlib import contextmanager
 
-# Adicionar o diretório raiz ao path para imports
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 
-from src.models.entities import Base
+from .config import DatabaseConfig
 
-# Configuração de logging
-logging.basicConfig(level=logging.INFO)
+# Configurar logging
 logger = logging.getLogger(__name__)
 
 class DatabaseConnection:
     """
-    Gerenciador de conexão com PostgreSQL (com fallback para SQLite)
+    Gerenciador de conexão com banco de dados
     """
     
-    def __init__(self, database_url: Optional[str] = None, use_sqlite_fallback: bool = True):
+    def __init__(self, force_sqlite: bool = False):
         """
-        Inicializa a conexão com o banco
+        Inicializa o gerenciador de conexão
         
         Args:
-            database_url: URL de conexão completa (opcional)
-            use_sqlite_fallback: Se deve usar SQLite quando PostgreSQL não disponível
+            force_sqlite: Força uso do SQLite independente da configuração
         """
-        self.use_sqlite_fallback = use_sqlite_fallback
-        self.is_sqlite = False
-        self.force_sqlite = False  # Flag para forçar SQLite
+        self.config = DatabaseConfig()
+        self.engine: Optional[Engine] = None
+        self.SessionLocal: Optional[sessionmaker] = None
+        self.database_type: str = ""
+        self.database_url: str = ""
+        self.database: str = ""
         
-        if database_url:
-            self.database_url = database_url
+        # Determinar qual banco usar
+        if force_sqlite or self.config.FORCE_SQLITE:
+            self._setup_sqlite()
         else:
-            # Configuração padrão do PostgreSQL
-            self.host = os.getenv('DB_HOST', 'localhost')
-            self.port = os.getenv('DB_PORT', '5432')
-            self.database = os.getenv('DB_NAME', 'dados_socioeconomicos_db')
-            self.username = os.getenv('DB_USER', 'postgres')
-            self.password = os.getenv('DB_PASSWORD', 'postgres')
-            
-            self.database_url = f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
-        
-        # Tentar conectar com PostgreSQL primeiro
-        self.engine = self._create_engine()
-        self._test_connection()
+            self._setup_database()
     
-    def _create_engine(self):
-        """Cria engine SQLAlchemy com fallback"""
-        # Se force_sqlite está ativado, pular PostgreSQL
-        if self.force_sqlite or not self.use_sqlite_fallback:
-            logger.info("🔄 Forçando uso do SQLite...")
-            sqlite_url = f"sqlite:///data/processed/dados_socioeconomicos.db"
-            self.is_sqlite = True
-            
-            # Criar diretório se não existir
-            os.makedirs("data/processed", exist_ok=True)
-            
-            engine = create_engine(
-                sqlite_url,
-                echo=False,
-                pool_pre_ping=True
-            )
-            
-            logger.info("✅ Usando SQLite (forçado)")
-            return engine
+    def _setup_database(self):
+        """Configura a conexão com o banco de dados"""
         
-        try:
-            # Tentar PostgreSQL primeiro
-            engine = create_engine(
-                self.database_url,
-                echo=False,  # True para debug SQL
-                pool_size=10,
-                max_overflow=20,
-                pool_pre_ping=True,
-                pool_recycle=3600
-            )
-            
-            # Testar conexão rapidamente
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            
-            logger.info("✅ Usando PostgreSQL")
-            return engine
-            
-        except Exception as e:
-            if self.use_sqlite_fallback:
+        # Tentar PostgreSQL apenas se todas as configurações estiverem presentes
+        postgres_available = all([
+            self.config.POSTGRES_HOST,
+            self.config.POSTGRES_PORT,
+            self.config.POSTGRES_DB,
+            self.config.POSTGRES_USER,
+            self.config.POSTGRES_PASSWORD
+        ])
+        
+        if postgres_available and self.config.POSTGRES_URL:
+            try:
+                self._setup_postgresql()
+                return
+            except Exception as e:
                 logger.warning(f"⚠️ PostgreSQL não disponível: {e}")
                 logger.info("🔄 Usando SQLite como fallback...")
-                
-                # Usar SQLite como fallback
-                sqlite_url = f"sqlite:///data/processed/dados_socioeconomicos.db"
-                self.is_sqlite = True
-                
-                # Criar diretório se não existir
-                os.makedirs("data/processed", exist_ok=True)
-                
-                engine = create_engine(
-                    sqlite_url,
-                    echo=False,
-                    pool_pre_ping=True
-                )
-                
-                logger.info("✅ Usando SQLite (modo desenvolvimento)")
-                return engine
-            else:
-                raise e
+        
+        # Fallback para SQLite
+        self._setup_sqlite()
     
-    def _test_connection(self) -> bool:
+    def _setup_postgresql(self):
+        """Configura conexão com PostgreSQL"""
+        self.database_type = "PostgreSQL"
+        self.database_url = self.config.POSTGRES_URL
+        self.database = self.config.POSTGRES_DB
+        
+        self.engine = create_engine(
+            self.database_url,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            echo=False
+        )
+        
+        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False)
+        logger.info("✅ Usando PostgreSQL")
+    
+    def _setup_sqlite(self):
+        """Configura conexão SQLite"""
+        try:
+            # Caminho absoluto para o banco SQLite
+            db_path = Path(self.config.SQLITE_PATH).resolve()
+            
+            if not db_path.exists():
+                logger.error(f"❌ Banco SQLite não encontrado: {db_path}")
+                raise FileNotFoundError(f"Banco SQLite não encontrado: {db_path}")
+            
+            # URL de conexão com configurações específicas
+            database_url = f"sqlite:///{db_path}?check_same_thread=False"
+            
+            # Configurações específicas para SQLite
+            sqlite_config = {
+                'echo': False,
+                'pool_pre_ping': True,
+                'connect_args': {
+                    'check_same_thread': False,
+                    'timeout': 30
+                }
+            }
+            
+            # Criar engine com configurações otimizadas
+            self.engine = create_engine(database_url, **sqlite_config)
+            
+            # Configurar event listeners para garantir tipos corretos
+            from sqlalchemy import event
+            
+            @event.listens_for(self.engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                """Configurar pragmas do SQLite para melhor performance e tipos"""
+                cursor = dbapi_connection.cursor()
+                # Garantir integridade referencial
+                cursor.execute("PRAGMA foreign_keys=ON")
+                # Melhorar performance
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.execute("PRAGMA cache_size=10000")
+                cursor.close()
+            
+            # Criar sessão
+            self.SessionLocal = sessionmaker(bind=self.engine)
+            
+            logger.info(f"✅ SQLite conectado: {db_path}")
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao conectar SQLite: {e}")
+            raise
+    
+    def test_connection(self) -> bool:
         """
-        Testa se a conexão com o banco está funcionando
+        Testa a conexão com o banco de dados
         
         Returns:
             bool: True se conexão bem-sucedida
         """
         try:
-            with self.engine.connect() as connection:
-                result = connection.execute(text("SELECT 1"))
-                if self.is_sqlite:
-                    logger.info("✅ Conexão com SQLite estabelecida com sucesso!")
-                else:
-                    logger.info("✅ Conexão com PostgreSQL estabelecida com sucesso!")
-                return True
-        except SQLAlchemyError as e:
+            with self.get_session() as session:
+                session.execute(text("SELECT 1"))
+                
+            if self.database_type == "SQLite":
+                logger.info("✅ Conexão com SQLite estabelecida com sucesso!")
+            else:
+                logger.info("✅ Conexão com PostgreSQL estabelecida com sucesso!")
+            return True
+            
+        except Exception as e:
             logger.error(f"❌ Erro ao conectar com banco: {e}")
             return False
     
-    def create_database_if_not_exists(self) -> bool:
+    def create_database(self) -> bool:
         """
-        Cria o banco de dados se não existir (apenas para PostgreSQL)
+        Cria o banco de dados se necessário
         
         Returns:
-            bool: True se criação bem-sucedida ou já existe
+            bool: True se criação bem-sucedida
         """
-        if self.is_sqlite:
+        if self.database_type == "SQLite":
+            # SQLite cria automaticamente
             logger.info("ℹ️ SQLite: banco será criado automaticamente.")
             return True
-            
+        
+        # Para PostgreSQL, tentar criar banco
         try:
-            # URL de conexão temporária para o postgres padrão
-            temp_url = self.database_url.rsplit('/', 1)[0] + '/postgres'
-            temp_engine = create_engine(temp_url)
+            from sqlalchemy import create_engine
             
-            with temp_engine.connect() as connection:
-                # Verificar se o banco existe
-                result = connection.execute(
+            # Conectar ao postgres padrão para criar o banco
+            base_url = self.database_url.rsplit('/', 1)[0]
+            admin_url = f"{base_url}/postgres"
+            
+            admin_engine = create_engine(admin_url, isolation_level='AUTOCOMMIT')
+            
+            with admin_engine.connect() as conn:
+                # Verificar se banco existe
+                result = conn.execute(
                     text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
                     {"db_name": self.database}
                 )
                 
                 if not result.fetchone():
-                    # Criar o banco
-                    connection.execute(text("COMMIT"))
-                    connection.execute(text(f"CREATE DATABASE {self.database}"))
+                    # Criar banco
+                    conn.execute(text(f'CREATE DATABASE "{self.database}"'))
                     logger.info(f"✅ Banco de dados '{self.database}' criado com sucesso!")
                 else:
                     logger.info(f"ℹ️ Banco de dados '{self.database}' já existe.")
             
-            temp_engine.dispose()
+            admin_engine.dispose()
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"❌ Erro ao criar banco de dados: {e}")
             return False
     
-    def create_all_tables(self) -> bool:
+    def create_tables(self) -> bool:
         """
-        Cria todas as tabelas do modelo
+        Cria as tabelas do banco de dados
         
         Returns:
             bool: True se criação bem-sucedida
         """
         try:
-            # Importar todos os modelos para garantir que estão registrados
-            from src.models.entities import (
-                Regiao, Estado, Municipio, OrgaoPublico, FonteRecurso,
-                CategoriaDespesa, Periodo, Orcamento, Despesa, 
-                IndicadorIDH, Usuario, Relatorio
-            )
+            from src.models.entities import Base
             
+            # Criar todas as tabelas
             Base.metadata.create_all(bind=self.engine)
-            db_type = "SQLite" if self.is_sqlite else "PostgreSQL"
-            logger.info(f"✅ Todas as tabelas foram criadas com sucesso no {db_type}!")
+            
+            logger.info(f"✅ Todas as tabelas foram criadas com sucesso no {self.database_type}!")
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"❌ Erro ao criar tabelas: {e}")
             return False
     
     def drop_all_tables(self) -> bool:
-        """
-        Remove todas as tabelas (CUIDADO!)
-        
-        Returns:
-            bool: True se remoção bem-sucedida
-        """
+        """Remove todas as tabelas (cuidado!)"""
         try:
+            from src.models.entities import Base
             Base.metadata.drop_all(bind=self.engine)
             logger.warning("⚠️ Todas as tabelas foram removidas!")
             return True
             
-        except SQLAlchemyError as e:
+        except Exception as e:
             logger.error(f"❌ Erro ao remover tabelas: {e}")
             return False
     
     @contextmanager
-    def get_session(self) -> Generator[Session, None, None]:
+    def get_session(self):
         """
         Context manager para sessões do banco
         
         Yields:
             Session: Sessão SQLAlchemy
         """
-        # Configuração da sessão
-        SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=self.engine
-        )
+        if not self.SessionLocal:
+            raise RuntimeError("Banco de dados não inicializado")
         
-        session = SessionLocal()
+        session = self.SessionLocal()
+        
         try:
             yield session
             session.commit()
@@ -240,156 +254,140 @@ class DatabaseConnection:
     
     def get_new_session(self) -> Session:
         """
-        Retorna uma nova sessão (lembre-se de fechar!)
+        Obtém uma nova sessão do banco (sem context manager)
         
         Returns:
-            Session: Nova sessão SQLAlchemy
+            Session: Sessão do SQLAlchemy
         """
-        SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=self.engine
-        )
-        return SessionLocal()
+        if not self.SessionLocal:
+            raise RuntimeError("Banco de dados não inicializado")
+        
+        return self.SessionLocal()
     
-    def execute_raw_sql(self, sql: str, params: dict = None) -> list:
+    @contextmanager
+    def get_session_context(self):
         """
-        Executa SQL raw e retorna resultados
+        Context manager para sessões do banco
+        
+        Yields:
+            Session: Sessão SQLAlchemy
+        """
+        if not self.SessionLocal:
+            raise RuntimeError("Banco de dados não inicializado")
+        
+        session = self.SessionLocal()
+        
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logger.error(f"❌ Erro na sessão do banco: {e}")
+            raise
+        finally:
+            session.close()
+    
+    def execute_sql(self, sql: str, params: Dict = None) -> List[Dict]:
+        """
+        Executa SQL customizado
         
         Args:
             sql: Query SQL
-            params: Parâmetros para a query
+            params: Parâmetros da query
             
         Returns:
-            list: Resultados da query
+            List[Dict]: Resultados da query
         """
-        try:
-            with self.engine.connect() as connection:
-                result = connection.execute(text(sql), params or {})
-                return result.fetchall()
-        except SQLAlchemyError as e:
-            logger.error(f"❌ Erro ao executar SQL: {e}")
-            raise
-    
-    def get_table_info(self) -> dict:
-        """
-        Retorna informações sobre as tabelas
-        
-        Returns:
-            dict: Informações das tabelas
-        """
-        info = {}
         try:
             with self.get_session() as session:
-                if self.is_sqlite:
-                    # Consulta específica para SQLite
-                    sql = """
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name NOT LIKE 'sqlite_%'
-                    ORDER BY name;
-                    """
-                    
-                    result = session.execute(text(sql))
-                    tables = [row[0] for row in result]
-                    
-                    for table_name in tables:
-                        info[table_name] = {'columns': [], 'count': 0}
-                        
-                        # Contar registros
-                        try:
-                            count_result = session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
-                            info[table_name]['count'] = count_result.scalar()
-                        except:
-                            info[table_name]['count'] = 0
+                result = session.execute(text(sql), params or {})
+                
+                if result.returns_rows:
+                    columns = result.keys()
+                    return [dict(zip(columns, row)) for row in result.fetchall()]
                 else:
-                    # Consulta para PostgreSQL
-                    sql = """
-                    SELECT 
-                        table_name,
-                        column_name,
-                        data_type,
-                        is_nullable,
-                        column_default
-                    FROM information_schema.columns 
-                    WHERE table_schema = 'public'
-                    ORDER BY table_name, ordinal_position;
-                    """
+                    return []
                     
-                    result = session.execute(text(sql))
-                    
-                    for row in result:
-                        table_name = row[0]
-                        if table_name not in info:
-                            info[table_name] = {'columns': [], 'count': 0}
-                        
-                        info[table_name]['columns'].append({
-                            'name': row[1],
-                            'type': row[2],
-                            'nullable': row[3] == 'YES',
-                            'default': row[4]
-                        })
-                    
-                    # Contar registros em cada tabela
-                    for table_name in info.keys():
-                        try:
-                            count_result = session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
-                            info[table_name]['count'] = count_result.scalar()
-                        except:
-                            info[table_name]['count'] = 0
-                        
-        except SQLAlchemyError as e:
-            logger.error(f"❌ Erro ao obter informações das tabelas: {e}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao executar SQL: {e}")
+            return []
+    
+    def get_table_info(self) -> Dict[str, List[str]]:
+        """
+        Obtém informações sobre as tabelas
         
-        return info
+        Returns:
+            Dict: Informações das tabelas
+        """
+        try:
+            inspector = inspect(self.engine)
+            tables_info = {}
+            
+            for table_name in inspector.get_table_names():
+                columns = inspector.get_columns(table_name)
+                column_names = [col['name'] for col in columns]
+                tables_info[table_name] = column_names
+            
+            return tables_info
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao obter informações das tabelas: {e}")
+            return {}
     
-    def close(self):
-        """
-        Fecha todas as conexões
-        """
-        self.engine.dispose()
-        db_type = "SQLite" if self.is_sqlite else "PostgreSQL"
-        logger.info(f"🔌 Conexões com {db_type} fechadas.")
+    def close_connections(self):
+        """Fecha todas as conexões"""
+        if self.engine:
+            self.engine.dispose()
+            logger.info(f"🔌 Conexões com {self.database_type} fechadas.")
 
+# Instância global
+_db_connection: Optional[DatabaseConnection] = None
 
-# Instância global (singleton)
-_db_connection = None
-
-def get_database_connection() -> DatabaseConnection:
+def get_database_connection(force_sqlite: bool = True) -> DatabaseConnection:
     """
-    Retorna instância singleton da conexão com o banco
+    Obtém a instância global da conexão com banco
     
+    Args:
+        force_sqlite: Força uso do SQLite (padrão: True para evitar erros)
+        
     Returns:
         DatabaseConnection: Instância da conexão
     """
     global _db_connection
-    if _db_connection is None:
-        _db_connection = DatabaseConnection()
+    
+    if _db_connection is None or force_sqlite:
+        _db_connection = DatabaseConnection(force_sqlite=force_sqlite)
+    
     return _db_connection
 
-def init_database(create_db: bool = True, create_tables: bool = True) -> bool:
+def init_database(create_db: bool = True, create_tables: bool = True, force_sqlite: bool = False) -> bool:
     """
-    Inicializa o banco de dados completo
+    Inicializa o sistema de banco de dados
     
     Args:
-        create_db: Se deve criar o banco
-        create_tables: Se deve criar as tabelas
+        create_db: Criar banco se não existir
+        create_tables: Criar tabelas se não existirem
+        force_sqlite: Forçar uso do SQLite
         
     Returns:
         bool: True se inicialização bem-sucedida
     """
     try:
-        db = get_database_connection()
+        db = get_database_connection(force_sqlite=force_sqlite)
         
-        if create_db and not db.is_sqlite:
-            if not db.create_database_if_not_exists():
-                return False
+        # Criar banco se necessário
+        if create_db and not db.create_database():
+            return False
         
-        if create_tables:
-            if not db.create_all_tables():
-                return False
+        # Testar conexão
+        if not db.test_connection():
+            return False
         
-        db_type = "SQLite" if db.is_sqlite else "PostgreSQL"
-        logger.info(f"🎉 Banco de dados {db_type} inicializado com sucesso!")
+        # Criar tabelas se necessário
+        if create_tables and not db.create_tables():
+            return False
+        
+        logger.info(f"🎉 Banco de dados {db.database_type} inicializado com sucesso!")
         return True
         
     except Exception as e:
@@ -408,7 +406,7 @@ if __name__ == "__main__":
         # Mostrar informações das tabelas
         info = db.get_table_info()
         print(f"\n📊 Tabelas criadas: {len(info)}")
-        for table, details in info.items():
-            print(f"  - {table}: {details['count']} registros, {len(details.get('columns', []))} colunas")
+        for table, columns in info.items():
+            print(f"  - {table}: {columns}")
     else:
         print("❌ Falha na inicialização do banco!") 

@@ -183,7 +183,7 @@ class ConsultasAnalíticas:
                         )
                     })
                 
-                self.logger.info(f"✅ Consulta 1 executada: {len(ranking)} estados analisados")
+
                 return ranking
                 
         except Exception as e:
@@ -292,7 +292,7 @@ class ConsultasAnalíticas:
                     analise_temporal['projecoes'] = self._gerar_projecoes(dados_temporais)
                     analise_temporal['insights'] = self._gerar_insights_temporais(dados_temporais)
                 
-                self.logger.info(f"✅ Consulta 2 executada: {len(dados_temporais)} anos analisados")
+
                 return analise_temporal
                 
         except Exception as e:
@@ -469,7 +469,7 @@ class ConsultasAnalíticas:
                 # Gerar recomendações
                 analise_regional['recomendacoes'] = self._gerar_recomendacoes_regionais(analise_regional['ranking_regioes'])
                 
-                self.logger.info(f"✅ Consulta 3 executada: {len(dados_regionais)} regiões analisadas")
+
                 return analise_regional
                 
         except Exception as e:

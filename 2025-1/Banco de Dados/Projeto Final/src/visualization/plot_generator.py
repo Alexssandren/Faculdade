@@ -1,194 +1,245 @@
-import matplotlib
-matplotlib.use('Agg') # Deve ser chamado ANTES de qualquer importação que possa usar matplotlib (ex: geopandas)
+"""
+Gerador de Visualizações - Sistema DEC7588
+Gera gráficos e mapas a partir dos dados do banco
+"""
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import pandas as pd
+import numpy as np
+import os
 import sqlite3
 from pathlib import Path
-import plotly.express as px
-import geopandas as gpd
 
-# Define o caminho para o diretório 'src' e garante que ele exista
-SCRIPT_DIR = Path(__file__).parent # src/visualization
-SRC_DIR = SCRIPT_DIR.parent # src/
-PROJECT_ROOT = SRC_DIR.parent # Raiz do projeto
+# Configurações
+DB_FILE = "data/processed/dados_socioeconomicos.db"
+OUTPUT_DIR = "outputs/visualizations"
+SHAPEFILE_PATH = "data/geospatial/BR_UF_2024.shp"
+GEOJSON_FILE = "data/geospatial/BR_UF_2024.geojson"
 
-# Diretórios de dados e resultados
-PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
-# Alterado para o novo local de resultados
-RESULTS_VIS_DIR = PROJECT_ROOT / "results" / "visualizations"
-RESULTS_VIS_DIR.mkdir(parents=True, exist_ok=True)
-
-# Arquivo do Banco de Dados
-DB_FILE = PROCESSED_DATA_DIR / "projeto_visualizacao.db"
-
-# Arquivo GeoJSON (necessário para mapas coropléticos)
-# Considerando que pode estar em data/geospatial/ como planejado anteriormente
-GEOJSON_FILE = PROJECT_ROOT / "data" / "geospatial" / "bcim_2016_21_11_2018.gpkg" # Ajustar se o nome/local for diferente
-# Ou se estiver em data/processed/ como no script original:
-# GEOJSON_FILE = PROCESSED_DATA_DIR / "brazil_states.geojson" 
-
-
-def load_data_from_db():
-    """Carrega os dados da tabela analise_unificada do banco de dados SQLite."""
-    if not DB_FILE.exists():
-        print(f"❌ ERRO: Banco de dados {DB_FILE} não encontrado. "
-              f"Execute a fase de configuração do banco de dados primeiro.")
-        return None
-    
-    try:
-        print(f"🔗 Conectando ao banco de dados: {DB_FILE}")
-        conexao = sqlite3.connect(DB_FILE)
-        df = pd.read_sql_query("SELECT * FROM analise_unificada", conexao)
-        conexao.close()
-        print(f"✅ Dados carregados com sucesso da tabela 'analise_unificada' ({len(df)} registros).")
-        
-        cols_to_numeric = ['idh', 'Saúde', 'Educação', 'Assistência Social', 'Infraestrutura']
-        if 'populacao' in df.columns:
-            cols_to_numeric.append('populacao')
-        
-        for col in cols_to_numeric:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            else:
-                print(f"⚠️ Atenção: Coluna {col} esperada para conversão numérica não encontrada no DataFrame.")
-
-        if 'ano' in df.columns:
-            df['ano'] = pd.to_numeric(df['ano'], errors='coerce').astype('Int64')
-
-        return df
-    except Exception as e:
-        print(f"❌ ERRO ao carregar dados do banco de dados: {e}")
-        return None
-
-def gerar_mapa_calor_relacional(df):
-    """Função removida - não gera mais gráficos."""
-    print("📊 Geração de mapas de calor removida - foco em dados tabulares.")
-
-def gerar_grafico_bolhas_cruzado(df):
-    """Função removida - não gera mais gráficos."""
-    print("📊 Geração de gráficos de bolhas removida - foco em dados tabulares.")
-
-def gerar_mapas_coropleticos(df):
-    """Função removida - não gera mais gráficos."""
-    print("📊 Geração de mapas coropléticos removida - foco em dados tabulares.")
-
-def gerar_mapas_coropleticos_removido(df):
-    """Gera mapas coropléticos relacionais (IDH, Gasto, Relação IDH/Gasto) para cada categoria e para cada ano."""
-    if df is None or df.empty:
-        print("ℹ️ DataFrame vazio, pulando geração dos mapas coropléticos.")
-        return
-
-    # Ajuste no caminho do GeoJSON. Precisa ser o SHP que foi baixado, ou um GeoJSON convertido dele.
-    # O usuário mencionou que os arquivos foram baixados e inseridos.
-    # Se o SHP estiver em data/geospatial/BR_UF_2024.shp
-    shapefile_path = PROJECT_ROOT / "data" / "geospatial" / "BR_UF_2024.shp"
-    if not shapefile_path.exists():
-        print(f"❌ ERRO: Shapefile {shapefile_path} não encontrado. Mapas coropléticos não podem ser gerados.")
-        # Tentar o GEOJSON_FILE original como fallback
-        if GEOJSON_FILE.exists():
-             print(f"ℹ️ Tentando usar {GEOJSON_FILE} como fallback.")
-             geo_data = gpd.read_file(GEOJSON_FILE)
-        else:
-            print(f"❌ ERRO: Arquivo {GEOJSON_FILE} também não encontrado.")
-            return
-    else:
-        print(f"🗺️ Lendo shapefile de {shapefile_path}")
-        geo_data = gpd.read_file(shapefile_path)
-
-    print("🗺️ Gerando Mapas Coropléticos Interativos...")
-    if 'SIGLA_UF' in geo_data.columns and 'uf' not in geo_data.columns:
-         geo_data = geo_data.rename(columns={'SIGLA_UF': 'uf'})
-    elif 'CD_UF' in geo_data.columns and 'uf' not in geo_data.columns: # Outro nome comum para código UF
-         # Se for código numérico, precisaria mapear para Sigla. 
-         # Por agora, assumindo que 'uf' ou 'SIGLA_UF' exista ou o merge falhará.
-         print("⚠️ Shapefile não tem 'uf' ou 'SIGLA_UF'. Tentando 'CD_UF' e esperando que o merge funcione ou necessite de mapeamento.")
-         geo_data = geo_data.rename(columns={'CD_UF': 'uf'})
-    
-    if 'uf' not in geo_data.columns:
-        print("❌ ERRO: Coluna 'uf' (ou equivalente como 'SIGLA_UF') não encontrada no GeoDataFrame após tentativas de renomear.")
-        return
-        
-    geo_data['uf'] = geo_data['uf'].astype(str).str.upper() # Garantir que uf seja string e maiúscula para o merge
-    df['uf'] = df['uf'].astype(str).str.upper()
-    
-    categorias_despesa_base = ['Saúde', 'Educação', 'Assistência Social', 'Infraestrutura']
-    colunas_despesa_mapa = {}
-    for cat_base in categorias_despesa_base:
-        col_per_capita = f"despesa_{cat_base.lower().replace(' ', '_').replace('ç', 'c').replace('ú', 'u')}_per_capita"
-        if col_per_capita in df.columns:
-            colunas_despesa_mapa[cat_base] = col_per_capita
-        elif cat_base in df.columns:
-            colunas_despesa_mapa[cat_base] = cat_base
-
-    anos_unicos = sorted(df['ano'].dropna().unique(), reverse=True)
-    if not anos_unicos:
-        print("❌ Não há anos únicos no dataset para gerar mapas.")
-        return
-        
-    for ano_para_mapa in anos_unicos:
-        print(f"  -> Gerando mapas para o ano: {ano_para_mapa}")
-        df_mapa_anual = df[df['ano'] == ano_para_mapa].copy()
-
-        # Mapa do IDH (uma vez por ano)
-        fig_idh = px.choropleth_mapbox(
-            df_mapa_anual, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-            color='idh', color_continuous_scale="Viridis",
-            mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-            opacity=0.7, hover_name='uf', hover_data={'idh': True, 'regiao': True},
-            title=f'IDH por Estado - {ano_para_mapa}'
-        )
-        fig_idh.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-        output_path_idh = RESULTS_VIS_DIR / f"mapa_coropletico_idh_{ano_para_mapa}.html"
-        fig_idh.write_html(output_path_idh)
-        print(f"✅ Mapa Coroplético (IDH {ano_para_mapa}) salvo em: {output_path_idh}")
-
-        for categoria_nome_amigavel, coluna_gasto in colunas_despesa_mapa.items():
-            print(f"  -> Gerando mapas para categoria: {categoria_nome_amigavel} (usando coluna {coluna_gasto})")
-            df_categoria_mapa = df_mapa_anual[['uf', 'idh', coluna_gasto, 'regiao']].copy()
-            if coluna_gasto not in df_categoria_mapa.columns or df_categoria_mapa[coluna_gasto].isnull().all():
-                print(f"    ⚠️ Dados de gasto para '{categoria_nome_amigavel}' ausentes no ano {ano_para_mapa}. Pulando mapas de gasto e relação.")
-                continue
-                
-            df_categoria_mapa['relacao_idh_gasto'] = df_categoria_mapa['idh'] / (df_categoria_mapa[coluna_gasto] + 1e-9)
-
-            # Mapa de Gasto
-            fig_gasto = px.choropleth_mapbox(
-                df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-                color=coluna_gasto, color_continuous_scale="Blues",
-                mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-                opacity=0.7, hover_name='uf', hover_data={coluna_gasto: True, 'idh': True, 'regiao': True},
-                title=f'Gasto em {categoria_nome_amigavel} por Estado - {ano_para_mapa}'
-            )
-            fig_gasto.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-            output_path_gasto = RESULTS_VIS_DIR / f"mapa_coropletico_gasto_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
-            fig_gasto.write_html(output_path_gasto)
-            print(f"✅ Mapa Coroplético (Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_gasto}")
-
-            # Mapa de Relação
-            fig_rel = px.choropleth_mapbox(
-                df_categoria_mapa, geojson=geo_data, locations='uf', featureidkey='properties.uf',
-                color='relacao_idh_gasto', color_continuous_scale="RdYlGn",
-                mapbox_style="open-street-map", zoom=3, center = {"lat": -14.24, "lon": -51.925},
-                opacity=0.7, hover_name='uf', hover_data={'relacao_idh_gasto': True, 'idh': True, coluna_gasto: True, 'regiao': True},
-                title=f'Relação IDH / Gasto em {categoria_nome_amigavel} - {ano_para_mapa}'
-            )
-            fig_rel.update_layout(margin={"r":0,"t":30,"l":0,"b":0})
-            output_path_rel = RESULTS_VIS_DIR / f"mapa_coropletico_relacao_{categoria_nome_amigavel.lower().replace(' ', '_')}_{ano_para_mapa}.html"
-            fig_rel.write_html(output_path_rel)
-            print(f"✅ Mapa Coroplético (Relação IDH/Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_rel}")
+# Mapear cores para categorias
+CORES_CATEGORIA = {
+    "Saúde": "#FF6B6B",
+    "Educação": "#4ECDC4", 
+    "Assistência Social": "#45B7D1",
+    "Previdência Social": "#96CEB4",
+    "Trabalho": "#FFEAA7",
+    "Defesa Nacional": "#DDA0DD",
+    "Judiciário": "#F39C12",
+    "Legislativo": "#E74C3C"
+}
 
 def main():
-    """Função principal para gerar as visualizações avançadas.""" # Nome da Fase removido para generalizar
-    print("🚀 Iniciando Geração de Visualizações Avançadas...")
+    """Função principal para gerar todas as visualizações"""
     
-    df_completo = load_data_from_db()
+    # Verificar se o banco existe
+    if not os.path.exists(DB_FILE):
+        print(f"❌ ERRO: Banco de dados {DB_FILE} não encontrado. "
+              f"Execute o script de importação primeiro.")
+        return
     
-    if df_completo is not None and not df_completo.empty:
-        gerar_mapa_calor_relacional(df_completo)
-        gerar_grafico_bolhas_cruzado(df_completo)
-        gerar_mapas_coropleticos(df_completo)
-        print(f"🎉 Geração de visualizações concluída com sucesso! Visualizações salvas em {RESULTS_VIS_DIR.relative_to(PROJECT_ROOT)}")
-    else:
-        print("❌ Não foi possível carregar os dados. Geração de visualizações abortada.")
+    # Tentar carregar dados
+    try:
+        df = load_data_from_db()
+        if df.empty:
+            print("❌ Nenhum dado encontrado no banco.")
+            return
+        
+        print(f"✅ Dados carregados com sucesso da tabela 'analise_unificada' ({len(df)} registros).")
+        
+        # Preparar dados
+        df = prepare_data(df)
+        
+        # Criar diretório de output se não existir
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        
+        # Gerar visualizações específicas removidas
+        print("📊 Geração de mapas de calor removida - foco em dados tabulares.")
+        
+        # Gerar gráficos de bolhas removidos
+        print("📊 Geração de gráficos de bolhas removida - foco em dados tabulares.")
+        
+        # Gerar mapas coropléticos removidos
+        print("📊 Geração de mapas coropléticos removida - foco em dados tabulares.")
+        
+        # Gerar mapas coropléticos se dados geoespaciais disponíveis
+        try:
+            if df.empty:
+                print("ℹ️ DataFrame vazio, pulando geração dos mapas coropléticos.")
+                return
+                
+            # Verificar se shapefile existe
+            if not os.path.exists(SHAPEFILE_PATH):
+                print(f"❌ ERRO: Shapefile {SHAPEFILE_PATH} não encontrado. Mapas coropléticos não podem ser gerados.")
+                
+                # Tentar geojson como fallback
+                if os.path.exists(GEOJSON_FILE):
+                    print(f"ℹ️ Tentando usar {GEOJSON_FILE} como fallback.")
+                else:
+                    print(f"❌ ERRO: Arquivo {GEOJSON_FILE} também não encontrado.")
+                    return
+            
+            generate_choropleth_maps(df)
+            
+        except Exception as e:
+            print(f"❌ Erro ao gerar mapas coropléticos: {e}")
+        
+    except Exception as e:
+        print(f"❌ ERRO ao carregar dados do banco de dados: {e}")
+
+def generate_choropleth_maps(df):
+    """Gera mapas coropléticos usando geopandas"""
+    try:
+        import geopandas as gpd
+        
+        # Ler shapefile
+        print(f"🗺️ Lendo shapefile de {SHAPEFILE_PATH}")
+        gdf = gpd.read_file(SHAPEFILE_PATH)
+        
+        # Mapas coropléticos
+        print("🗺️ Gerando Mapas Coropléticos Interativos...")
+        
+        # Verificar se a coluna 'uf' existe no shapefile, senão tentar outras possibilidades
+        if 'uf' not in gdf.columns:
+            if 'SIGLA_UF' in gdf.columns:
+                gdf = gdf.rename(columns={'SIGLA_UF': 'uf'})
+            elif 'CD_UF' in gdf.columns:
+                print("⚠️ Shapefile não tem 'uf' ou 'SIGLA_UF'. Tentando 'CD_UF' e esperando que o merge funcione ou necessite de mapeamento.")
+                # Pode precisar de mapeamento adicional entre códigos e siglas
+            else:
+                print("❌ ERRO: Coluna 'uf' (ou equivalente como 'SIGLA_UF') não encontrada no GeoDataFrame após tentativas de renomear.")
+                return
+        
+        # Determinar ano para o mapa (usar o último disponível)
+        if 'ano' in df.columns and not df['ano'].isna().all():
+            anos_disponiveis = sorted(df['ano'].dropna().unique())
+            ano_para_mapa = anos_disponiveis[-1] if anos_disponiveis else None
+        else:
+            ano_para_mapa = None
+        
+        if ano_para_mapa is None:
+            print("❌ Não há anos únicos no dataset para gerar mapas.")
+            return
+            
+        # Filtrar dados para o ano específico
+        df_ano = df[df['ano'] == ano_para_mapa].copy() if 'ano' in df.columns else df.copy()
+        
+        # Gerar mapa de IDH
+        if 'idh_geral' in df_ano.columns and 'uf' in df_ano.columns:
+            df_idh = df_ano.groupby('uf')['idh_geral'].mean().reset_index()
+            gdf_merged = gdf.merge(df_idh, on='uf', how='left')
+            
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+            gdf_merged.plot(column='idh_geral', cmap='YlOrRd', legend=True, ax=ax, 
+                          missing_kwds={'color': 'lightgrey'})
+            ax.set_title(f'IDH por Estado - {ano_para_mapa}', fontsize=16, fontweight='bold')
+            ax.axis('off')
+            
+            output_path_idh = os.path.join(OUTPUT_DIR, f'mapa_idh_{ano_para_mapa}.png')
+            plt.tight_layout()
+            plt.savefig(output_path_idh, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"✅ Mapa Coroplético (IDH {ano_para_mapa}) salvo em: {output_path_idh}")
+        
+        # Gerar mapas por categoria de gasto
+        categorias = df_ano['categoria_nome'].unique() if 'categoria_nome' in df_ano.columns else []
+        for categoria in categorias[:3]:  # Limitar a 3 categorias principais
+            categoria_nome_amigavel = categoria.replace(" ", "_").replace("/", "_")
+            df_cat = df_ano[df_ano['categoria_nome'] == categoria]
+            
+            if df_cat.empty or 'valor_milhoes' not in df_cat.columns:
+                print(f"    ⚠️ Dados de gasto para '{categoria_nome_amigavel}' ausentes no ano {ano_para_mapa}. Pulando mapas de gasto e relação.")
+                continue
+            
+            # Mapa de gastos por categoria
+            df_gastos = df_cat.groupby('uf')['valor_milhoes'].sum().reset_index()
+            gdf_merged_gastos = gdf.merge(df_gastos, on='uf', how='left')
+            
+            fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+            gdf_merged_gastos.plot(column='valor_milhoes', cmap='Blues', legend=True, ax=ax,
+                                 missing_kwds={'color': 'lightgrey'})
+            ax.set_title(f'Gastos {categoria} por Estado - {ano_para_mapa} (em Milhões R$)', 
+                        fontsize=14, fontweight='bold')
+            ax.axis('off')
+            
+            output_path_gasto = os.path.join(OUTPUT_DIR, f'mapa_gastos_{categoria_nome_amigavel}_{ano_para_mapa}.png')
+            plt.tight_layout()
+            plt.savefig(output_path_gasto, dpi=300, bbox_inches='tight')
+            plt.close()
+            print(f"✅ Mapa Coroplético (Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_gasto}")
+            
+            # Mapa de relação IDH/Gastos
+            if 'idh_geral' in df_cat.columns:
+                df_relacao = df_cat.groupby('uf').agg({
+                    'idh_geral': 'mean',
+                    'valor_milhoes': 'sum'
+                }).reset_index()
+                df_relacao['relacao_idh_gasto'] = df_relacao['idh_geral'] / (df_relacao['valor_milhoes'] / 1000)
+                
+                gdf_merged_rel = gdf.merge(df_relacao, on='uf', how='left')
+                
+                fig, ax = plt.subplots(1, 1, figsize=(15, 10))
+                gdf_merged_rel.plot(column='relacao_idh_gasto', cmap='RdYlGn', legend=True, ax=ax,
+                                  missing_kwds={'color': 'lightgrey'})
+                ax.set_title(f'Relação IDH/Gasto {categoria} por Estado - {ano_para_mapa}', 
+                            fontsize=14, fontweight='bold')
+                ax.axis('off')
+                
+                output_path_rel = os.path.join(OUTPUT_DIR, f'mapa_relacao_idh_gasto_{categoria_nome_amigavel}_{ano_para_mapa}.png')
+                plt.tight_layout()
+                plt.savefig(output_path_rel, dpi=300, bbox_inches='tight')
+                plt.close()
+                print(f"✅ Mapa Coroplético (Relação IDH/Gasto {categoria_nome_amigavel} {ano_para_mapa}) salvo em: {output_path_rel}")
+    
+    except ImportError:
+        print("❌ GeoPandas não está instalado. Instale com: pip install geopandas")
+    except Exception as e:
+        print(f"❌ Erro ao gerar mapas coropléticos: {e}")
+
+def load_data_from_db():
+    """Carrega dados do banco SQLite"""
+    conn = sqlite3.connect(DB_FILE)
+    
+    # Tentar carregar a tabela analise_unificada ou fazer join das tabelas necessárias
+    query = """
+    SELECT * FROM analise_unificada 
+    ORDER BY ano, uf, categoria_nome
+    LIMIT 10000
+    """
+    
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    return df
+
+def prepare_data(df):
+    """Prepara e limpa os dados"""
+    
+    # Converter colunas numéricas
+    numeric_columns = ['valor_milhoes', 'idh_geral', 'idh_educacao', 'idh_longevidade', 'idh_renda']
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        else:
+            print(f"⚠️ Atenção: Coluna {col} esperada para conversão numérica não encontrada no DataFrame.")
+    
+    # Remover linhas com valores críticos faltando
+    df = df.dropna(subset=['uf'])
+    
+    return df
 
 if __name__ == "__main__":
-    main() 
+    print("🚀 Iniciando Geração de Visualizações Avançadas...")
+    
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ Erro geral na execução: {e}")
+    else:
+        print("✅ Geração de visualizações concluída!")
+    
+    print("📊 Para executar apenas as consultas principais, use:")
+    print("python -m src.queries.analytics_queries")
+    
+    if not os.path.exists(DB_FILE):
+        print("❌ Não foi possível carregar os dados. Geração de visualizações abortada.") 

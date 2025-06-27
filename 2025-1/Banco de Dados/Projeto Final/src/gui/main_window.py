@@ -1,6 +1,33 @@
+"""
+Interface Gráfica Principal - Sistema DEC7588
+Interface moderna usando ttkbootstrap com 4 abas principais
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional
+
+# Configurar DPI awareness para Windows antes de importar tkinter
+if sys.platform == "win32":
+    try:
+        import ctypes
+        from ctypes import wintypes
+        
+        # Tentar configurar DPI awareness de forma segura
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+        except:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except:
+                pass  # Ignorar se não conseguir configurar
+    except ImportError:
+        pass  # ctypes não disponível
+
 import tkinter as tk
-from tkinter import ttk
-import ttkbootstrap as tb
+from tkinter import ttk, messagebox
+import ttkbootstrap as ttk_bootstrap
 from ttkbootstrap.constants import *
 import threading
 import sys
@@ -19,7 +46,7 @@ from src.gui.components.chat_sidebar import ChatSidebar
 class MainWindow:
     def __init__(self):
         # Inicializar tema e janela principal
-        self.root = tb.Window(themename="cosmo")
+        self.root = ttk_bootstrap.Window(themename="cosmo")
         self.root.title("Projeto Final - Banco de Dados")
         self.root.geometry("1400x900")
         self.root.minsize(1200, 700)
@@ -50,7 +77,7 @@ class MainWindow:
         
     def _setup_styles(self):
         """Configura estilos customizados"""
-        style = tb.Style()
+        style = ttk_bootstrap.Style()
         
         # Estilo para abas principais
         style.configure(
@@ -268,34 +295,23 @@ class MainWindow:
         self.root.after(100, self._ensure_sidebar_persistent)
             
     def on_tab_changed(self, event):
-        """Manipula mudança de aba - NOVA ABORDAGEM: Sempre recriar sidebar"""
+        """Manipula mudança de aba"""
         try:
             selected_tab = event.widget.select()
             tab_text = event.widget.tab(selected_tab, "text")
             self.update_status(f"Aba ativa: {tab_text}")
             
-            print(f"\n🔄 MUDANÇA DE ABA para: {tab_text}")
-            
-            # NOVA ESTRATÉGIA: Salvar estado e sempre recriar sidebar como ÚLTIMA operação
-            # Isso garante que ela sempre esteja presente e funcional
-            
-            # 1. Salvar estado atual da sidebar
+            # Salvar estado atual da sidebar
             current_expanded_state = self._save_sidebar_state()
-            print(f"💾 Estado salvo: expandida = {current_expanded_state}")
             
-            # 2. Permitir que a mudança de aba seja processada primeiro
+            # Permitir que a mudança de aba seja processada primeiro
             self.root.update_idletasks()
             
-            # 3. Programar recriação da sidebar como operação FINAL
-            # Verificação única mais inteligente
+            # Programar recriação da sidebar como operação FINAL
             self.root.after(100, lambda: self._smart_sidebar_check(current_expanded_state))
-            
-            print(f"✅ Mudança de aba processada - sidebar será recarregada")
             
         except Exception as e:
             print(f"❌ Erro na mudança de aba: {e}")
-            import traceback
-            print(f"Traceback: {traceback.format_exc()}")
             # Em caso de erro, tentar recuperar a sidebar
             self.root.after(100, lambda: self._emergency_sidebar_recovery())
             
@@ -313,35 +329,26 @@ class MainWindow:
             # Usar o estado mais "expandido" como verdade
             final_state = main_expanded or chat_expanded
             
-            print(f"💾 [DEBUG] Estado salvo - main: {main_expanded}, chat: {chat_expanded}, final: {final_state}")
             return final_state
             
         except Exception as e:
-            print(f"❌ Erro ao salvar estado: {e}")
             return False
             
     def _smart_sidebar_check(self, target_expanded_state):
         """Verificação inteligente da sidebar - corrige ou recria conforme necessário"""
         try:
-            print(f"\n🎯 [SMART_CHECK] Verificação inteligente da sidebar - Estado alvo: {target_expanded_state}")
-            
             # Verificar se sidebar existe e tem problema
             needs_fix = self._sidebar_needs_reload()
             
             if not needs_fix:
-                print(f"✅ [SMART_CHECK] Sidebar OK - nenhuma ação necessária")
                 return
             
             # Tentar correção de layout primeiro (mais rápido que recriação)
             if hasattr(self, 'sidebar_frame') and self.sidebar_frame.winfo_exists():
-                print(f"🔧 [SMART_CHECK] Tentando correção de layout...")
-                
                 try:
                     # Obter largura atual
                     current_width = self.sidebar_frame.winfo_width()
                     target_width = self.sidebar_expanded_width if target_expanded_state else self.sidebar_contracted_width
-                    
-                    print(f"🔧 [SMART_CHECK] Largura atual: {current_width}px, alvo: {target_width}px")
                     
                     # Se largura muito pequena, tentar forçar layout
                     if current_width < 30:
@@ -352,27 +359,20 @@ class MainWindow:
                         new_width = self.sidebar_frame.winfo_width()
                         
                         if new_width >= 30:
-                            print(f"✅ [SMART_CHECK] Correção de layout bem-sucedida: {new_width}px")
                             return
-                        else:
-                            print(f"⚠️ [SMART_CHECK] Correção falhou - recriação necessária")
                     
-                except Exception as fix_error:
-                    print(f"⚠️ [SMART_CHECK] Erro na correção: {fix_error}")
+                except Exception:
+                    pass
             
             # Se chegou aqui, precisa recriação
-            print(f"🔧 [SMART_CHECK] Recriando sidebar...")
             self._final_sidebar_reload(target_expanded_state, "smart_check")
             
-        except Exception as e:
-            print(f"❌ [SMART_CHECK] Erro geral: {e}")
+        except Exception:
             self._emergency_sidebar_recovery()
     
     def _force_sidebar_layout(self, target_width):
         """Força o layout correto da sidebar sem recriação"""
         try:
-            print(f"🚀 [FORCE_LAYOUT] Forçando layout: {target_width}px")
-            
             # Estratégia 1: Repack com configurações forçadas
             self.sidebar_frame.pack_forget()
             self.sidebar_frame.pack(side=RIGHT, fill=Y)
@@ -384,8 +384,6 @@ class MainWindow:
             check_width = self.sidebar_frame.winfo_width()
             
             if check_width < target_width * 0.5:  # Se ainda muito pequeno
-                print(f"🚀 [FORCE_LAYOUT] Pack insuficiente ({check_width}px) - aplicando place override")
-                
                 container_width = self.content_container.winfo_width()
                 container_height = self.content_container.winfo_height()
                 
@@ -397,29 +395,20 @@ class MainWindow:
                         width=target_width, 
                         height=container_height
                     )
-                    print(f"🚀 [FORCE_LAYOUT] Place override aplicado")
-            
-            print(f"🚀 [FORCE_LAYOUT] Layout forçado concluído")
             
         except Exception as e:
-            print(f"❌ [FORCE_LAYOUT] Erro: {e}")
             raise e
 
     def _final_sidebar_reload(self, target_expanded_state, timing):
         """Recarrega completamente a sidebar como operação final"""
         try:
-            print(f"\n🔄 RELOAD SIDEBAR ({timing}) - Estado alvo: {target_expanded_state}")
-            
             # Limpar completamente a sidebar atual
             self._clean_existing_sidebar()
             
             # Recriar completamente
             self._create_fresh_sidebar(target_expanded_state)
             
-            print(f"✅ Sidebar recarregada com sucesso em {timing}")
-            
-        except Exception as e:
-            print(f"❌ Erro no reload da sidebar ({timing}): {e}")
+        except Exception:
             # Se falhar, tentar recovery básico
             self.root.after(100, lambda: self._emergency_sidebar_recovery())
             
@@ -428,45 +417,36 @@ class MainWindow:
         try:
             # Verificar se existe
             if not hasattr(self, 'sidebar_frame') or not self.sidebar_frame.winfo_exists():
-                print("🔧 Precisa reload: sidebar_frame não existe")
                 return True
                 
             # Verificar se chat_sidebar existe
             if not hasattr(self, 'chat_sidebar'):
-                print("🔧 Precisa reload: chat_sidebar não existe")
                 return True
                 
             # Verificar parent correto
             if str(self.sidebar_frame.winfo_parent()) != str(self.content_container):
-                print("🔧 Precisa reload: parent incorreto")
                 return True
             
-            # NOVA VERIFICAÇÃO: Largura mínima aceitável
+            # Verificar largura mínima aceitável
             try:
                 current_width = self.sidebar_frame.winfo_width()
                 min_acceptable_width = 30  # Mínimo para ser considerado válido
                 
                 if current_width < min_acceptable_width:
-                    print(f"🔧 Precisa reload: largura muito pequena ({current_width}px)")
                     return True
                     
-            except Exception as width_e:
-                print(f"🔧 Precisa reload: erro ao verificar largura - {width_e}")
+            except Exception:
                 return True
             
             # Se chegou até aqui, sidebar está OK
-            print(f"✅ Sidebar OK - não precisa reload (width={current_width}px)")
             return False
             
-        except Exception as e:
-            print(f"❌ Erro ao verificar se precisa reload: {e}")
+        except Exception:
             return True
             
     def _clean_existing_sidebar(self):
         """Limpa completamente a sidebar existente"""
         try:
-            print(f"🧹 [CLEANUP] Iniciando limpeza da sidebar...")
-            
             # Log estado antes da limpeza
             chat_exists = hasattr(self, 'chat_sidebar')
             frame_exists = hasattr(self, 'sidebar_frame')
@@ -514,31 +494,20 @@ class MainWindow:
             chat_still_exists = hasattr(self, 'chat_sidebar')
             frame_still_exists = hasattr(self, 'sidebar_frame')
             
-            print(f"🧹 [CLEANUP] Estado após limpeza: chat_sidebar={chat_still_exists}, sidebar_frame={frame_still_exists}")
+
             
-            if chat_still_exists or frame_still_exists:
-                print(f"⚠️ [CLEANUP] AVISO: Limpeza incompleta!")
-            else:
-                print(f"✅ [CLEANUP] Limpeza completa confirmada")
-            
-        except Exception as e:
-            print(f"❌ [CLEANUP] Erro geral na limpeza: {e}")
+        except Exception:
+            pass
             
     def _create_fresh_sidebar(self, target_expanded_state):
         """Cria uma sidebar completamente nova"""
         try:
-            print(f"🆕 [CREATE] Iniciando criação de sidebar nova - expandida: {target_expanded_state}")
-            
             # Determinar largura inicial
             initial_width = self.sidebar_expanded_width if target_expanded_state else self.sidebar_contracted_width
-            print(f"🆕 [CREATE] Largura inicial calculada: {initial_width}px")
             
             # Verificar se content_container existe
             if not hasattr(self, 'content_container') or not self.content_container.winfo_exists():
-                print(f"❌ [CREATE] ERRO: content_container não existe!")
                 raise Exception("content_container não disponível")
-            
-            print(f"🆕 [CREATE] content_container OK: {id(self.content_container)}")
             
             # Criar frame novo
             self.sidebar_frame = ttk.Frame(
@@ -547,31 +516,21 @@ class MainWindow:
                 width=initial_width
             )
             
-            frame_id = id(self.sidebar_frame)
-            print(f"🆕 [CREATE] sidebar_frame criado: {frame_id}")
-            
-            # ESTRATÉGIA HÍBRIDA: Pack + Place para forçar layout
-            print(f"🆕 [CREATE] Aplicando estratégia híbrida de layout...")
-            
-            # Estratégia 1: Pack tradicional
+            # Pack tradicional
             self.sidebar_frame.pack(side=RIGHT, fill=Y)
             self.sidebar_frame.pack_propagate(False)
-            print(f"🆕 [CREATE] Pack aplicado")
             
-            # Estratégia 2: Aguardar layout inicial
+            # Aguardar layout inicial
             self.root.update_idletasks()
             self.content_container.update_idletasks()
             
-            # Estratégia 3: Verificar se pack funcionou
+            # Verificar se pack funcionou
             try:
                 pack_width = self.sidebar_frame.winfo_width()
                 pack_height = self.sidebar_frame.winfo_height()
-                print(f"🆕 [CREATE] Pack result: {pack_width}x{pack_height}")
                 
                 # Se pack falhou (dimensões < 10), usar place como override
                 if pack_width < 10 or pack_height < 10:
-                    print(f"🆕 [CREATE] Pack falhou - aplicando Place override...")
-                    
                     # Calcular posição para sidebar direita
                     try:
                         container_width = self.content_container.winfo_width()
@@ -587,59 +546,30 @@ class MainWindow:
                                 width=initial_width, 
                                 height=container_height
                             )
-                            print(f"🆕 [CREATE] Place override aplicado: {initial_width}x{container_height} at ({sidebar_x},0)")
-                        else:
-                            print(f"🆕 [CREATE] Container muito pequeno para place: {container_width}x{container_height}")
                             
-                    except Exception as place_error:
-                        print(f"🆕 [CREATE] Erro no place override: {place_error}")
-                else:
-                    print(f"🆕 [CREATE] Pack funcionou adequadamente")
+                    except Exception:
+                        pass
                     
-            except Exception as check_error:
-                print(f"🆕 [CREATE] Erro ao verificar pack: {check_error}")
+            except Exception:
+                pass
             
-            # Estratégia 4: Configurações adicionais forçadas
+            # Configurações adicionais forçadas
             self.sidebar_frame.config(width=initial_width, height=600)
             
-            # Estratégia 5: Update final
+            # Update final
             self.root.update_idletasks()
             
-            print(f"🆕 [CREATE] Estratégia híbrida completa")
-            
-            # Verificar se foi realmente posicionado
-            try:
-                frame_width = self.sidebar_frame.winfo_width()
-                frame_height = self.sidebar_frame.winfo_height()
-                frame_x = self.sidebar_frame.winfo_x()
-                frame_y = self.sidebar_frame.winfo_y()
-                frame_viewable = self.sidebar_frame.winfo_viewable()
-                
-                print(f"🆕 [CREATE] Frame geometry: {frame_width}x{frame_height} at ({frame_x},{frame_y}), viewable={frame_viewable}")
-                
-                if frame_width == 1 and frame_height == 1:
-                    print(f"⚠️ [CREATE] AVISO: Frame com dimensões mínimas - possível problema de layout")
-                    
-            except Exception as geo_error:
-                print(f"⚠️ [CREATE] Erro ao obter geometria: {geo_error}")
-            
             # Criar chat_sidebar novo
-            print(f"🆕 [CREATE] Criando ChatSidebar...")
             self.chat_sidebar = ChatSidebar(self.sidebar_frame, self)
-            chat_id = id(self.chat_sidebar)
-            print(f"🆕 [CREATE] ChatSidebar criado: {chat_id}")
             
             # Configurar estado
             self.sidebar_expanded = target_expanded_state
             self.chat_sidebar.is_expanded = target_expanded_state
-            print(f"🆕 [CREATE] Estados configurados: main={self.sidebar_expanded}, chat={self.chat_sidebar.is_expanded}")
             
             # Aplicar modo correto
             if target_expanded_state:
-                print(f"🆕 [CREATE] Aplicando modo expandido...")
                 self.chat_sidebar._set_expanded_mode()
             else:
-                print(f"🆕 [CREATE] Aplicando modo contraído...")
                 self.chat_sidebar._set_collapsed_mode()
                 
             # Forçar atualização final
@@ -648,29 +578,16 @@ class MainWindow:
             
             # Verificação final
             final_exists = self.sidebar_frame.winfo_exists()
-            final_viewable = self.sidebar_frame.winfo_viewable()
-            final_width = self.sidebar_frame.winfo_width()
-            
-            print(f"🆕 [CREATE] Verificação final: exists={final_exists}, viewable={final_viewable}, width={final_width}")
             
             if not final_exists:
-                print(f"❌ [CREATE] ERRO CRÍTICO: Frame não existe após criação!")
                 raise Exception("Frame destruído após criação")
             
-            if final_width < 10:
-                print(f"⚠️ [CREATE] AVISO: Frame muito estreito ({final_width}px)")
-            
-            print(f"✅ [CREATE] Sidebar nova criada com sucesso - expandida: {target_expanded_state}")
-            
         except Exception as e:
-            print(f"❌ [CREATE] Erro ao criar sidebar nova: {e}")
             raise e
             
     def _emergency_sidebar_recovery(self):
         """Recovery de emergência para a sidebar"""
         try:
-            print("🚨 RECOVERY DE EMERGÊNCIA DA SIDEBAR")
-            
             # Tentar criar sidebar básica
             self._clean_existing_sidebar()
             
@@ -682,24 +599,17 @@ class MainWindow:
             self.chat_sidebar = ChatSidebar(self.sidebar_frame, self)
             self.sidebar_expanded = False
             
-            print("✅ Recovery concluído")
-            
-        except Exception as e:
-            print(f"❌ Recovery falhou: {e}")
+        except Exception:
+            pass
             
     def _final_sidebar_check(self):
         """Verificação final para garantir que a sidebar está presente"""
         try:
             if not hasattr(self, 'sidebar_frame') or not self.sidebar_frame.winfo_exists():
-                print("⚠️ Verificação final: Sidebar desapareceu - recriando")
                 self._recreate_sidebar()
             elif not self.sidebar_frame.winfo_viewable():
-                print("⚠️ Verificação final: Sidebar não visível - restaurando")
                 self._ensure_sidebar_persistent()
-            else:
-                print("✅ Verificação final: Sidebar OK")
-        except Exception as e:
-            print(f"❌ Erro na verificação final: {e}")
+        except Exception:
             self._recreate_sidebar()
             
     def _ensure_sidebar_persistent(self):

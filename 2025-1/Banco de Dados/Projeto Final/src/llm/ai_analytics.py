@@ -47,7 +47,6 @@ class AIAnalyticsEngine:
             
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("✅ Gemini configurado com sucesso")
             
         except Exception as e:
             logger.error(f"❌ Erro ao configurar Gemini: {e}")
@@ -74,7 +73,6 @@ class AIAnalyticsEngine:
                     logger.warning(f"⚠️ Dados insuficientes no banco: {total_idh} IDH, {total_despesas} despesas")
                     self.data_available = False
                 else:
-                    logger.info(f"✅ Dados carregados do banco: {total_idh} registros IDH, {total_despesas} registros despesas")
                     self.data_available = True
                 
         except Exception as e:

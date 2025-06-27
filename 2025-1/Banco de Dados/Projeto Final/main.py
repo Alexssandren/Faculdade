@@ -17,6 +17,14 @@ import os
 import traceback
 from pathlib import Path
 
+# Suprimir avisos específicos do Qt/DPI no Windows
+if sys.platform == "win32":
+    os.environ["QT_ENABLE_HIGHDPI_SCALING"] = "1"
+    os.environ["QT_SCALE_FACTOR_ROUNDING_POLICY"] = "RoundPreferFloor"
+    # Suprimir avisos de DPI no stderr
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="qt")
+
 # Adicionar src ao path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
@@ -28,8 +36,6 @@ def main():
         from src.gui.main_window import MainWindow
         
         print("🚀 Iniciando Projeto Final - Banco de Dados...")
-        print("📊 Interface Gráfica Moderna")
-        print("🔄 Carregando componentes...")
         
         # Criar e executar aplicação
         app = MainWindow()
@@ -37,7 +43,6 @@ def main():
         
     except ImportError as e:
         print(f"❌ Erro de importação: {e}")
-        print("\n🔧 Verificando dependências...")
         
         # Verificar se as dependências estão instaladas
         missing_deps = []
@@ -61,55 +66,15 @@ def main():
             print(f"❌ Dependências ausentes: {', '.join(missing_deps)}")
             print("\n💡 Instale as dependências com:")
             print("pip install -r requirements.txt")
-            print("\n🔄 Ou instale manualmente:")
-            for dep in missing_deps:
-                print(f"pip install {dep}")
         else:
             print("✅ Todas as dependências estão instaladas")
             print(f"❌ Erro específico: {e}")
             
-        # Tentar usar CLI como fallback
-        print("\n🔄 Tentando usar interface CLI como fallback...")
-        try:
-            from main_cli import main as cli_main
-            print("✅ Interface CLI disponível")
-            return cli_main()
-        except Exception as cli_error:
-            print(f"❌ Interface CLI também falhou: {cli_error}")
+        return 1
             
     except Exception as e:
         print(f"❌ Erro crítico: {e}")
-        print(f"📋 Detalhes do erro:\n{traceback.format_exc()}")
-        
-        # Informações de debug
-        print("\n🔍 Informações de Debug:")
-        print(f"Python: {sys.version}")
-        print(f"Diretório atual: {os.getcwd()}")
-        print(f"Arquivo executado: {__file__}")
-        print(f"Caminho do projeto: {project_root}")
-        
-        # Verificar estrutura de arquivos
-        print("\n📁 Estrutura de arquivos:")
-        gui_path = project_root / "src" / "gui"
-        if gui_path.exists():
-            print(f"✅ Diretório GUI existe: {gui_path}")
-            main_window_path = gui_path / "main_window.py"
-            if main_window_path.exists():
-                print(f"✅ MainWindow existe: {main_window_path}")
-            else:
-                print(f"❌ MainWindow não encontrado: {main_window_path}")
-        else:
-            print(f"❌ Diretório GUI não encontrado: {gui_path}")
-            
-        # Tentar CLI como fallback
-        print("\n🔄 Tentando usar interface CLI como fallback...")
-        try:
-            from main_cli import main as cli_main
-            print("✅ Usando interface CLI")
-            return cli_main()
-        except Exception as cli_error:
-            print(f"❌ Interface CLI também falhou: {cli_error}")
-            return 1
+        return 1
             
     return 0
 
