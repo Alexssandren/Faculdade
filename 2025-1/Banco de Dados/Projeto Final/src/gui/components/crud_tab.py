@@ -32,7 +32,7 @@ class CrudTab:
             self.orgaos_crud = OrgaosPublicosCRUD()
             self.regioes_crud = RegiaosCRUD()
             self.use_real_data = True
-            print("✅ CRUDs carregados - usando dados reais")
+    
         except Exception as e:
             print(f"⚠️ Erro ao carregar CRUDs: {e} - usando dados simulados")
             self.use_real_data = False
@@ -347,20 +347,20 @@ class CrudTab:
                 self._load_sample_data()
                 return
                 
-            print(f"📊 Carregando dados reais para: {self.current_table}")
+  
             
             if self.current_table == 'estados':
                 data = self.estados_crud.listar()
-                print(f"✅ Estados carregados: {len(data)} registros")
+    
             elif self.current_table == 'indicadores_idh':
                 data = self.indicadores_crud.listar()
-                print(f"✅ Indicadores IDH carregados: {len(data)} registros")
+    
             elif self.current_table == 'despesas_publicas':
                 data = self.despesas_crud.listar_agregado()
-                print(f"✅ Despesas agregadas carregadas: {len(data)} registros")
+                
             else:  # organizacoes
                 data = self.orgaos_crud.listar()
-                print(f"✅ Organizações carregadas: {len(data)} registros")
+                
             
             # Verificar se há dados
             if not data:

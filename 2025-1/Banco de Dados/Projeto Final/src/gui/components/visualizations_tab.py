@@ -193,8 +193,6 @@ class VisualizationsTab:
                 year = int(year_str)
             region = self.region_var.get()
             
-            print(f"📊 Criando gráfico de correlação: Ano={year}, Região={region}")
-            
             data = data_provider.get_correlation_data(year=year, region=region)
             
             idh_values = np.array(data['idh_values'])
@@ -202,8 +200,6 @@ class VisualizationsTab:
             estados = data['estados']
             regioes = data['regioes']
             correlation = data['correlation']
-            
-            print(f"📈 Dados obtidos: {len(estados)} estados, correlação: {correlation:.3f}")
             
             # Cores por região
             region_colors = {
@@ -303,16 +299,12 @@ class VisualizationsTab:
             else:
                 year = int(year_str)
             
-            print(f"📊 Criando análise regional: Ano={year}")
-            
             # Buscar dados regionais
             data = data_provider.get_regional_analysis_data(year=year)
             
             regions = data['regioes']
             idh_means = data['idh_values']
             despesas_means = data['gastos_values']  # Corrigir nome do campo
-            
-            print(f"📈 Dados regionais obtidos: {len(regions)} regiões")
             
         except Exception as e:
             print(f"❌ Erro ao carregar dados regionais: {e}")
@@ -473,16 +465,12 @@ class VisualizationsTab:
             else:
                 year = int(year_str)
             
-            print(f"📊 Criando gráfico de eficiência: Ano={year}")
-            
             # Buscar dados de eficiência (sempre usar dados simulados se dados reais falham)
             data = data_provider.get_state_efficiency_data(year=year)
             
             states = data['estados']
             efficiency = data['efficiency_values']
             media_nacional = data['media_nacional']
-            
-            print(f"📈 Dados de eficiência obtidos: {len(states)} estados")
             
         except Exception as e:
             print(f"❌ Erro ao carregar dados de eficiência: {e}")
@@ -527,15 +515,11 @@ class VisualizationsTab:
             else:
                 year = int(year_str)
             
-            print(f"📊 Criando distribuição setorial: Ano={year}")
-            
             # Buscar dados setoriais (sempre usar dados simulados se dados reais falham)
             data = data_provider.get_sectoral_distribution_data(year=year)
             
             sectors = data['setores']
             values = data['valores']
-            
-            print(f"📈 Dados setoriais obtidos: {len(sectors)} setores")
             
         except Exception as e:
             print(f"❌ Erro ao carregar dados setoriais: {e}")
@@ -586,8 +570,6 @@ class VisualizationsTab:
             else:
                 year = int(year_str)
             
-            print(f"📊 Criando análise comparativa: Ano={year}")
-            
             # Buscar dados comparativos (sempre usar dados simulados se dados reais falham)
             data = data_provider.get_comparative_analysis_data(year=year)
             
@@ -596,8 +578,6 @@ class VisualizationsTab:
             idh_top = data['top_states']['idh_values']
             states_bottom = data['bottom_states']['estados']
             idh_bottom = data['bottom_states']['idh_values']
-            
-            print(f"📈 Dados comparativos obtidos: {len(states_top)} melhores + {len(states_bottom)} menores")
             
         except Exception as e:
             print(f"❌ Erro ao carregar dados comparativos: {e}")
@@ -656,18 +636,14 @@ class VisualizationsTab:
         year = self.year_var.get()
         region = self.region_var.get()
         
-        print(f"🔄 Filtro alterado: Ano={year}, Região={region}")
-        
         # Limpar cache de dados para forçar recarregamento
         try:
             from src.gui.data_integration import data_provider
             data_provider.clear_cache()
-            print(f"✅ Cache limpo - forçando recarga dos dados")
         except Exception as e:
-            print(f"⚠️ Erro ao limpar cache: {e}")
+            pass
             
         # Recriar visualização com novos filtros
-        print(f"🔄 Recriando visualização com filtros: {year}")
         self.create_visualization()
         
         self.main_window.update_status(f"Filtros aplicados: {year} - {region}")
@@ -688,8 +664,6 @@ class VisualizationsTab:
             self.viz_title_var.set(f"Distribuição Setorial de Despesas ({year})")
         elif current_viz == "analise_comparativa":
             self.viz_title_var.set(f"Análise Comparativa Estados ({year})")
-        
-        print(f"✅ Visualização atualizada para: {self.viz_title_var.get()}")
         
     def refresh_visualization(self):
         """Atualiza visualização atual"""

@@ -34,7 +34,7 @@ class DataProvider:
         try:
             self.analytics = ConsultasAnalíticas()
             self.has_real_data = True
-            print("✅ Sistema analítico inicializado com sucesso")
+    
         except Exception as e:
             print(f"⚠️ Falha ao inicializar sistema analítico: {e}")
             self.has_real_data = False
@@ -71,7 +71,7 @@ class DataProvider:
     def clear_cache(self):
         """Limpa o cache de dados"""
         self.cache.clear()
-        print("🧹 Cache de dados limpo")
+
 
     # ==================== MÉTRICAS DO DASHBOARD ====================
     
@@ -148,7 +148,7 @@ class DataProvider:
                     total_despesas = session.query(Despesa).count()
                     total_registros = total_idh + total_despesas
                     
-                    print(f"📊 Contagem registros: IDH={total_idh}, Despesas={total_despesas}, Total={total_registros}")
+            
                     
                     # Última atualização
                     ultima_atualizacao = datetime.now().strftime("%d/%m/%Y")
@@ -375,7 +375,7 @@ class DataProvider:
                 series_data = evolucao_data['series_temporais']
                 
                 # Organizar dados por região do banco
-                anos = list(range(2019, 2024))
+                anos = [2019, 2020, 2021, 2022, 2023]
                 regioes_tendencias = {}
                 
                 # Processar dados reais do banco por região
@@ -408,7 +408,7 @@ class DataProvider:
                 print(f"❌ Erro ao buscar dados temporais do banco: {e}")
                 # Retornar estrutura vazia em vez de dados simulados
                 return {
-                    'anos': list(range(2019, 2024)),
+                    'anos': [2019, 2020, 2021, 2022, 2023],
                     'regioes_data': {},
                     'region_filter': region,
                     'growth_rate': 0,

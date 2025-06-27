@@ -365,7 +365,7 @@ class DashboardTab:
             return
             
         try:
-            print(f"🔄 Atualizando métricas do dashboard: {self.metrics_data}")
+    
             
             # Não recarregar dados aqui, usar os já carregados
             # Atualizar Métrica 1: Total de Estados
@@ -396,7 +396,7 @@ class DashboardTab:
                 "Dados sincronizados"
             )
             
-            print(f"✅ Métricas atualizadas: {self.metrics_data['total_estados']} estados")
+    
             
         except Exception as e:
             print(f"❌ Erro ao atualizar métricas: {e}")
@@ -438,7 +438,7 @@ class DashboardTab:
         # Remover threading desnecessário para operações simples
         self.loading = True
         try:
-            print("🔄 Carregando dados do dashboard...")
+    
             
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
@@ -449,7 +449,7 @@ class DashboardTab:
             # Buscar métricas reais (operação rápida, não precisa de thread)
             self.metrics_data = data_provider.get_dashboard_metrics()
             
-            print(f"📊 Dados carregados: {self.metrics_data}")
+    
             
             # Atualizar métricas na interface diretamente (já estamos na thread principal)
             self.update_metrics_display()

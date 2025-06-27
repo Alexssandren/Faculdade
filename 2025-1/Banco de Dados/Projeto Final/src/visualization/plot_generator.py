@@ -45,7 +45,7 @@ def main():
             print("❌ Nenhum dado encontrado no banco.")
             return
         
-        print(f"✅ Dados carregados com sucesso da tabela 'analise_unificada' ({len(df)} registros).")
+
         
         # Preparar dados
         df = prepare_data(df)

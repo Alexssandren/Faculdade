@@ -615,83 +615,47 @@ class MainWindow:
     def _ensure_sidebar_persistent(self):
         """Garante que a sidebar permaneça persistente entre mudanças de aba"""
         try:
-            print(f"[DEBUG] === _ensure_sidebar_persistent INICIADO ===")
-            
             # Verificar se os componentes básicos existem
-            print(f"[DEBUG] Verificando componentes básicos...")
-            
             if not hasattr(self, 'content_container'):
-                print("❌ [DEBUG] Content container não existe (hasattr)")
                 return
             elif not self.content_container.winfo_exists():
-                print("❌ [DEBUG] Content container não existe (winfo_exists)")
                 return
-            else:
-                print("✅ [DEBUG] Content container OK")
                 
             if not hasattr(self, 'sidebar_frame'):
-                print("🔧 [DEBUG] Sidebar frame não existe (hasattr) - recriar sidebar")
                 self._recreate_sidebar()
                 return
             elif not self.sidebar_frame.winfo_exists():
-                print("🔧 [DEBUG] Sidebar frame não existe (winfo_exists) - recriar sidebar")
                 self._recreate_sidebar()
                 return
-            else:
-                print("✅ [DEBUG] Sidebar frame existe")
                 
             if not hasattr(self, 'chat_sidebar'):
-                print("🔧 [DEBUG] Chat sidebar não existe - recriar sidebar")
                 self._recreate_sidebar()
                 return
-            else:
-                print("✅ [DEBUG] Chat sidebar existe")
             
             # Salvar estado atual de expansão antes de reconfigurar
             sidebar_expanded = getattr(self, 'sidebar_expanded', False)
             chat_expanded = getattr(self.chat_sidebar, 'is_expanded', False)
             was_expanded = sidebar_expanded or chat_expanded
             
-            print(f"[DEBUG] Estado expansão - sidebar: {sidebar_expanded}, chat: {chat_expanded}, final: {was_expanded}")
-            
             # IMPORTANTE: Garantir que a sidebar está no container correto
-            print(f"[DEBUG] Verificando parent da sidebar...")
             current_parent = self.sidebar_frame.winfo_parent()
             expected_parent = str(self.content_container)
             
-            print(f"[DEBUG] Current parent: {current_parent}")
-            print(f"[DEBUG] Expected parent: {expected_parent}")
-            
             if current_parent != expected_parent:
-                print(f"🔧 [DEBUG] Sidebar fora do container correto: {current_parent} != {expected_parent}")
                 self._reattach_sidebar_to_container(was_expanded)
                 return
-            else:
-                print("✅ [DEBUG] Parent correto")
             
             # Verificar se a sidebar está visível no layout
-            print(f"[DEBUG] Verificando visibilidade...")
             is_viewable = self.sidebar_frame.winfo_viewable()
-            print(f"[DEBUG] Sidebar viewable: {is_viewable}")
             
             if not is_viewable:
-                print("🔧 [DEBUG] Sidebar não visível - restaurar posição")
                 self._restore_sidebar_position(was_expanded)
                 return
-            else:
-                print("✅ [DEBUG] Sidebar visível")
             
             # Se chegou até aqui, apenas sincronizar estado
-            print(f"[DEBUG] Sincronizando estado...")
             self._sync_sidebar_state(was_expanded)
-            
-            print(f"✅ [DEBUG] Sidebar persistente - Visível: {self.sidebar_frame.winfo_viewable()}, Expandida: {was_expanded}")
-            print(f"[DEBUG] === _ensure_sidebar_persistent FINALIZADO ===")
                     
         except Exception as e:
-            print(f"❌ [DEBUG] Erro ao garantir persistência da sidebar: {e}")
-            import traceback
-            print(f"[DEBUG] Traceback: {traceback.format_exc()}")
             # Em caso de erro crítico, recriar completamente
             self._recreate_sidebar()
             
@@ -718,7 +682,7 @@ class MainWindow:
                 # Sincronizar estado
                 self._sync_sidebar_state(was_expanded)
                 
-                print("✅ Sidebar reposicionada sem recriação")
+                pass  # Sidebar reposicionada
                 return
                 
             except Exception:
@@ -773,7 +737,7 @@ class MainWindow:
                 else:
                     self.chat_sidebar._set_collapsed_mode()
                 
-            print("✅ Sidebar reanexada com sucesso")
+                pass  # Sidebar reanexada
                     
         except Exception as e:
             print(f"❌ Erro ao reanexar sidebar: {e}")
@@ -782,11 +746,8 @@ class MainWindow:
     def _restore_sidebar_position(self, was_expanded):
         """Restaura a posição da sidebar no layout com place override se necessário"""
         try:
-            print("🔄 Restaurando posição da sidebar...")
-            
             # Configurar largura correta
             width = self.sidebar_expanded_width if was_expanded else self.sidebar_contracted_width
-            print(f"🔄 [RESTORE] Largura alvo: {width}px, expandida: {was_expanded}")
             
             # Remover e readicionar ao layout
             self.sidebar_frame.pack_forget()
@@ -801,12 +762,8 @@ class MainWindow:
             actual_width = self.sidebar_frame.winfo_width()
             is_viewable = self.sidebar_frame.winfo_viewable()
             
-            print(f"🔄 [RESTORE] Resultado pack: {actual_width}px, viewable: {is_viewable}")
-            
             # Se pack falhou (largura muito pequena ou não visível), aplicar place override
             if actual_width < width * 0.5 or not is_viewable:
-                print(f"🚀 [RESTORE] Pack insuficiente ({actual_width}px) - aplicando place override")
-                
                 try:
                     # Aplicar place override para garantir visibilidade
                     container_width = self.content_container.winfo_width()
@@ -820,29 +777,17 @@ class MainWindow:
                             width=width, 
                             height=container_height
                         )
-                        print(f"🚀 [RESTORE] Place override aplicado: {width}px na posição x={sidebar_x}")
                         
-                        # Verificar resultado final
+                        # Aguardar layout
                         self.root.update_idletasks()
-                        final_width = self.sidebar_frame.winfo_width()
-                        final_viewable = self.sidebar_frame.winfo_viewable()
-                        print(f"🚀 [RESTORE] Resultado final: {final_width}px, viewable: {final_viewable}")
-                        
-                    else:
-                        print(f"⚠️ [RESTORE] Container muito pequeno para place: {container_width}x{container_height}")
                         
                 except Exception as place_error:
-                    print(f"❌ [RESTORE] Erro no place override: {place_error}")
-            else:
-                print(f"✅ [RESTORE] Pack funcionou adequadamente: {actual_width}px")
+                    pass
             
             # Sincronizar estado
             self._sync_sidebar_state(was_expanded)
             
-            print("✅ Posição da sidebar restaurada")
-            
         except Exception as e:
-            print(f"❌ Erro ao restaurar posição: {e}")
             self._recreate_sidebar()
             
     def _sync_sidebar_state(self, was_expanded):
@@ -940,7 +885,7 @@ class MainWindow:
                 # Forçar atualização final
                 self.sidebar_frame.update_idletasks()
                 
-                print(f"✅ Sidebar recriada com sucesso - Expandida: {was_expanded}")
+                pass  # Sidebar recriada
             else:
                 print("❌ Frame da sidebar não foi criado corretamente")
                 
@@ -966,7 +911,7 @@ class MainWindow:
             self.chat_sidebar = ChatSidebar(self.sidebar_frame, self)
             self.sidebar_expanded = False
             
-            print("✅ Sidebar recriada via fallback")
+            pass  # Sidebar recriada via fallback
             
         except Exception as e:
             print(f"❌ Fallback também falhou: {e}")
@@ -1083,117 +1028,80 @@ CHAT IA:
         # O hover é gerenciado diretamente pela ChatSidebar
         pass
         
-    # ====== MÉTODOS DE DEBUG ======
-    def _get_timestamp(self):
-        """Retorna timestamp para logs"""
-        from datetime import datetime
-        return datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        
     def _log_sidebar_state(self, momento):
-        """Log detalhado do estado da sidebar"""
+        """Log do estado da sidebar para debug"""
         try:
-            print(f"[DEBUG] === ESTADO SIDEBAR ({momento}) ===")
-            
-            # Verificar existência dos componentes
+            # Verificações básicas
             has_sidebar_frame = hasattr(self, 'sidebar_frame')
-            has_chat_sidebar = hasattr(self, 'chat_sidebar')
+            has_chat_sidebar = hasattr(self, 'chat_sidebar') 
             has_content_container = hasattr(self, 'content_container')
-            
-            print(f"[DEBUG] has_sidebar_frame: {has_sidebar_frame}")
-            print(f"[DEBUG] has_chat_sidebar: {has_chat_sidebar}")
-            print(f"[DEBUG] has_content_container: {has_content_container}")
             
             if has_sidebar_frame:
                 try:
                     exists = self.sidebar_frame.winfo_exists()
-                    visible = self.sidebar_frame.winfo_viewable() if exists else False
-                    parent = str(self.sidebar_frame.winfo_parent()) if exists else "N/A"
-                    width = self.sidebar_frame.winfo_width() if exists else "N/A"
-                    height = self.sidebar_frame.winfo_height() if exists else "N/A"
-                    
-                    print(f"[DEBUG] sidebar_frame.exists: {exists}")
-                    print(f"[DEBUG] sidebar_frame.visible: {visible}")
-                    print(f"[DEBUG] sidebar_frame.parent: {parent}")
-                    print(f"[DEBUG] sidebar_frame.width: {width}")
-                    print(f"[DEBUG] sidebar_frame.height: {height}")
+                    visible = self.sidebar_frame.winfo_viewable()
+                    parent = str(self.sidebar_frame.winfo_parent())
+                    width = self.sidebar_frame.winfo_width()
+                    height = self.sidebar_frame.winfo_height()
                 except Exception as e:
-                    print(f"[DEBUG] Erro ao verificar sidebar_frame: {e}")
-            
+                    pass
+                
             if has_chat_sidebar:
                 try:
-                    is_expanded = getattr(self.chat_sidebar, 'is_expanded', 'N/A')
-                    print(f"[DEBUG] chat_sidebar.is_expanded: {is_expanded}")
+                    is_expanded = self.chat_sidebar.is_expanded
                 except Exception as e:
-                    print(f"[DEBUG] Erro ao verificar chat_sidebar: {e}")
-                    
-            # Estado da main window
-            sidebar_expanded = getattr(self, 'sidebar_expanded', 'N/A')
-            print(f"[DEBUG] main_window.sidebar_expanded: {sidebar_expanded}")
+                    pass
             
-            print(f"[DEBUG] === FIM ESTADO SIDEBAR ===")
+            try:
+                sidebar_expanded = self.sidebar_expanded
+            except:
+                pass
             
         except Exception as e:
-            print(f"[DEBUG] ERRO no _log_sidebar_state: {e}")
-            
+            pass
+
     def _log_layout_state(self, momento):
-        """Log detalhado do estado do layout"""
+        """Log do estado do layout para debug"""
         try:
-            print(f"[DEBUG] === ESTADO LAYOUT ({momento}) ===")
-            
+            # Verificar content_container
             if hasattr(self, 'content_container'):
                 try:
                     exists = self.content_container.winfo_exists()
-                    visible = self.content_container.winfo_viewable() if exists else False
-                    children = list(self.content_container.winfo_children()) if exists else []
-                    
-                    print(f"[DEBUG] content_container.exists: {exists}")
-                    print(f"[DEBUG] content_container.visible: {visible}")
-                    print(f"[DEBUG] content_container.children: {len(children)}")
+                    visible = self.content_container.winfo_viewable()
+                    children = self.content_container.winfo_children()
                     
                     for i, child in enumerate(children):
-                        child_class = child.__class__.__name__
-                        child_visible = child.winfo_viewable()
-                        print(f"[DEBUG]   child[{i}]: {child_class} - visible: {child_visible}")
+                        try:
+                            child_class = child.__class__.__name__
+                            child_visible = child.winfo_viewable()
+                        except:
+                            pass
                         
                 except Exception as e:
-                    print(f"[DEBUG] Erro ao verificar content_container: {e}")
-                    
+                    pass
+                
+            # Verificar notebook
             if hasattr(self, 'notebook'):
                 try:
                     exists = self.notebook.winfo_exists()
-                    visible = self.notebook.winfo_viewable() if exists else False
-                    current_tab = self.notebook.select() if exists else "N/A"
-                    
-                    print(f"[DEBUG] notebook.exists: {exists}")
-                    print(f"[DEBUG] notebook.visible: {visible}")
-                    print(f"[DEBUG] notebook.current_tab: {current_tab}")
-                    
+                    visible = self.notebook.winfo_viewable()
+                    current_tab = self.notebook.index(self.notebook.select())
                 except Exception as e:
-                    print(f"[DEBUG] Erro ao verificar notebook: {e}")
-                    
-            print(f"[DEBUG] === FIM ESTADO LAYOUT ===")
-            
+                    pass
+                
         except Exception as e:
-            print(f"[DEBUG] ERRO no _log_layout_state: {e}")
-            
+            pass
+
     def _debug_delayed_check(self, timing):
-        """Verificação com delay para debug"""
-        print(f"\n[DEBUG] === VERIFICAÇÃO DELAY {timing} ===")
-        self._log_sidebar_state(f"delay {timing}")
-        print(f"[DEBUG] Chamando _ensure_sidebar_persistent...")
+        """Debug com delay para verificar estado"""
+        # Fazer verificação da sidebar
         self._ensure_sidebar_persistent()
-        self._log_sidebar_state(f"APÓS ensure_sidebar_persistent {timing}")
-        print(f"[DEBUG] === FIM VERIFICAÇÃO DELAY {timing} ===\n")
-        
+
     def _debug_final_check(self, timing):
-        """Verificação final com debug"""
-        print(f"\n[DEBUG] === VERIFICAÇÃO FINAL {timing} ===")
-        self._log_sidebar_state(f"final {timing}")
-        self._final_sidebar_check()
-        self._log_sidebar_state(f"APÓS final_sidebar_check {timing}")
-        print(f"[DEBUG] === FIM VERIFICAÇÃO FINAL {timing} ===\n")
-    # ====== FIM MÉTODOS DE DEBUG ======
-            
+        """Verificação final do estado"""
+        # Fazer verificação adicional do estado da sidebar  
+        self._log_layout_state(f"FINAL-{timing}")
+
 if __name__ == "__main__":
     app = MainWindow()
     app.run() 
