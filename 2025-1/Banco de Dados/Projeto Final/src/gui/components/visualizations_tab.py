@@ -1,3 +1,7 @@
+﻿"""
+Módulo de visualizações - Interface gráfica para análise de dados
+"""
+
 import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as tb
@@ -6,12 +10,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 import threading
+import logging
 
 class VisualizationsTab:
     def __init__(self, parent_frame, main_window):
         self.parent = parent_frame
         self.main_window = main_window
         self.styling = main_window.styling
+        self.logger = logging.getLogger(__name__)
         
         # Estado da aba
         self.current_visualization = None
@@ -52,6 +58,8 @@ class VisualizationsTab:
         
         self.viz_var = tk.StringVar(value="correlacao_idh")
         viz_options = [
+            ("Ranking IDH vs. Investimento", "ranking_idh_investimento"),
+            ("Evolução Temporal", "evolucao_temporal"),
             ("Correlação IDH vs Despesas", "correlacao_idh"),
             ("Análise Regional", "analise_regional"),
             ("Tendências Temporais", "tendencias_temporais"),
@@ -99,8 +107,6 @@ class VisualizationsTab:
         # Região fixada como "Todas" (filtro removido)
         self.region_var = tk.StringVar(value="Todas")
         
-        # Seção de Ações removida conforme solicitado
-        
     def _create_visualization_area(self, parent):
         """Cria área principal de visualização"""
         # Frame da área de visualização
@@ -127,25 +133,38 @@ class VisualizationsTab:
             font=self.styling.fonts['small'],
             foreground=self.styling.colors['warning']
         )
-        # Não fazer pack inicialmente (só quando carregando)
         
         # Container para gráfico
         self.chart_container = ttk.Frame(viz_frame)
         self.chart_container.pack(fill=BOTH, expand=True)
         
         # Criar visualização inicial
-        self.create_visualization()
+        self.on_visualization_changed()
         
     def create_visualization(self):
         """Cria a visualização baseada na seleção atual"""
         # Limpar container anterior
         for widget in self.chart_container.winfo_children():
             widget.destroy()
-            
+
         # Obter tipo de visualização
         viz_type = self.viz_var.get()
-        
-        # Criar figura matplotlib
+
+        # A nova análise de ranking gerencia seu próprio canvas e layout.
+        if viz_type == "ranking_idh_investimento":
+            self._create_idh_ranking_analysis()
+            self.viz_title_var.set("Ranking IDH vs. Investimento Público")
+            return  # Retorna pois a renderização é feita dentro do método
+        elif viz_type == "evolucao_temporal":
+            self._create_temporal_evolution_analysis()
+            self.viz_title_var.set("Evolução Temporal de Indicadores (Nacional)")
+            return
+        elif viz_type == "analise_regional":
+            self._create_regional_analysis()
+            self.viz_title_var.set("Análise Comparativa Regional")
+            return
+
+        # Para as outras visualizações, criar figura matplotlib
         fig, ax = plt.subplots(figsize=(12, 8))
         fig.patch.set_facecolor(self.styling.colors['background'])
         
@@ -153,9 +172,6 @@ class VisualizationsTab:
         if viz_type == "correlacao_idh":
             self._create_correlation_chart(ax)
             self.viz_title_var.set("Correlação IDH vs Despesas Públicas")
-        elif viz_type == "analise_regional":
-            self._create_regional_analysis(ax)
-            self.viz_title_var.set("Análise Regional Comparativa")
         elif viz_type == "tendencias_temporais":
             self._create_temporal_trends(ax)
             self.viz_title_var.set("Tendências Temporais (2019-2023)")
@@ -179,6 +195,116 @@ class VisualizationsTab:
         toolbar = NavigationToolbar2Tk(canvas, self.chart_container)
         toolbar.update()
         
+    def _create_idh_ranking_analysis(self):
+        """Cria a análise de Ranking IDH vs. Investimento com tabela e gráfico."""
+        self.logger.info("Iniciando a criação da análise 'Ranking IDH vs. Investimento'")
+        # Limpar container
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+
+        # Layout com PanedWindow para dividir tabela e gráfico
+        paned_window = ttk.PanedWindow(self.chart_container, orient=VERTICAL)
+        paned_window.pack(fill=BOTH, expand=True)
+
+        # Frame para a tabela
+        table_frame = ttk.LabelFrame(paned_window, text="Dados da Consulta", padding=10)
+        paned_window.add(table_frame, weight=1)
+
+        # Frame para o gráfico
+        graph_frame = ttk.LabelFrame(paned_window, text="Visualização Gráfica", padding=10)
+        paned_window.add(graph_frame, weight=2)
+
+        # 1. Criar a Tabela (Treeview)
+        columns = {
+            "posicao_ranking": "Pos.",
+            "estado": "Estado",
+            "uf": "UF",
+            "regiao": "Região",
+            "idh_geral": "IDH Geral",
+            "total_investimento_milhoes": "Invest. Total (M)",
+            "investimento_saude": "Inv. Saúde (M)",
+            "investimento_educacao": "Inv. Educação (M)"
+        }
+
+        tree = ttk.Treeview(table_frame, columns=list(columns.keys()), show="headings", height=10)
+        
+        for col_id, col_text in columns.items():
+            tree.heading(col_id, text=col_text)
+            tree.column(col_id, width=100, anchor=CENTER)
+
+        tree.pack(fill=BOTH, expand=True)
+
+        # 2. Carregar os dados da consulta
+        data = []
+        try:
+            from src.queries.analytics_queries import ConsultasAnalíticas
+            analytics = ConsultasAnalíticas()
+            year = int(self.year_var.get()) if self.year_var.get() != "Todos" else 2023
+            self.logger.info(f"Carregando dados para o ano: {year}")
+            data = analytics.consulta_1_ranking_idh_investimento(ano=year)
+            self.logger.info(f"Dados carregados. Número de registros: {len(data) if data else 0}")
+            if data:
+                self.logger.debug(f"Primeiro registro de dados: {data[0]}")
+
+            for item in data:
+                values = (
+                    item.get('posicao_ranking', ''),
+                    item.get('estado', ''),
+                    item.get('uf', ''),
+                    item.get('regiao', ''),
+                    f"{item.get('idh_geral', 0):.3f}",
+                    f"{item.get('total_investimento_milhoes', 0):.2f}",
+                    f"{item.get('investimento_saude', 0):.2f}",
+                    f"{item.get('investimento_educacao', 0):.2f}"
+                )
+                tree.insert("", "end", values=values)
+
+        except Exception as e:
+            self.logger.error(f"Erro ao carregar dados da consulta: {e}", exc_info=True)
+            tree.insert("", "end", values=("Erro ao carregar dados.", str(e), "", "", "", "", "", ""))
+
+        # 3. Criar área para o gráfico
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        fig.patch.set_facecolor(self.styling.colors['background'])
+        
+        if data:
+            # Extrair dados para o gráfico
+            estados = [item['uf'] for item in data]
+            investimentos = [item['total_investimento_milhoes'] for item in data]
+            idhs = [item['idh_geral'] for item in data]
+
+            # Eixo primário (Barras - Investimento)
+            ax1.set_xlabel("Estados", color=self.styling.colors['text_primary'])
+            ax1.set_ylabel("Investimento Total (Milhões R$)", color=self.styling.colors['primary'], fontsize=12)
+            bars = ax1.bar(estados, investimentos, color=self.styling.colors['secondary'], alpha=0.7, label="Investimento Total")
+            ax1.tick_params(axis='y', labelcolor=self.styling.colors['primary'])
+            ax1.tick_params(axis='x', rotation=45, labelsize=8)
+            ax1.grid(False)
+
+            # Eixo secundário (Linha - IDH)
+            ax2 = ax1.twinx()
+            ax2.set_ylabel("IDH Geral", color=self.styling.colors['info'], fontsize=12)
+            line = ax2.plot(estados, idhs, color=self.styling.colors['info'], marker='o', linestyle='-', linewidth=2, label="IDH Geral")
+            ax2.tick_params(axis='y', labelcolor=self.styling.colors['info'])
+            ax2.grid(False)
+            
+            # Ajustes gerais
+            fig.suptitle("IDH vs. Investimento Total por Estado", 
+                         color=self.styling.colors['text_primary'], 
+                         fontsize=16, 
+                         fontweight='bold')
+            fig.tight_layout(rect=[0, 0, 1, 0.96])
+        else:
+            # Fallback se não houver dados
+            ax1.text(0.5, 0.5, "Não foi possível carregar os dados para o gráfico.", 
+                    ha='center', va='center', fontsize=12, color='gray')
+        
+        canvas = FigureCanvasTkAgg(fig, master=graph_frame)
+        canvas.draw()
+        self.logger.info("Canvas do gráfico desenhado.")
+        canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
+        self.logger.info("Widget do canvas empacotado na interface.")
+        
     def _create_correlation_chart(self, ax):
         """Cria gráfico de correlação IDH vs Despesas"""
         try:
@@ -195,508 +321,503 @@ class VisualizationsTab:
             
             data = data_provider.get_correlation_data(year=year, region=region)
             
-            idh_values = np.array(data['idh_values'])
-            despesas_values = np.array(data['despesas_values'])
-            estados = data['estados']
-            regioes = data['regioes']
-            correlation = data['correlation']
-            
-            # Cores por região
-            region_colors = {
-                'Norte': '#e74c3c',
-                'Nordeste': '#f39c12', 
-                'Sudeste': '#2ecc71',
-                'Sul': '#3498db',
-                'Centro-Oeste': '#9b59b6'
-            }
-            
-            colors = [region_colors.get(r, '#95a5a6') for r in regioes]
-            
-            # Criar scatter plot
-            scatter = ax.scatter(idh_values, despesas_values, 
-                               c=colors, alpha=0.7, s=100, edgecolors='black', linewidth=1)
-            
-            # Configurações do gráfico
-            ax.set_xlabel('IDH (Índice de Desenvolvimento Humano)')
-            ax.set_ylabel('Despesas Públicas per capita (R$ mil)')
-            
-            # Título com ano
-            title = f'Correlação IDH vs Despesas Públicas ({year})'
-            ax.set_title(title)
-            
-            # Linha de tendência
-            if len(idh_values) > 1:
-                z = np.polyfit(idh_values, despesas_values, 1)
-                p = np.poly1d(z)
-                ax.plot(idh_values, p(idh_values), "r--", alpha=0.8, linewidth=2)
+            # Verificação robusta dos dados antes de plotar
+            if not data or 'idh' not in data or 'investimento' not in data:
+                self._create_correlation_chart_fallback(ax)
+                return
                 
-                # Texto com correlação
-                ax.text(0.05, 0.95, f'Correlação: {correlation:.3f}', 
-                       transform=ax.transAxes, fontsize=12, 
-                       bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+            # Plotar dados
+            ax.scatter(data['investimento'], data['idh'], alpha=0.6)
+            ax.set_xlabel('Investimento per capita (R$)')
+            ax.set_ylabel('IDH')
+            ax.set_title(f'Correlação IDH vs Investimento Público ({year})')
+            ax.tick_params(axis='y', colors=self.styling.colors['text_secondary'])
+            ax.grid(True, linestyle='--', alpha=0.1)
+            
+            # Adicionar linha de tendência
+            z = np.polyfit(data['investimento'], data['idh'], 1)
+            p = np.poly1d(z)
+            ax.plot(data['investimento'], p(data['investimento']), "r--", alpha=0.8)
+            
+            # Adicionar rótulos dos estados
+            for i, estado in enumerate(data['estados']):
+                ax.annotate(estado, (data['investimento'][i], data['idh'][i]))
                 
-            # Adicionar labels dos estados
-            for i, (x, y, estado) in enumerate(zip(idh_values, despesas_values, estados)):
-                ax.annotate(estado, (x, y), xytext=(5, 5), textcoords='offset points',
-                           fontsize=8, alpha=0.8)
-            
-            # Legenda por região
-            handles = [plt.Line2D([0], [0], marker='o', color='w', 
-                                markerfacecolor=color, markersize=10, label=region)
-                      for region, color in region_colors.items()]
-            ax.legend(handles=handles, loc='upper left', bbox_to_anchor=(1, 1))
-            
-            ax.grid(True, alpha=0.3)
-            
         except Exception as e:
-            print(f"❌ Erro ao carregar dados de correlação: {e}")
-            # Fallback para gráfico básico
+            print(f"Erro ao criar gráfico de correlação: {e}")
             self._create_correlation_chart_fallback(ax)
             
     def _create_correlation_chart_fallback(self, ax):
-        """Gráfico de correlação com dados simulados (fallback)"""
-        # Dados simulados
+        """Cria gráfico de correlação com dados simulados"""
+        # Gerar dados simulados
         np.random.seed(42)
         n_states = 27
+        investimento = np.random.normal(5000, 1500, n_states)
+        idh = 0.5 + 0.3 * np.random.random(n_states)
+        estados = ['SP', 'RJ', 'MG', 'RS', 'PR', 'SC', 'BA', 'CE', 'PE', 'PA',
+                  'AM', 'GO', 'ES', 'PB', 'RN', 'MT', 'MS', 'PI', 'MA', 'SE',
+                  'RO', 'TO', 'AC', 'AP', 'RR', 'AL', 'DF']
+                  
+        # Plotar dados simulados
+        ax.scatter(investimento, idh, alpha=0.6)
+        ax.set_xlabel('Investimento per capita (R$) - Dados Simulados')
+        ax.set_ylabel('IDH - Dados Simulados')
+        ax.set_title('Correlação IDH vs Investimento Público (Simulação)')
+        ax.tick_params(axis='y', colors=self.styling.colors['text_secondary'])
+        ax.grid(True, linestyle='--', alpha=0.1)
         
-        idh_values = np.random.normal(0.75, 0.05, n_states)
-        idh_values = np.clip(idh_values, 0.6, 0.85)
-        
-        despesas_per_capita = 2000 + (idh_values - 0.6) * 8000 + np.random.normal(0, 500, n_states)
-        despesas_per_capita = np.clip(despesas_per_capita, 1500, 4500)
-        
-        scatter = ax.scatter(idh_values, despesas_per_capita, 
-                           c=idh_values, cmap='viridis', 
-                           s=100, alpha=0.7, edgecolors='black')
-        
-        z = np.polyfit(idh_values, despesas_per_capita, 1)
+        # Adicionar linha de tendência
+        z = np.polyfit(investimento, idh, 1)
         p = np.poly1d(z)
-        ax.plot(idh_values, p(idh_values), "r--", alpha=0.8, linewidth=2)
+        ax.plot(investimento, p(investimento), "r--", alpha=0.8)
         
-        ax.set_xlabel('Índice de Desenvolvimento Humano (IDH)', fontsize=12)
-        ax.set_ylabel('Despesas Per Capita (R$)', fontsize=12)
-        ax.set_title('Correlação IDH vs Despesas Públicas per Capita (Demo)', fontsize=14, fontweight='bold')
-        ax.grid(True, alpha=0.3)
-        
-        cbar = plt.colorbar(scatter, ax=ax)
-        cbar.set_label('IDH', rotation=270, labelpad=20)
-        
-        correlation = np.corrcoef(idh_values, despesas_per_capita)[0, 1]
-        ax.text(0.05, 0.95, f'Correlação: {correlation:.3f} (Demo)', 
-                transform=ax.transAxes, fontsize=12, 
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="yellow", alpha=0.5))
-        
-    def _create_regional_analysis(self, ax):
-        """Cria análise regional comparativa"""
+        # Adicionar rótulos dos estados
+        for i, estado in enumerate(estados):
+            ax.annotate(estado, (investimento[i], idh[i]))
+            
+        # Adicionar nota sobre dados simulados
+        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
+                transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', color='red')
+                
+    def _create_regional_analysis(self):
+        """Cria a análise comparativa regional com tabela e gráfico."""
+        # Limpar container
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+
+        paned_window = ttk.PanedWindow(self.chart_container, orient=VERTICAL)
+        paned_window.pack(fill=BOTH, expand=True)
+
+        table_frame = ttk.LabelFrame(paned_window, text="Dados Comparativos por Região", padding=10)
+        paned_window.add(table_frame, weight=1)
+
+        graph_frame = ttk.LabelFrame(paned_window, text="Gráfico Comparativo", padding=10)
+        paned_window.add(graph_frame, weight=2)
+
+        # 1. Tabela
+        columns = {
+            "posicao": "Pos.", "regiao": "Região", "total_estados": "Nº Estados",
+            "idh_regional_medio": "IDH Médio", "investimento_total_milhoes": "Invest. Total (Bi)",
+            "nivel_desenvolvimento": "Nível"
+        }
+        tree = ttk.Treeview(table_frame, columns=list(columns.keys()), show="headings", height=5)
+        for col_id, col_text in columns.items():
+            tree.heading(col_id, text=col_text)
+            tree.column(col_id, width=120, anchor=CENTER)
+        tree.pack(fill=BOTH, expand=True)
+
+        # 2. Carregar Dados
+        data = {}
         try:
-            # Importar provedor de dados
-            from src.gui.data_integration import data_provider
+            from src.queries.analytics_queries import ConsultasAnalíticas
+            analytics = ConsultasAnalíticas()
+            data = analytics.consulta_3_analise_regional()
             
-            # Obter filtro de ano
-            year_str = self.year_var.get()
-            if year_str == "Todos":
-                year = 2023  # Usar 2023 como padrão
-            else:
-                year = int(year_str)
-            
-            # Buscar dados regionais
-            data = data_provider.get_regional_analysis_data(year=year)
-            
-            regions = data['regioes']
-            idh_means = data['idh_values']
-            despesas_means = data['gastos_values']  # Corrigir nome do campo
-            
+            for item in data.get('ranking_regioes', []):
+                investimento_bilhoes = item.get('investimento_total_milhoes', 0) / 1000
+                values = (
+                    item.get('posicao'), item.get('regiao'), item.get('total_estados'),
+                    f"{item.get('idh_regional_medio', 0):.3f}", f"{investimento_bilhoes:.2f}",
+                    item.get('nivel_desenvolvimento')
+                )
+                tree.insert("", "end", values=values)
         except Exception as e:
-            print(f"❌ Erro ao carregar dados regionais: {e}")
-            # Usar dados padrão em caso de erro
-            regions = ['Norte', 'Nordeste', 'Sudeste', 'Sul', 'Centro-Oeste']
-            idh_means = [0.684, 0.663, 0.766, 0.754, 0.734]
-            despesas_means = [2.8, 2.2, 3.5, 3.3, 3.0]
+            tree.insert("", "end", values=("Erro", str(e), "", "", "", ""))
+
+        # 3. Gráfico
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        fig.patch.set_facecolor(self.styling.colors['background'])
         
-        # Criar gráfico de barras duplas
-        x = np.arange(len(regions))
-        width = 0.35
-        
-        bars1 = ax.bar(x - width/2, idh_means, width, label='IDH', 
-                      color=self.styling.colors['primary'], alpha=0.8)
-        bars2 = ax.bar(x + width/2, despesas_means, width, label='Investimento (norm.)', 
-                      color=self.styling.colors['secondary'], alpha=0.8)
-        
-        # Configurações
-        ax.set_xlabel('Região')
-        ax.set_ylabel('Valores')
-        
-        # Obter filtro de ano para o título
-        year_str = self.year_var.get()
-        if year_str == "Todos":
-            title = 'Análise Regional: IDH vs Investimentos (Geral)'
-        else:
-            title = f'Análise Regional: IDH vs Investimentos ({year_str})'
-        ax.set_title(title)
-        
-        ax.set_xticks(x)
-        ax.set_xticklabels(regions)
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        
-        # Adicionar valores nas barras
-        for bar in bars1:
-            height = bar.get_height()
-            ax.annotate(f'{height:.3f}',
-                       xy=(bar.get_x() + bar.get_width() / 2, height),
-                       xytext=(0, 3),
-                       textcoords="offset points",
-                       ha='center', va='bottom', fontsize=9)
+        ranking = data.get('ranking_regioes', [])
+        if ranking:
+            regioes = [item['regiao'] for item in ranking]
+            idhs = [item['idh_regional_medio'] for item in ranking]
+            investimentos = [item['investimento_total_milhoes'] / 1000 for item in ranking]
+
+            x = np.arange(len(regioes))
+            width = 0.35
+
+            rects1 = ax1.bar(x - width/2, idhs, width, label='IDH Médio', color=self.styling.colors['info'])
+            ax1.set_ylabel('IDH Médio', color=self.styling.colors['info'])
+            ax1.tick_params(axis='y', labelcolor=self.styling.colors['info'])
             
+            ax2 = ax1.twinx()
+            rects2 = ax2.bar(x + width/2, investimentos, width, label='Investimento (Bi)', color=self.styling.colors['success'])
+            ax2.set_ylabel('Investimento Total (Bilhões R$)', color=self.styling.colors['success'])
+            ax2.tick_params(axis='y', labelcolor=self.styling.colors['success'])
+
+            ax1.set_xticks(x)
+            ax1.set_xticklabels(regioes)
+            ax1.legend(loc='upper left')
+            ax2.legend(loc='upper right')
+            
+            fig.suptitle("Análise Regional: IDH vs. Investimento", fontsize=16, fontweight='bold', color=self.styling.colors['text_primary'])
+            fig.tight_layout(rect=[0, 0, 1, 0.96])
+        else:
+            ax1.text(0.5, 0.5, "Dados não disponíveis para gerar o gráfico.", ha='center', va='center')
+
+        canvas = FigureCanvasTkAgg(fig, master=graph_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
+        
+    def _create_temporal_evolution_analysis(self):
+        """Cria a análise de Evolução Temporal com tabela e gráfico."""
+        # Limpar container
+        for widget in self.chart_container.winfo_children():
+            widget.destroy()
+
+        paned_window = ttk.PanedWindow(self.chart_container, orient=VERTICAL)
+        paned_window.pack(fill=BOTH, expand=True)
+
+        table_frame = ttk.LabelFrame(paned_window, text="Dados Anuais Consolidados", padding=10)
+        paned_window.add(table_frame, weight=1)
+
+        graph_frame = ttk.LabelFrame(paned_window, text="Gráfico de Evolução", padding=10)
+        paned_window.add(graph_frame, weight=2)
+
+        # 1. Tabela
+        columns = {
+            "ano": "Ano", "idh_geral": "IDH Médio", "investimento_total": "Invest. Total (M)",
+            "variacao_idh_percent": "Var. IDH (%)", "variacao_investimento_percent": "Var. Invest. (%)"
+        }
+        tree = ttk.Treeview(table_frame, columns=list(columns.keys()), show="headings", height=5)
+        for col_id, col_text in columns.items():
+            tree.heading(col_id, text=col_text)
+            tree.column(col_id, width=120, anchor=CENTER)
+        tree.pack(fill=BOTH, expand=True)
+
+        # 2. Carregar Dados
+        data = {}
+        try:
+            from src.queries.analytics_queries import ConsultasAnalíticas
+            analytics = ConsultasAnalíticas()
+            # Esta consulta pode filtrar por estado, mas aqui faremos a nacional
+            data = analytics.consulta_2_evolucao_temporal()
+            
+            for item in data.get('evolucao_anual', []):
+                values = (
+                    item.get('ano'), f"{item.get('idh_geral', 0):.3f}",
+                    f"{item.get('investimento_total', 0):.2f}", f"{item.get('variacao_idh_percent', 0):.2f}%",
+                    f"{item.get('variacao_investimento_percent', 0):.2f}%"
+                )
+                tree.insert("", "end", values=values)
+        except Exception as e:
+            tree.insert("", "end", values=("Erro", str(e), "", "", ""))
+
+        # 3. Gráfico
+        fig, ax1 = plt.subplots(figsize=(10, 6))
+        fig.patch.set_facecolor(self.styling.colors['background'])
+        
+        evolucao = data.get('evolucao_anual', [])
+        if evolucao:
+            anos = [item['ano'] for item in evolucao]
+            idhs = [item['idh_geral'] for item in evolucao]
+            investimentos = [item['investimento_total'] for item in evolucao]
+
+            ax1.set_xlabel("Ano", color=self.styling.colors['text_primary'])
+            ax1.set_ylabel("Investimento Total (Milhões R$)", color=self.styling.colors['primary'], fontsize=12)
+            ax1.bar(anos, investimentos, color=self.styling.colors['secondary'], alpha=0.6, label="Invest. Total")
+            ax1.tick_params(axis='y', labelcolor=self.styling.colors['primary'])
+            ax1.grid(False)
+
+            ax2 = ax1.twinx()
+            ax2.set_ylabel("IDH Geral Médio", color=self.styling.colors['info'], fontsize=12)
+            ax2.plot(anos, idhs, color=self.styling.colors['info'], marker='o', linestyle='-', label="IDH Médio")
+            ax2.tick_params(axis='y', labelcolor=self.styling.colors['info'])
+            ax2.grid(False)
+            
+            fig.suptitle("Evolução Anual: IDH vs. Investimento", fontsize=16, fontweight='bold', color=self.styling.colors['text_primary'])
+            fig.tight_layout(rect=[0, 0, 1, 0.96])
+        else:
+            ax1.text(0.5, 0.5, "Dados não disponíveis para gerar o gráfico.", ha='center', va='center')
+
+        canvas = FigureCanvasTkAgg(fig, master=graph_frame)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=True)
+        
     def _create_temporal_trends(self, ax):
         """Cria gráfico de tendências temporais"""
         try:
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
             
-            # Obter filtro de ano
-            year_filter = self.year_var.get()
+            # Obter dados
+            data = data_provider.get_temporal_data()
             
-            # Buscar dados temporais do data_provider
-            data = data_provider.get_temporal_trends_data(region=self.region_var.get())
-            
-            years = data.get('anos', [2019, 2020, 2021, 2022, 2023])
-            regions_data = data.get('regioes_data', {})
-            
-            # Se não há dados, usar dados padrão
-            if not regions_data:
-                regions_data = {
-                    'Norte': [0.682, 0.684, 0.686, 0.688, 0.690],
-                    'Nordeste': [0.661, 0.663, 0.665, 0.667, 0.669],
-                    'Sudeste': [0.764, 0.766, 0.768, 0.770, 0.772],
-                    'Sul': [0.752, 0.754, 0.756, 0.758, 0.760],
-                    'Centro-Oeste': [0.732, 0.734, 0.736, 0.738, 0.740]
-                }
-            
-            # Filtrar por ano se não for "Todos"
-            if year_filter != "Todos":
-                year_selected = int(year_filter)
-                if year_selected in years:
-                    year_index = years.index(year_selected)
-                    years = [year_selected]
-                    for region in regions_data:
-                        regions_data[region] = [regions_data[region][year_index]]
-            
-            colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
-            
-            for i, (region, values) in enumerate(regions_data.items()):
-                if len(years) == 1:
-                    # Para um ano específico, mostrar barras
-                    ax.bar(i, values[0], color=colors[i], alpha=0.7, label=region)
-                else:
-                    # Para todos os anos, mostrar linha temporal
-                    ax.plot(years, values, marker='o', linewidth=3, 
-                           label=region, color=colors[i], markersize=8)
-            
-            if len(years) == 1:
-                ax.set_xlabel('Região')
-                ax.set_ylabel('IDH')
-                ax.set_title(f'IDH por Região ({year_filter})')
-                ax.set_xticks(range(len(regions_data)))
-                ax.set_xticklabels(regions_data.keys(), rotation=45)
-            else:
-                ax.set_xlabel('Ano')
-                ax.set_ylabel('IDH Médio')
-                ax.set_title('Evolução Temporal do IDH por Região (2019-2023)')
+            # Verificar dados
+            if not data or 'anos' not in data:
+                raise ValueError("Dados temporais inválidos")
                 
+            # Plotar tendências
+            ax.plot(data['anos'], data['idh_medio'], 'b-', label='IDH Médio')
+            ax.set_xlabel('Ano')
+            ax.set_ylabel('IDH Médio', color='b')
+            
+            # Criar segundo eixo Y para investimento
+            ax2 = ax.twinx()
+            ax2.plot(data['anos'], data['investimento_medio'], 'r-', label='Investimento Médio')
+            ax2.set_ylabel('Investimento Médio (R$)', color='r')
+            
+            # Configurar gráfico
+            ax.set_title('Evolução Temporal: IDH vs Investimento')
+            ax.grid(True, alpha=0.3)
+            
+            # Adicionar legendas
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+            
         except Exception as e:
-            print(f"Erro ao carregar dados temporais: {e}")
-            # Fallback com dados simulados ajustados para o ano
-            year_filter = self.year_var.get()
+            print(f"Erro ao criar tendências temporais: {e}")
+            self._create_temporal_trends_fallback(ax)
             
-            years = [2019, 2020, 2021, 2022, 2023]
-            regions_data = {
-                'Sudeste': [0.764, 0.766, 0.768, 0.770, 0.772],
-                'Sul': [0.752, 0.754, 0.756, 0.758, 0.760],
-                'Centro-Oeste': [0.732, 0.734, 0.736, 0.738, 0.740],
-                'Norte': [0.682, 0.684, 0.686, 0.688, 0.690],
-                'Nordeste': [0.661, 0.663, 0.665, 0.667, 0.669]
-            }
-            
-            # Filtrar por ano se não for "Todos"
-            if year_filter != "Todos":
-                year_selected = int(year_filter)
-                if year_selected in years:
-                    year_index = years.index(year_selected)
-                    years = [year_selected]
-                    for region in regions_data:
-                        regions_data[region] = [regions_data[region][year_index]]
-            
-            colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
-            
-            for i, (region, values) in enumerate(regions_data.items()):
-                if len(years) == 1:
-                    # Para um ano específico, mostrar barras
-                    ax.bar(i, values[0], color=colors[i], alpha=0.7, label=region)
-                else:
-                    # Para todos os anos, mostrar linha temporal
-                    ax.plot(years, values, marker='o', linewidth=3, 
-                           label=region, color=colors[i], markersize=8)
-            
-            if len(years) == 1:
-                ax.set_xlabel('Região')
-                ax.set_ylabel('IDH')
-                ax.set_title(f'IDH por Região ({year_filter})')
-                ax.set_xticks(range(len(regions_data)))
-                ax.set_xticklabels(regions_data.keys(), rotation=45)
-            else:
-                ax.set_xlabel('Ano')
-                ax.set_ylabel('IDH Médio')
-                ax.set_title('Evolução Temporal do IDH por Região (2019-2023)')
+    def _create_temporal_trends_fallback(self, ax):
+        """Cria gráfico de tendências temporais com dados simulados"""
+        # Dados simulados
+        anos = np.array([2019, 2020, 2021, 2022, 2023])
+        idh_medio = np.array([0.75, 0.76, 0.77, 0.78, 0.79])
+        investimento_medio = np.array([15000, 16500, 17200, 18800, 20000])
         
-        ax.legend()
+        # Plotar tendências
+        ax.plot(anos, idh_medio, 'b-', label='IDH Médio')
+        ax.set_xlabel('Ano')
+        ax.set_ylabel('IDH Médio', color='b')
+        
+        # Criar segundo eixo Y para investimento
+        ax2 = ax.twinx()
+        ax2.plot(anos, investimento_medio, 'r-', label='Investimento Médio')
+        ax2.set_ylabel('Investimento Médio (R$)', color='r')
+        
+        # Configurar gráfico
+        ax.set_title('Evolução Temporal: IDH vs Investimento (Simulado)')
         ax.grid(True, alpha=0.3)
         
+        # Adicionar legendas
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+        
+        # Adicionar nota sobre dados simulados
+        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
+                transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', color='red')
+                
     def _create_state_efficiency(self, ax):
         """Cria gráfico de eficiência por estado"""
         try:
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
             
-            # Obter filtro de ano
+            # Obter dados
             year_str = self.year_var.get()
             if year_str == "Todos":
-                year = 2023  # Usar 2023 como padrão
+                year = 2023
             else:
                 year = int(year_str)
+                
+            data = data_provider.get_efficiency_data(year=year)
             
-            # Buscar dados de eficiência (sempre usar dados simulados se dados reais falham)
-            data = data_provider.get_state_efficiency_data(year=year)
+            # Verificar dados
+            if not data or 'estados' not in data:
+                raise ValueError("Dados de eficiência inválidos")
+                
+            # Calcular eficiência (IDH / Investimento normalizado)
+            eficiencia = data['idh'] / (data['investimento'] / np.mean(data['investimento']))
             
-            states = data['estados']
-            efficiency = data['efficiency_values']
-            media_nacional = data['media_nacional']
+            # Ordenar por eficiência
+            idx = np.argsort(eficiencia)[::-1]
+            estados = np.array(data['estados'])[idx]
+            eficiencia = eficiencia[idx]
+            
+            # Plotar top 10 estados mais eficientes
+            ax.bar(estados[:10], eficiencia[:10])
+            ax.set_title(f'Top 10 Estados - Eficiência IDH/Investimento ({year})')
+            ax.set_xlabel('Estado')
+            ax.set_ylabel('Índice de Eficiência')
+            ax.tick_params(axis='x', rotation=45)
             
         except Exception as e:
-            print(f"❌ Erro ao carregar dados de eficiência: {e}")
-            # Usar método demo diretamente do data_provider
-            from src.gui.data_integration import data_provider
-            year_str = self.year_var.get()
-            year = 2023 if year_str == "Todos" else int(year_str)
-            data = data_provider._get_demo_efficiency_data(year)
+            print(f"Erro ao criar gráfico de eficiência: {e}")
+            self._create_state_efficiency_fallback(ax)
             
-            states = data['estados']
-            efficiency = data['efficiency_values']
-            media_nacional = data['media_nacional']
+    def _create_state_efficiency_fallback(self, ax):
+        """Cria gráfico de eficiência por estado com dados simulados"""
+        # Dados simulados
+        estados = ['SP', 'SC', 'RS', 'PR', 'MG', 'ES', 'RJ', 'MS', 'GO', 'DF']
+        eficiencia = np.array([1.2, 1.15, 1.1, 1.08, 1.05, 1.03, 1.0, 0.98, 0.95, 0.93])
         
-        # Cores baseadas na eficiência
-        colors = ['green' if e > media_nacional else 'orange' if e > media_nacional*0.8 else 'red' for e in efficiency]
-        
-        bars = ax.bar(states, efficiency, color=colors, alpha=0.7, edgecolor='black')
-        
+        # Plotar dados
+        ax.bar(estados, eficiencia)
+        ax.set_title('Top 10 Estados - Eficiência IDH/Investimento (Simulado)')
         ax.set_xlabel('Estado')
-        ax.set_ylabel('Eficiência (IDH/Despesa per capita)')
-        ax.set_title(f'Eficiência dos Estados: IDH vs Investimento ({year})')
-        ax.grid(True, alpha=0.3, axis='y')
-        
-        # Linha de referência
-        ax.axhline(y=media_nacional, color='blue', linestyle='--', 
-                  label=f'Média Nacional: {media_nacional:.3f}')
-        ax.legend()
-        
-        # Rotacionar labels dos estados para melhor visualização
+        ax.set_ylabel('Índice de Eficiência')
         ax.tick_params(axis='x', rotation=45)
         
+        # Adicionar nota sobre dados simulados
+        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
+                transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', color='red')
+                
     def _create_sectoral_distribution(self, ax):
-        """Cria distribuição setorial de despesas"""
+        """Cria gráfico de distribuição setorial"""
         try:
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
             
-            # Obter filtro de ano
+            # Obter dados
             year_str = self.year_var.get()
             if year_str == "Todos":
-                year = 2023  # Usar 2023 como padrão
+                year = 2023
             else:
                 year = int(year_str)
+                
+            data = data_provider.get_sectoral_data(year=year)
             
-            # Buscar dados setoriais (sempre usar dados simulados se dados reais falham)
-            data = data_provider.get_sectoral_distribution_data(year=year)
+            # Verificar dados
+            if not data or 'setores' not in data:
+                raise ValueError("Dados setoriais inválidos")
+                
+            # Criar gráfico de pizza
+            wedges, texts, autotexts = ax.pie(
+                data['valores'],
+                labels=data['setores'],
+                autopct='%1.1f%%',
+                startangle=90
+            )
             
-            sectors = data['setores']
-            values = data['valores']
+            # Configurar gráfico
+            ax.set_title(f'Distribuição Setorial das Despesas ({year})')
+            ax.axis('equal')
+            
+            # Ajustar legendas
+            plt.setp(autotexts, size=8, weight="bold")
+            plt.setp(texts, size=8)
             
         except Exception as e:
-            print(f"❌ Erro ao carregar dados setoriais: {e}")
-            # Usar método demo diretamente do data_provider
-            from src.gui.data_integration import data_provider
-            year_str = self.year_var.get()
-            year = 2023 if year_str == "Todos" else int(year_str)
-            data = data_provider._get_demo_sectoral_data(year)
+            print(f"Erro ao criar distribuição setorial: {e}")
+            self._create_sectoral_distribution_fallback(ax)
             
-            sectors = data['setores']
-            values = data['valores']
+    def _create_sectoral_distribution_fallback(self, ax):
+        """Cria gráfico de distribuição setorial com dados simulados"""
+        # Dados simulados
+        setores = ['Educação', 'Saúde', 'Infraestrutura', 'Segurança',
+                  'Assistência Social', 'Outros']
+        valores = [25, 30, 20, 15, 5, 5]
         
-        # Gráfico de pizza com explosão
-        explode = (0.1, 0.05, 0, 0, 0, 0)[:len(sectors)]
-        colors = plt.cm.Set3(np.linspace(0, 1, len(sectors)))
+        # Criar gráfico de pizza
+        wedges, texts, autotexts = ax.pie(
+            valores,
+            labels=setores,
+            autopct='%1.1f%%',
+            startangle=90
+        )
         
-        wedges, texts, autotexts = ax.pie(values, labels=sectors, colors=colors, 
-                                         autopct='%1.1f%%', startangle=90,
-                                         explode=explode, shadow=True)
+        # Configurar gráfico
+        ax.set_title('Distribuição Setorial das Despesas (Simulado)')
+        ax.axis('equal')
         
-        # Título dinâmico baseado no filtro de ano
-        year_str = self.year_var.get()
-        if year_str == "Todos":
-            title = 'Distribuição Percentual de Investimentos por Setor (Geral)'
-        else:
-            title = f'Distribuição Percentual de Investimentos por Setor ({year_str})'
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        # Ajustar legendas
+        plt.setp(autotexts, size=8, weight="bold")
+        plt.setp(texts, size=8)
         
-        # Melhorar aparência
-        try:
-            for autotext in autotexts:
-                autotext.set_color('white')
-                autotext.set_fontweight('bold')
-                autotext.set_fontsize(10)
-        except:
-            pass
-            
+        # Adicionar nota sobre dados simulados
+        ax.text(-1.5, 1.2, 'ATENÇÃO: Dados Simulados',
+                fontsize=10, color='red')
+                
     def _create_comparative_analysis(self, ax):
-        """Cria análise comparativa de estados"""
+        """Cria gráfico de análise comparativa"""
         try:
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
             
-            # Obter filtro de ano
+            # Obter dados
             year_str = self.year_var.get()
             if year_str == "Todos":
-                year = 2023  # Usar 2023 como padrão
+                year = 2023
             else:
                 year = int(year_str)
+                
+            data = data_provider.get_comparative_data(year=year)
             
-            # Buscar dados comparativos (sempre usar dados simulados se dados reais falham)
-            data = data_provider.get_comparative_analysis_data(year=year)
+            # Verificar dados
+            if not data or 'estados' not in data:
+                raise ValueError("Dados comparativos inválidos")
+                
+            # Criar gráfico de barras agrupadas
+            x = np.arange(len(data['estados']))
+            width = 0.35
             
-            # Extrair dados com estrutura correta
-            states_top = data['top_states']['estados']
-            idh_top = data['top_states']['idh_values']
-            states_bottom = data['bottom_states']['estados']
-            idh_bottom = data['bottom_states']['idh_values']
+            ax.bar(x - width/2, data['idh'], width, label='IDH')
+            ax.bar(x + width/2, data['investimento_norm'], width,
+                   label='Investimento (Normalizado)')
+                   
+            # Configurar gráfico
+            ax.set_title(f'Análise Comparativa: IDH vs Investimento ({year})')
+            ax.set_xticks(x)
+            ax.set_xticklabels(data['estados'], rotation=45)
+            ax.legend()
+            ax.grid(True, alpha=0.3)
             
         except Exception as e:
-            print(f"❌ Erro ao carregar dados comparativos: {e}")
-            # Usar método demo diretamente do data_provider
-            from src.gui.data_integration import data_provider
-            data = data_provider._get_demo_comparative_data()
+            print(f"Erro ao criar análise comparativa: {e}")
+            self._create_comparative_analysis_fallback(ax)
             
-            states_top = data['top_states']['estados']
-            idh_top = data['top_states']['idh_values']
-            states_bottom = data['bottom_states']['estados']
-            idh_bottom = data['bottom_states']['idh_values']
+    def _create_comparative_analysis_fallback(self, ax):
+        """Cria gráfico de análise comparativa com dados simulados"""
+        # Dados simulados
+        estados = ['SP', 'RJ', 'MG', 'RS', 'PR', 'SC', 'BA', 'PE', 'CE', 'GO']
+        idh = np.random.normal(0.8, 0.1, len(estados))
+        investimento = np.random.normal(0.7, 0.2, len(estados))
         
-        # Posições no gráfico
-        y_pos_top = np.arange(len(states_top))
-        y_pos_bottom = np.arange(len(states_bottom)) + len(states_top) + 1
+        # Criar gráfico de barras agrupadas
+        x = np.arange(len(estados))
+        width = 0.35
         
-        # Barras horizontais
-        bars_top = ax.barh(y_pos_top, idh_top, color='green', alpha=0.7, label='Melhores IDH')
-        bars_bottom = ax.barh(y_pos_bottom, idh_bottom, color='red', alpha=0.7, label='Menores IDH')
+        ax.bar(x - width/2, idh, width, label='IDH')
+        ax.bar(x + width/2, investimento, width, label='Investimento (Normalizado)')
         
-        # Configurações
-        ax.set_xlabel('IDH')
-        
-        # Título com ano
-        year_str = self.year_var.get()
-        if year_str == "Todos":
-            title = 'Análise Comparativa: Estados com Maior e Menor IDH (Geral)'
-        else:
-            title = f'Análise Comparativa: Estados com Maior e Menor IDH ({year_str})'
-        ax.set_title(title)
-        
-        ax.set_yticks(list(y_pos_top) + list(y_pos_bottom))
-        ax.set_yticklabels(states_top + states_bottom)
+        # Configurar gráfico
+        ax.set_title('Análise Comparativa: IDH vs Investimento (Simulado)')
+        ax.set_xticks(x)
+        ax.set_xticklabels(estados, rotation=45)
         ax.legend()
-        ax.grid(True, alpha=0.3, axis='x')
+        ax.grid(True, alpha=0.3)
         
-        # Linha de separação
-        ax.axhline(y=len(states_top) - 0.5, color='black', linestyle='-', linewidth=2)
-        
-        # Adicionar valores nas barras
-        for i, (bar, value) in enumerate(zip(bars_top, idh_top)):
-            ax.text(value + 0.005, bar.get_y() + bar.get_height()/2, 
-                   f'{value:.3f}', va='center', fontsize=9)
-                   
-        for i, (bar, value) in enumerate(zip(bars_bottom, idh_bottom)):
-            ax.text(value + 0.005, bar.get_y() + bar.get_height()/2, 
-                   f'{value:.3f}', va='center', fontsize=9)
-        
+        # Adicionar nota sobre dados simulados
+        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
+                transform=ax.transAxes, fontsize=10,
+                verticalalignment='top', color='red')
+                
     def on_visualization_changed(self):
-        """Callback para mudança de visualização"""
-        self.create_visualization()
-        self.main_window.update_status(f"Visualização alterada: {self.viz_title_var.get()}")
+        """Callback para mudança de tipo de visualização"""
+        self.refresh_visualization()
         
     def on_filter_changed(self, event=None):
         """Callback para mudança de filtros"""
-        year = self.year_var.get()
-        region = self.region_var.get()
-        
-        # Limpar cache de dados para forçar recarregamento
-        try:
-            from src.gui.data_integration import data_provider
-            data_provider.clear_cache()
-        except Exception as e:
-            pass
-            
-        # Recriar visualização com novos filtros
-        self.create_visualization()
-        
-        self.main_window.update_status(f"Filtros aplicados: {year} - {region}")
-        
-        # Atualizar título da visualização para refletir o filtro de ano
-        current_viz = self.viz_var.get()
-        if current_viz == "correlacao_idh":
-            self.viz_title_var.set(f"Correlação IDH vs Despesas Públicas ({year})")
-        elif current_viz == "analise_regional":
-            title = f"Análise Regional Comparativa ({year})" if year != "Todos" else "Análise Regional Comparativa (Geral)"
-            self.viz_title_var.set(title)
-        elif current_viz == "tendencias_temporais":
-            title = f"Tendências Temporais ({year})" if year != "Todos" else "Tendências Temporais (2019-2023)"
-            self.viz_title_var.set(title)
-        elif current_viz == "eficiencia_estados":
-            self.viz_title_var.set(f"Eficiência por Estado ({year})")
-        elif current_viz == "distribuicao_setorial":
-            self.viz_title_var.set(f"Distribuição Setorial de Despesas ({year})")
-        elif current_viz == "analise_comparativa":
-            self.viz_title_var.set(f"Análise Comparativa Estados ({year})")
+        self.refresh_visualization()
         
     def refresh_visualization(self):
-        """Atualiza visualização atual"""
+        """Atualiza a visualização atual com novos filtros"""
         self.show_loading()
         
         def refresh_task():
             try:
-                # Simular carregamento
-                import time
-                time.sleep(1)
-                self.main_window.root.after(0, self.create_visualization)
-                self.main_window.root.after(0, self.hide_loading)
-                self.main_window.update_status("Visualização atualizada com sucesso")
+                self.create_visualization()
             except Exception as e:
-                self.main_window.message_helper.show_error(f"Erro ao atualizar: {str(e)}")
-                self.main_window.root.after(0, self.hide_loading)
+                self.logger.error(f"Erro ao atualizar visualização: {e}", exc_info=True)
+            finally:
+                self.hide_loading()
                 
-        self.main_window.thread_manager.run_thread(refresh_task)
-        
-    def export_visualization(self):
-        """Exporta visualização atual"""
-        self.main_window.message_helper.show_info("Funcionalidade de exportação será implementada")
-        
-    def open_advanced_settings(self):
-        """Abre configurações avançadas"""
-        self.main_window.message_helper.show_info("Configurações avançadas serão implementadas")
+        # Executar em thread separada
+        threading.Thread(target=refresh_task).start()
         
     def show_loading(self):
         """Mostra indicador de carregamento"""
         self.loading = True
-        self.loading_label.pack(side=RIGHT)
+        self.loading_label.pack(side=RIGHT, padx=10)
         
     def hide_loading(self):
         """Esconde indicador de carregamento"""
         self.loading = False
-        self.loading_label.pack_forget() 
+        self.loading_label.pack_forget()

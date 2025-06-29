@@ -251,12 +251,14 @@ class DataProvider:
         def fetch(year, region):
             try:
                 if not self.has_real_data or not self.analytics:
-                    raise Exception("Sistema analítico não disponível")
+                    error_msg = f"Sistema analítico não disponível - has_real_data: {self.has_real_data}, analytics: {self.analytics is not None}"
+                    raise Exception(error_msg)
                 
                 ranking_data = self.analytics.consulta_1_ranking_idh_investimento(year)
                 
                 if not ranking_data or len(ranking_data) < 3:
-                    raise Exception(f"Dados insuficientes encontrados ({len(ranking_data) if ranking_data else 0} estados)")
+                    error_msg = f"Dados insuficientes encontrados ({len(ranking_data) if ranking_data else 0} estados)"
+                    raise Exception(error_msg)
                 
                 # Filtrar por região se especificado
                 if region != 'Todas':
@@ -270,6 +272,7 @@ class DataProvider:
                 
                 # Calcular correlação
                 import numpy as np
+                
                 if len(idh_values) > 1 and len(despesas_values) > 1:
                     try:
                         # Verificar se há valores válidos (não NaN)
@@ -282,12 +285,12 @@ class DataProvider:
                                 correlation = 0
                         else:
                             correlation = 0
-                    except:
+                    except Exception as corr_error:
                         correlation = 0
                 else:
                     correlation = 0
                 
-                return {
+                result = {
                     'idh_values': idh_values,
                     'despesas_values': despesas_values,
                     'estados': estados,
@@ -298,10 +301,14 @@ class DataProvider:
                     'total_states': len(ranking_data)
                 }
                 
+                return result
+                
             except Exception as e:
-                print(f"❌ Erro ao buscar dados de correlação do banco: {e}")
+                error_msg = str(e)
+                print(f"❌ Erro ao buscar dados de correlação do banco: {error_msg}")
+                
                 # Retornar estrutura vazia em vez de dados simulados
-                return {
+                result = {
                     'idh_values': [],
                     'despesas_values': [],
                     'estados': [],
@@ -310,8 +317,9 @@ class DataProvider:
                     'year': year,
                     'region': region,
                     'total_states': 0,
-                    'error': str(e)
+                    'error': error_msg
                 }
+                return result
                 
         return self._get_from_cache_or_fetch('correlation_data', fetch, year=year, region=region)
     
@@ -329,10 +337,11 @@ class DataProvider:
                 
                 regioes_data = regional_data['ranking_regioes']
                 
+                # CORREÇÃO: Usar os campos corretos dos dados retornados
                 return {
                     'regioes': [r['regiao'] for r in regioes_data],
-                    'idh_values': [r.get('idh_medio', r.get('idh_geral', 0.7)) for r in regioes_data],
-                    'gastos_values': [r.get('investimento_per_capita', r.get('despesa_per_capita', 2500)) for r in regioes_data],
+                    'idh_values': [r.get('idh_regional_medio', r.get('idh_geral', 0.7)) for r in regioes_data],
+                    'gastos_values': [r.get('investimento_total_milhoes', r.get('investimento_per_capita', 2500)) / 1000 for r in regioes_data],  # Converter para milhares
                     'num_estados': [r.get('total_estados', 5) for r in regioes_data],
                     'year': year,
                     'total_records': len(regioes_data)

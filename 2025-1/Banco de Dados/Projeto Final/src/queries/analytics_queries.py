@@ -120,7 +120,27 @@ class ConsultasAnalíticas:
                     func.avg(IndicadorIDH.idh_geral).desc()
                 )
                 
-                resultados = query.all()
+                # Tentar executar query e capturar informações detalhadas
+                try:
+                    resultados = query.all()
+                    
+                    if len(resultados) == 0:
+                        # Verificar dados das tabelas principais em caso de resultado vazio
+                        count_estados = session.query(Estado).count()
+                        count_idh = session.query(IndicadorIDH).count()
+                        count_despesas = session.query(Despesa).count()
+                        count_periodos = session.query(Periodo).count()
+                        
+                        # Verificar se existe o ano específico
+                        periodo_ano = session.query(Periodo).filter(Periodo.ano == ano).first()
+                        if not periodo_ano:
+                            # Listar anos disponíveis para debugging
+                            anos_disponiveis = session.query(Periodo.ano).distinct().all()
+                            print(f"❌ Período {ano} não encontrado. Anos disponíveis: {[a[0] for a in anos_disponiveis]}")
+                    
+                except Exception as query_error:
+                    print(f"❌ Erro ao executar query SQL: {query_error}")
+                    return []
                 
                 # Processar e enriquecer resultados
                 ranking = []
@@ -142,7 +162,7 @@ class ConsultasAnalíticas:
                         row.total_investimento
                     )
                     
-                    ranking.append({
+                    item_ranking = {
                         'posicao_ranking': i,
                         'estado_id': row.id,
                         'estado': row.nome_estado,
@@ -181,13 +201,15 @@ class ConsultasAnalíticas:
                         'potencial_melhoria': self._avaliar_potencial_melhoria(
                             row.idh_medio, row.total_investimento
                         )
-                    })
-                
+                    }
+                    
+                    ranking.append(item_ranking)
 
                 return ranking
                 
         except Exception as e:
-            self.logger.error(f"❌ Erro na Consulta 1: {e}")
+            error_msg = str(e)
+            print(f"❌ Erro na Consulta 1: {error_msg}")
             return []
     
     # ==================== CONSULTA 2: EVOLUÇÃO TEMPORAL ====================

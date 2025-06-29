@@ -536,13 +536,65 @@ class CrudTab:
     def save_record(self):
         """Salva o registro atual"""
         try:
-            # Aqui integraria com o CRUD real
-            self._set_edit_mode(False)
-            self.main_window.message_helper.show_success("Registro salvo com sucesso!")
-            self.main_window.update_status("Registro salvo")
-            self.refresh_data()
+            # Coletar dados do formulário
+            data = {}
+            for field, widget in self.form_fields.items():
+                value = widget.get().strip()
+                if value:  # Ignorar campos vazios
+                    # Converter tipos conforme necessário
+                    if field in ['ano', 'populacao_estimada']:
+                        value = int(value)
+                    elif 'valor' in field.lower():
+                        value = float(value.replace('R$', '').replace('.', '').replace(',', '.'))
+                    elif 'idh' in field.lower():
+                        value = float(value)
+                    elif field == 'ativo':
+                        value = value.lower() == 'ativo'
+                    data[field] = value
+                    
+            if not data:
+                self.main_window.message_helper.show_warning("Nenhum dado para salvar")
+                return
+            
+            # Determinar qual CRUD usar
+            crud = None
+            if self.current_table == 'estados':
+                crud = self.estados_crud
+            elif self.current_table == 'indicadores_idh':
+                crud = self.indicadores_crud
+            elif self.current_table == 'despesas_publicas':
+                crud = self.despesas_crud
+            elif self.current_table == 'organizacoes':
+                crud = self.orgaos_crud
+            
+            if not crud:
+                raise Exception("CRUD não encontrado para a tabela atual")
+            
+            # Salvar dados dentro de uma transação
+            try:
+                # Salvar dados
+                if self.current_record:  # Atualização
+                    record_id = int(self.current_record[0])
+                    crud.update(record_id, **data)
+                else:  # Novo registro
+                    crud.create(**data)
+                    
+                self._set_edit_mode(False)
+                self.main_window.message_helper.show_success("Registro salvo com sucesso!")
+                self.main_window.update_status("Registro salvo")
+                self.refresh_data()
+                
+            except Exception as e:
+                raise Exception(f"Erro ao salvar no banco de dados: {str(e)}")
+            
+        except ValueError as e:
+            self.main_window.message_helper.show_error(f"Erro de validação: {str(e)}")
+            # Manter modo de edição em caso de erro
+            return
         except Exception as e:
             self.main_window.message_helper.show_error(f"Erro ao salvar: {str(e)}")
+            # Manter modo de edição em caso de erro
+            return
             
     def delete_record(self):
         """Exclui o registro selecionado"""

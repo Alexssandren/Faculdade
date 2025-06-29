@@ -30,11 +30,10 @@ from tkinter import ttk, messagebox
 import ttkbootstrap as ttk_bootstrap
 from ttkbootstrap.constants import *
 import threading
-import sys
-import os
 
 # Adicionar src ao path para importações
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from src.gui.utils.styling import Styling
 from src.gui.utils.gui_helpers import ThreadManager, MessageHelper
@@ -53,7 +52,9 @@ class MainWindow:
         
         # Configurar ícone da janela
         try:
-            self.root.iconbitmap("icon.ico")
+            icon_path = Path(__file__).parent / "assets" / "icon.ico"
+            if icon_path.exists():
+                self.root.iconbitmap(str(icon_path))
         except:
             pass  # Ignorar se não houver ícone
             
@@ -999,10 +1000,10 @@ CHAT IA:
     def run(self):
         """Inicia a aplicação"""
         try:
-            self.update_status("Sistema inicializado com sucesso")
             self.root.mainloop()
         except Exception as e:
-            self.message_helper.show_error(f"Erro crítico: {str(e)}")
+            print(f"❌ Erro ao executar aplicação: {e}")
+            sys.exit(1)
             
     def _start_sidebar_monitor(self):
         """Inicia monitoramento simplificado da sidebar"""

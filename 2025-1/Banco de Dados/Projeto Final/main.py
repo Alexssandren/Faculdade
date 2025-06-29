@@ -10,7 +10,7 @@ Interface gráfica moderna com:
 - Chat IA integrado
 
 Versão: 2.0.0 (GUI)
-"""
+""" 
 
 import sys
 import os
