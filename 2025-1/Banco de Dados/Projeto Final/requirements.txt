@@ -1,81 +1,15 @@
-# ============================================================
-# REQUIREMENTS - Projeto de Banco de Dados DEC7588
-# ============================================================
-# Dependências para sistema CRUD com PostgreSQL/MySQL
-
-# ==================== CORE LIBRARIES ====================
-# Análise e manipulação de dados
 pandas>=2.0.0
 numpy>=1.24.0
-
-# Visualização de dados (para gráficos das consultas)
 matplotlib>=3.6.0
-plotly>=5.0.0
-seaborn>=0.12.0
-
-# ==================== BANCO DE DADOS ====================
-# PostgreSQL
 psycopg2-binary>=2.9.0
-
-# MySQL (alternativa)
-# mysql-connector-python>=8.0.0
-
-# SQLAlchemy (ORM para facilitar CRUD)
 sqlalchemy>=2.0.0
-
-# ==================== LLM & API ====================
-# Google Gemini API
 google-generativeai>=0.8.0
-
-# Variáveis de ambiente
 python-dotenv>=1.0.0
-
-# ==================== WEB & REQUESTS ====================
-# Para coleta de dados se necessário
-requests>=2.28.0
-
-# ==================== UTILITÁRIOS ====================
-# Leitura de Excel se necessário
-openpyxl>=3.1.0
-
-# Processamento de dados geoespaciais (mantido para compatibilidade)
 geopandas>=0.13.0
-
-# ==================== FASE 4: IA & VISUALIZAÇÕES ====================
-# Dashboards interativos
 dash>=2.14.0
 dash-bootstrap-components>=1.5.0
-
-# Gráficos estatísticos avançados
 scipy>=1.11.0
 scikit-learn>=1.3.0
-
-# Processamento de texto para IA
 nltk>=3.8.0
-
-# Geração de relatórios
 jinja2>=3.1.0
-weasyprint>=60.0
-
-# Análise de sentimentos e NLP
-textblob>=0.17.0
-
-# Cache para performance
-redis>=5.0.0
-
-# tkinter - já vem built-in com Python
-
-# ==================== INTERFACE GRÁFICA (FASE GUI) ====================
-# Interface moderna para dashboard desktop
 ttkbootstrap>=1.10.0
-
-# Manipulação de imagens para GUI
-Pillow>=9.5.0
-
-# Threading e queue - built-in Python
-
-# ==================== REMOVIDAS ====================
-# PySide6 - não necessário para CRUD simples
-
-# Total: ~22 dependências incluindo GUI
-# Foco em IA, visualizações avançadas e interface moderna 
