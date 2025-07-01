@@ -191,9 +191,13 @@ class VisualizationsTab:
         canvas.get_tk_widget().pack(fill=BOTH, expand=True)
         
         # Adicionar toolbar de navegação
-        from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
-        toolbar = NavigationToolbar2Tk(canvas, self.chart_container)
-        toolbar.update()
+        try:
+            from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
+            toolbar = NavigationToolbar2Tk(canvas, self.chart_container)
+            toolbar.update()
+        except Exception as e:
+            # Evitar crash se o container for destruído durante refresh
+            print(f"⚠️ Erro ao adicionar toolbar: {e}")
         
     def _create_idh_ranking_analysis(self):
         """Cria a análise de Ranking IDH vs. Investimento com tabela e gráfico."""

@@ -1,6 +1,7 @@
 """
 Módulo de conexão e configuração do banco de dados
 Suporte para PostgreSQL com fallback automático para SQLite
++Implementação focada exclusivamente em SQLite
 """
 
 import os
@@ -38,54 +39,14 @@ class DatabaseConnection:
         self.database_url: str = ""
         self.database: str = ""
         
-        # Determinar qual banco usar
-        if force_sqlite or self.config.FORCE_SQLITE:
-            self._setup_sqlite()
-        else:
-            self._setup_database()
-    
-    def _setup_database(self):
-        """Configura a conexão com o banco de dados"""
-        
-        # Tentar PostgreSQL apenas se todas as configurações estiverem presentes
-        postgres_available = all([
-            self.config.POSTGRES_HOST,
-            self.config.POSTGRES_PORT,
-            self.config.POSTGRES_DB,
-            self.config.POSTGRES_USER,
-            self.config.POSTGRES_PASSWORD
-        ])
-        
-        if postgres_available and self.config.POSTGRES_URL:
-            try:
-                self._setup_postgresql()
-                return
-            except Exception as e:
-                logger.warning(f"⚠️ PostgreSQL não disponível: {e}")
-                logger.info("🔄 Usando SQLite como fallback...")
-        
-        # Fallback para SQLite
+        # Usar apenas SQLite (PostgreSQL removido)
         self._setup_sqlite()
-    
-    def _setup_postgresql(self):
-        """Configura conexão com PostgreSQL"""
-        self.database_type = "PostgreSQL"
-        self.database_url = self.config.POSTGRES_URL
-        self.database = self.config.POSTGRES_DB
-        
-        self.engine = create_engine(
-            self.database_url,
-            pool_pre_ping=True,
-            pool_recycle=300,
-            echo=False
-        )
-        
-        self.SessionLocal = sessionmaker(bind=self.engine, autoflush=False)
-        logger.info("✅ Usando PostgreSQL")
     
     def _setup_sqlite(self):
         """Configura conexão SQLite"""
         try:
+            # Marcar tipo de banco
+            self.database_type = "SQLite"
             # Caminho absoluto para o banco SQLite
             db_path = Path(self.config.SQLITE_PATH).resolve()
             
@@ -136,18 +97,11 @@ class DatabaseConnection:
     def test_connection(self) -> bool:
         """
         Testa a conexão com o banco de dados
-        
-        Returns:
-            bool: True se conexão bem-sucedida
         """
         try:
             with self.get_session() as session:
                 session.execute(text("SELECT 1"))
-                
-            if self.database_type == "SQLite":
-                logger.info("✅ Conexão com SQLite estabelecida com sucesso!")
-            else:
-                logger.info("✅ Conexão com PostgreSQL estabelecida com sucesso!")
+            logger.info("✅ Conexão com SQLite estabelecida com sucesso!")
             return True
             
         except Exception as e:
@@ -156,46 +110,10 @@ class DatabaseConnection:
     
     def create_database(self) -> bool:
         """
-        Cria o banco de dados se necessário
-        
-        Returns:
-            bool: True se criação bem-sucedida
+        SQLite cria automaticamente o arquivo de banco.
         """
-        if self.database_type == "SQLite":
-            # SQLite cria automaticamente
-            logger.info("ℹ️ SQLite: banco será criado automaticamente.")
-            return True
-        
-        # Para PostgreSQL, tentar criar banco
-        try:
-            from sqlalchemy import create_engine
-            
-            # Conectar ao postgres padrão para criar o banco
-            base_url = self.database_url.rsplit('/', 1)[0]
-            admin_url = f"{base_url}/postgres"
-            
-            admin_engine = create_engine(admin_url, isolation_level='AUTOCOMMIT')
-            
-            with admin_engine.connect() as conn:
-                # Verificar se banco existe
-                result = conn.execute(
-                    text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
-                    {"db_name": self.database}
-                )
-                
-                if not result.fetchone():
-                    # Criar banco
-                    conn.execute(text(f'CREATE DATABASE "{self.database}"'))
-                    logger.info(f"✅ Banco de dados '{self.database}' criado com sucesso!")
-                else:
-                    logger.info(f"ℹ️ Banco de dados '{self.database}' já existe.")
-            
-            admin_engine.dispose()
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Erro ao criar banco de dados: {e}")
-            return False
+        logger.debug("SQLite não requer criação explícita de banco.")
+        return True
     
     def create_tables(self) -> bool:
         """

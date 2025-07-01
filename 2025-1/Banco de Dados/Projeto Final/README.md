@@ -67,9 +67,8 @@ Este sistema oferece uma plataforma robusta e moderna para:
 
 ### **Banco de Dados**
 
-- **PostgreSQL** (produção) + **SQLite** (desenvolvimento)
+- **SQLite** (banco de dados embarcado)
 - **SQLAlchemy ORM** com session management otimizado
-- **Fallback automático** PostgreSQL → SQLite
 
 ### **Backend Python**
 
@@ -128,7 +127,7 @@ Projeto Final/
 │   │
 │   ├── database/                       # Sistema de banco
 │   │   ├── __init__.py                     # Módulo Python
-│   │   ├── connection.py                   # Conexão PostgreSQL/SQLite (OTIMIZADA)
+│   │   ├── connection.py                   # Conexão SQLite (OTIMIZADA)
 │   │   ├── config.py                       # Configurações (CORRIGIDA)
 │   │   ├── schema.sql                      # DDL scripts
 │   │   ├── csv_importer.py                 # Importador CSV → DB
@@ -193,7 +192,7 @@ pip install -r requirements.txt
 # Configurar variáveis de ambiente
 # Edite o arquivo Chave.env com:
 # - GEMINI_API_KEY (chave do Google Gemini)
-# - DATABASE_URL (URL do PostgreSQL - opcional, usa SQLite por padrão)
+# (Não é necessário configurar URL de banco de dados – o sistema usa SQLite por padrão)
 ```
 
 ### 2. Configuração do Banco
@@ -201,7 +200,7 @@ pip install -r requirements.txt
 ```bash
 # O sistema criará automaticamente as tabelas
 # e carregará dados iniciais na primeira execução
-# SQLite será usado por padrão se PostgreSQL não estiver configurado
+# (Banco SQLite embarcado é utilizado por padrão)
 python main.py
 ```
 
@@ -393,7 +392,7 @@ python -m src.llm.ai_analytics     # Teste IA
 ### Requisitos Técnicos
 
 - **Python 3.8+** (compatível com 3.12)
-- **PostgreSQL 12+** (opcional) ou **SQLite** (padrão)
+- **SQLite** (padrão)
 - **2GB RAM mínimo** (recomendado 4GB)
 - **Conexão com internet** (para IA)
 - **Resolução mínima**: 1024x768

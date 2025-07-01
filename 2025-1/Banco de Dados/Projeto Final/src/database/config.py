@@ -8,42 +8,15 @@ from pathlib import Path
 from typing import Dict, Any
 
 class DatabaseConfig:
-    """Configurações do banco de dados"""
+    """Configurações do banco de dados (somente SQLite)"""
     
-    # Configurações do PostgreSQL
-    POSTGRES_HOST = os.getenv('DB_HOST', 'localhost')
-    POSTGRES_PORT = int(os.getenv('DB_PORT', '5432'))
-    POSTGRES_DB = os.getenv('DB_NAME', 'dados_socioeconomicos_db')
-    POSTGRES_USER = os.getenv('DB_USER', 'postgres')
-    POSTGRES_PASSWORD = os.getenv('DB_PASSWORD', 'postgres')
-    
-    # Configurações do SQLite
+    # Caminho do arquivo SQLite (pode ser sobrescrito via variável de ambiente)
     SQLITE_PATH = os.getenv('SQLITE_PATH', 'data/processed/dados_socioeconomicos.db')
     
-    # Controle de banco
-    FORCE_SQLITE = os.getenv('FORCE_SQLITE', 'False').lower() == 'true'
-    
-    # Pool de conexões
+    # Pool de conexões (mantido para compatibilidade com SQLAlchemy)
     POOL_SIZE = int(os.getenv('DB_POOL_SIZE', '10'))
     MAX_OVERFLOW = int(os.getenv('DB_MAX_OVERFLOW', '20'))
     POOL_RECYCLE = int(os.getenv('DB_POOL_RECYCLE', '3600'))
-    
-    # URL de conexão PostgreSQL
-    @property
-    def POSTGRES_URL(self) -> str:
-        """Retorna URL de conexão do PostgreSQL"""
-        if not all([self.POSTGRES_HOST, self.POSTGRES_PORT, self.POSTGRES_DB, 
-                   self.POSTGRES_USER, self.POSTGRES_PASSWORD]):
-            return None
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-    
-    # Configurações de teste
-    TEST_DATABASE = os.getenv('TEST_DB_NAME', 'dados_socioeconomicos_test_db')
-    
-    @classmethod
-    def get_test_database_url(cls) -> str:
-        """Retorna URL de conexão para testes"""
-        return f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.TEST_DATABASE}"
     
     # Configurações SQLAlchemy
     SQLALCHEMY_CONFIG = {
@@ -98,7 +71,7 @@ def get_config() -> Dict[str, Any]:
     db_config = DatabaseConfig()
     
     base_config = {
-        'database_url': db_config.POSTGRES_URL,
+        'database_url': f"sqlite:///{Path(db_config.SQLITE_PATH).resolve()}?check_same_thread=False",
         'sqlalchemy_config': DatabaseConfig.SQLALCHEMY_CONFIG,
         'environment': env,
         'debug': SystemConfig.DEBUG,

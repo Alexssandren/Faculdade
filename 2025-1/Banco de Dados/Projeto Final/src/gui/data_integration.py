@@ -8,6 +8,7 @@ import sys
 import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import numpy as np
 
 # Adicionar src ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -271,8 +272,6 @@ class DataProvider:
                 regioes = [r['regiao'] for r in ranking_data]
                 
                 # Calcular correlação
-                import numpy as np
-                
                 if len(idh_values) > 1 and len(despesas_values) > 1:
                     try:
                         # Verificar se há valores válidos (não NaN)
@@ -559,6 +558,83 @@ class DataProvider:
                 }
                 
         return self._get_from_cache_or_fetch('comparative_analysis', fetch, year=year)
+
+    def get_temporal_data(self) -> Dict[str, Any]:
+        """Compatibilidade: dados simples para tendências temporais (anos, idh, investimento)."""
+        def fetch():
+            try:
+                if not self.has_real_data or not self.analytics:
+                    raise Exception("Sistema analítico não disponível")
+                evolucao = self.analytics.consulta_2_evolucao_temporal()
+                series = evolucao.get('evolucao_anual', []) if isinstance(evolucao, dict) else []
+                if not series:
+                    raise Exception("Dados de evolução temporal vazios")
+                anos = [item.get('ano') for item in series]
+                idh_medio = [item.get('idh_geral') for item in series]
+                investimento_medio = [item.get('investimento_total') for item in series]
+                return {
+                    'anos': anos,
+                    'idh_medio': idh_medio,
+                    'investimento_medio': investimento_medio
+                }
+            except Exception as e:
+                print(f"⚠️ Erro ao obter dados temporais simples: {e}")
+                # Retornar dados simulados em caso de falha
+                anos = [2019, 2020, 2021, 2022, 2023]
+                idh_medio = [0.75, 0.76, 0.77, 0.78, 0.79]
+                investimento_medio = [15000, 16500, 17200, 18800, 20000]
+                return {
+                    'anos': anos,
+                    'idh_medio': idh_medio,
+                    'investimento_medio': investimento_medio,
+                    'error': str(e)
+                }
+        return self._get_from_cache_or_fetch('temporal_simple', fetch)
+
+    # === Wrappers de compatibilidade ===
+    def get_efficiency_data(self, year: int = 2023):
+        """Wrapper para compatibilidade antiga"""
+        raw = self.get_state_efficiency_data(year=year)
+        # Adaptar para estrutura esperada (idh, investimento)
+        if raw and raw.get('estados'):
+            # Usar média nacional para normalizar investimento se necessário
+            estados = raw['estados']
+            # Recuperar ranking original para IDH e investimento
+            try:
+                ranking = self.analytics.consulta_1_ranking_idh_investimento(year)
+                idh_map = {r['uf']: r['idh_geral'] for r in ranking}
+                inv_map = {r['uf']: r['total_investimento_milhoes'] for r in ranking}
+                idh_vals = [idh_map.get(uf, 0) for uf in estados]
+                inv_vals = [inv_map.get(uf, 1) for uf in estados]
+            except Exception:
+                # Fallback simples
+                idh_vals = [0]*len(estados)
+                inv_vals = [1]*len(estados)
+            raw.update({'idh': np.array(idh_vals), 'investimento': np.array(inv_vals)})
+        return raw
+
+    def get_sectoral_data(self, year: int = 2023):
+        """Wrapper para compatibilidade antiga"""
+        return self.get_sectoral_distribution_data(year=year)
+
+    def get_comparative_data(self, year: int = 2023):
+        """Wrapper para compatibilidade antiga"""
+        raw = self.get_comparative_analysis_data(year=year)
+        # Ajustar estrutura esperada: estados, idh, investimento_norm
+        try:
+            ranking = self.analytics.consulta_1_ranking_idh_investimento(year)
+            estados = [r['uf'] for r in ranking]
+            idh_vals = np.array([r['idh_geral'] for r in ranking])
+            inv_vals = np.array([r['total_investimento_milhoes'] for r in ranking])
+            inv_norm = inv_vals / np.max(inv_vals) if len(inv_vals)>0 else inv_vals
+            return {
+                'estados': estados,
+                'idh': idh_vals,
+                'investimento_norm': inv_norm
+            }
+        except Exception as e:
+            print(f"⚠️ Erro ao adaptar dados comparativos: {e}")
+            return {}
 
 
 # Instância global do provedor de dados
