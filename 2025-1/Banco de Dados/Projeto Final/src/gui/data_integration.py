@@ -9,12 +9,13 @@ import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import numpy as np
+from sqlalchemy import func
 
 # Adicionar src ao path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from src.queries.analytics_queries import ConsultasAnalíticas
-from src.database.connection import get_database_connection
+from src.database.connection import get_database_connection, init_database
 
 class DataProvider:
     """Provedor centralizado de dados para a interface gráfica"""
@@ -73,6 +74,22 @@ class DataProvider:
         """Limpa o cache de dados"""
         self.cache.clear()
 
+    def reload_database(self):
+        """Reconecta DataProvider ao banco após importação/limpeza."""
+        try:
+            # Forçar nova conexão
+            get_database_connection(force_sqlite=True)
+            init_database(create_db=False, create_tables=False, force_sqlite=True)
+            # Recarregar analytics
+            self.analytics = ConsultasAnalíticas()
+            self.has_real_data = True
+            self.clear_cache()
+            print("✅ DataProvider reconectado.")
+        except Exception as e:
+            print(f"❌ Falha ao reconectar DataProvider: {e}")
+
+    # Compatibilidade
+    reset_database = reload_database
 
     # ==================== MÉTRICAS DO DASHBOARD ====================
     
@@ -81,99 +98,64 @@ class DataProvider:
         def fetch():
             try:
                 if not self.has_real_data or not self.analytics:
-                    raise Exception("Sistema analítico não disponível")
-                
+                    # Se não há dados reais disponíveis, retornar métricas vazias
+                    return {
+                        'total_estados': 0,
+                        'periodo_anos': 0,
+                        'periodo_texto': '-',
+                        'total_registros': '0',
+                        'ultima_atualizacao': '',
+                        'warning': 'Sistema analítico indisponível ou sem dados.'
+                    }
+
                 # Usar a conexão já configurada
                 with self.db_connection.get_session() as session:
                     from src.models.entities import Estado, Periodo, IndicadorIDH, Despesa
-                    
+
                     # Total de estados
-                    total_estados = session.query(Estado).count()
-                    
-                    # Período de dados - com proteção robusta
-                    try:
-                        periodos_query = session.query(Periodo.ano).distinct().all()
-                        anos = []
-                        
-                        for periodo_result in periodos_query:
-                            if periodo_result and periodo_result[0] is not None:
-                                ano_valor = periodo_result[0]
-                                
-                                # Múltiplas tentativas de conversão
-                                try:
-                                    if isinstance(ano_valor, (int, float)):
-                                        anos.append(int(ano_valor))
-                                    elif isinstance(ano_valor, str):
-                                        anos.append(int(ano_valor))
-                                    elif isinstance(ano_valor, bytes):
-                                        # Tentar diferentes métodos de conversão de bytes
-                                        try:
-                                            # Método 1: bytes para int direto (little endian)
-                                            if len(ano_valor) >= 4:
-                                                anos.append(int.from_bytes(ano_valor[:4], byteorder='little'))
-                                            else:
-                                                anos.append(int.from_bytes(ano_valor, byteorder='little'))
-                                        except:
-                                            # Método 2: tentar decodificar como string primeiro
-                                            try:
-                                                anos.append(int(ano_valor.decode('utf-8')))
-                                            except:
-                                                # Método 3: usar valor padrão
-                                                pass
-                                    else:
-                                        # Tentar conversão direta
-                                        anos.append(int(ano_valor))
-                                        
-                                except (ValueError, TypeError, OverflowError) as e:
-                                    # Log do erro específico para debugging
-                                    print(f"⚠️ Erro ao converter ano {ano_valor} (tipo: {type(ano_valor)}): {e}")
-                                    continue
-                        
-                        # Se não conseguiu nenhum ano, usar valores padrão
-                        if not anos:
-                            anos = [2019, 2020, 2021, 2022, 2023]
-                            print("⚠️ Usando anos padrão pois não foi possível ler do banco")
-                        
-                        periodo_inicio = min(anos)
-                        periodo_fim = max(anos)
-                        
-                    except Exception as e:
-                        print(f"⚠️ Erro ao processar períodos: {e}")
-                        # Valores padrão em caso de erro
-                        periodo_inicio = 2019
-                        periodo_fim = 2023
-                        anos = [2019, 2020, 2021, 2022, 2023]
-                    
+                    total_estados = session.query(Estado).count() or 0
+
+                    # Período de dados – proteger contra tabelas vazias
+                    anos_raw = session.query(Periodo.ano).distinct().all()
+                    anos_extraidos = [int(a[0]) for a in anos_raw if a and a[0] is not None]
+
+                    if anos_extraidos:
+                        periodo_inicio = min(anos_extraidos)
+                        periodo_fim = max(anos_extraidos)
+                        periodo_anos = periodo_fim - periodo_inicio + 1
+                        periodo_texto = f"{periodo_inicio}-{periodo_fim}"
+                    else:
+                        periodo_anos = 0
+                        periodo_texto = '-'
+
                     # Total de registros
                     total_idh = session.query(IndicadorIDH).count()
                     total_despesas = session.query(Despesa).count()
                     total_registros = total_idh + total_despesas
-                    
-            
-                    
-                    # Última atualização
-                    ultima_atualizacao = datetime.now().strftime("%d/%m/%Y")
-                    
+
+                    # Última atualização – somente se houver registros
+                    ultima_atualizacao = datetime.now().strftime("%d/%m/%Y") if total_registros else ''
+
                     return {
-                        'total_estados': total_estados or 27,
-                        'periodo_anos': periodo_fim - periodo_inicio + 1,
-                        'periodo_texto': f"{periodo_inicio}-{periodo_fim}",
-                        'total_registros': f"{total_registros:,}".replace(',', '.'),
+                        'total_estados': total_estados,
+                        'periodo_anos': periodo_anos,
+                        'periodo_texto': periodo_texto,
+                        'total_registros': f"{total_registros:,}".replace(',', '.') if total_registros else '0',
                         'ultima_atualizacao': ultima_atualizacao
                     }
-                    
+
             except Exception as e:
                 print(f"❌ Erro ao buscar métricas do banco: {e}")
-                # Retornar estrutura com valores padrão conhecidos
+                # Em caso de erro inesperado, retornar zeros para evitar dados obsoletos na interface
                 return {
-                    'total_estados': 27,
-                    'periodo_anos': 5,
-                    'periodo_texto': '2019-2023',
-                    'total_registros': '1.131',  # Valor conhecido: 135 IDH + 996 Despesas
-                    'ultima_atualizacao': datetime.now().strftime("%d/%m/%Y"),
+                    'total_estados': 0,
+                    'periodo_anos': 0,
+                    'periodo_texto': '-',
+                    'total_registros': '0',
+                    'ultima_atualizacao': '',
                     'error': str(e)
                 }
-                
+
         return self._get_from_cache_or_fetch('dashboard_metrics', fetch)
         
     def get_dashboard_insights(self) -> List[Dict[str, Any]]:
@@ -292,6 +274,8 @@ class DataProvider:
                 result = {
                     'idh_values': idh_values,
                     'despesas_values': despesas_values,
+                    'idh': idh_values,  # Alias para compatibilidade com VisualizationsTab
+                    'investimento': despesas_values,  # Alias para compatibilidade
                     'estados': estados,
                     'regioes': regioes,
                     'correlation': correlation,
@@ -310,6 +294,8 @@ class DataProvider:
                 result = {
                     'idh_values': [],
                     'despesas_values': [],
+                    'idh': [],
+                    'investimento': [],
                     'estados': [],
                     'regioes': [],
                     'correlation': 0,
@@ -580,13 +566,10 @@ class DataProvider:
             except Exception as e:
                 print(f"⚠️ Erro ao obter dados temporais simples: {e}")
                 # Retornar dados simulados em caso de falha
-                anos = [2019, 2020, 2021, 2022, 2023]
-                idh_medio = [0.75, 0.76, 0.77, 0.78, 0.79]
-                investimento_medio = [15000, 16500, 17200, 18800, 20000]
                 return {
-                    'anos': anos,
-                    'idh_medio': idh_medio,
-                    'investimento_medio': investimento_medio,
+                    'anos': [],
+                    'idh_medio': [],
+                    'investimento_medio': [],
                     'error': str(e)
                 }
         return self._get_from_cache_or_fetch('temporal_simple', fetch)
@@ -635,6 +618,75 @@ class DataProvider:
         except Exception as e:
             print(f"⚠️ Erro ao adaptar dados comparativos: {e}")
             return {}
+
+    # ==================== NOVO MÉTODO: Evolução IDH por Região ====================
+    def get_idh_evolution_by_region(self, anos: list = None) -> Dict[str, Any]:
+        """Retorna evolução do IDH por região para os anos solicitados.
+
+        Args:
+            anos: Lista de anos inteiros. Se None, detecta anos disponíveis no banco.
+        Returns:
+            Dict com chaves: anos (list[int]), regioes_data (dict[str, list[float]])
+        """
+        def fetch(anos_key="auto"):
+            try:
+                if not self.has_real_data or not self.analytics:
+                    raise Exception("Sistema analítico não disponível")
+
+                with self.db_connection.get_session() as session:
+                    from src.models.entities import Regiao, Estado, IndicadorIDH, Periodo
+                    # Detectar anos se não fornecido
+                    if anos is None or len(anos) == 0:
+                        anos_query = session.query(Periodo.ano).distinct().order_by(Periodo.ano).all()
+                        anos_detectados = [int(a[0]) for a in anos_query if a and a[0] is not None]
+                        anos_lista = sorted(anos_detectados)
+                    else:
+                        anos_lista = sorted(list(set(anos)))
+
+                    if not anos_lista:
+                        raise Exception("Nenhum ano disponível para evolucao por região")
+
+                    # Obter lista de regiões
+                    regioes = session.query(Regiao.nome_regiao).all()
+                    regioes_nomes = [r[0] for r in regioes]
+                    regioes_data = {r: [0]*len(anos_lista) for r in regioes_nomes}
+
+                    # Fazer query para média IDH por ano e região
+                    q = session.query(
+                        Regiao.nome_regiao.label("regiao"),
+                        Periodo.ano.label("ano"),
+                        func.avg(IndicadorIDH.idh_geral).label("idh_medio")
+                    ).select_from(IndicadorIDH)
+                    q = q.join(Estado, Estado.id == IndicadorIDH.estado_id)
+                    q = q.join(Regiao, Estado.regiao_id == Regiao.id)
+                    q = q.join(Periodo, Periodo.id == IndicadorIDH.periodo_id)
+                    q = q.filter(Periodo.ano.in_(anos_lista))
+                    q = q.group_by(Regiao.nome_regiao, Periodo.ano)
+
+                    resultados = q.all()
+                    for row in resultados:
+                        regiao = row.regiao
+                        ano = row.ano
+                        idh_val = float(row.idh_medio or 0)
+                        if regiao in regioes_data and ano in anos_lista:
+                            idx = anos_lista.index(ano)
+                            regioes_data[regiao][idx] = idh_val
+
+                    return {
+                        'anos': anos_lista,
+                        'regioes_data': regioes_data
+                    }
+
+            except Exception as e:
+                print(f"❌ Erro ao buscar evolução IDH por região: {e}")
+                return {
+                    'anos': anos if anos else [],
+                    'regioes_data': {},
+                    'error': str(e)
+                }
+
+        cache_key_anos = "-".join(map(str, anos)) if anos else "auto"
+        return self._get_from_cache_or_fetch('idh_evolucao_regiao', fetch, anos_key=cache_key_anos)
 
 
 # Instância global do provedor de dados

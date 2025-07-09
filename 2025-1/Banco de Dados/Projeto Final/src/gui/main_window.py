@@ -26,10 +26,11 @@ if sys.platform == "win32":
         pass  # ctypes não disponível
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import ttkbootstrap as ttk_bootstrap
 from ttkbootstrap.constants import *
 import threading
+import shutil
 
 # Adicionar src ao path para importações
 project_root = Path(__file__).parent.parent.parent
@@ -41,6 +42,7 @@ from src.gui.components.dashboard_tab import DashboardTab
 from src.gui.components.visualizations_tab import VisualizationsTab
 from src.gui.components.crud_tab import CrudTab
 from src.gui.components.chat_sidebar import ChatSidebar
+from src.gui.data_integration import data_provider
 
 class MainWindow:
     def __init__(self):
@@ -49,6 +51,9 @@ class MainWindow:
         self.root.title("Projeto Final - Banco de Dados")
         self.root.geometry("1400x900")
         self.root.minsize(1200, 700)
+        
+        # Maximizar janela (tela cheia em modo janela)
+        self._maximize_window()
         
         # Configurar ícone da janela
         try:
@@ -276,6 +281,7 @@ class MainWindow:
         menubar.add_cascade(label="Arquivo", menu=file_menu)
         file_menu.add_command(label="Exportar Dados...", command=self.export_data)
         file_menu.add_command(label="Importar Dados...", command=self.import_data)
+        file_menu.add_command(label="Limpar Banco de Dados", command=self.delete_database)
         file_menu.add_separator()
         file_menu.add_command(label="Sair", command=self.on_closing)
         
@@ -283,12 +289,6 @@ class MainWindow:
         tools_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Ferramentas", menu=tools_menu)
         tools_menu.add_command(label="Limpar Cache", command=self.clear_cache)
-        
-        # Menu Ajuda
-        help_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Ajuda", menu=help_menu)
-        help_menu.add_command(label="Sobre", command=self.show_about)
-        help_menu.add_command(label="Manual do Usuário", command=self.show_manual)
         
     def _on_notebook_click(self, event):
         """Manipula clique no notebook"""
@@ -931,12 +931,113 @@ class MainWindow:
         self.thread_manager.run_thread(refresh_task)
         
     def export_data(self):
-        """Exporta dados do sistema"""
-        self.message_helper.show_info("Funcionalidade de exportação será implementada")
+        """Copia o arquivo SQLite atual para um local escolhido pelo usuário."""
+        try:
+            from src.database.connection import get_database_connection
+            db_path = Path(get_database_connection().config.SQLITE_PATH).resolve()
+
+            if not db_path.exists():
+                self.message_helper.show_error("Arquivo do banco de dados SQLite não encontrado.")
+                return
+
+            dest_path = filedialog.asksaveasfilename(
+                title="Exportar Dados",
+                defaultextension=".db",
+                filetypes=[("SQLite Database", "*.db"), ("Todos os Arquivos", "*.*")]
+            )
+
+            if not dest_path:
+                return  # Operação cancelada
+
+            shutil.copy2(db_path, dest_path)
+            self.message_helper.show_info(f"Dados exportados com sucesso para:\n{dest_path}")
+            self.update_status("Exportação concluída")
+
+        except Exception as e:
+            self.message_helper.show_error(f"Falha ao exportar dados: {e}")
         
     def import_data(self):
-        """Importa dados para o sistema"""
-        self.message_helper.show_info("Funcionalidade de importação será implementada")
+        """Substitui o banco SQLite pelo arquivo selecionado (faz backup antes)."""
+        try:
+            src_path = filedialog.askopenfilename(
+                title="Importar Dados",
+                filetypes=[("SQLite Database", "*.db"), ("Todos os Arquivos", "*.*")]
+            )
+
+            if not src_path:
+                return  # Operação cancelada
+
+            from src.database.connection import get_database_connection
+            db_conn = get_database_connection()
+            db_path = Path(db_conn.config.SQLITE_PATH).resolve()
+
+            # Encerrar conexões abertas
+            try:
+                db_conn.close_connections()
+            except Exception:
+                pass
+
+            # Garantir descarte do engine
+            try:
+                from sqlalchemy import event
+                if db_conn.engine:
+                    db_conn.engine.dispose()
+            except Exception:
+                pass
+
+            import gc, time, importlib
+            # Remover instância global para evitar reconexão
+            try:
+                connection_module = importlib.import_module('src.database.connection')
+                connection_module._db_connection = None
+            except Exception:
+                pass
+
+            gc.collect()
+            time.sleep(0.5)
+
+            # Se o banco atual não existir, apenas criar diretório (se necessário) e prosseguir com a cópia
+            if not db_path.parent.exists():
+                db_path.parent.mkdir(parents=True, exist_ok=True)
+
+            banco_existia = db_path.exists()
+
+            if banco_existia:
+                # Backup antes de limpar
+                backup_path = db_path.with_suffix('.bak')
+                try:
+                    shutil.copy2(db_path, backup_path)
+                except Exception:
+                    pass
+
+            # Copiar novo banco (sobrescrevendo se já existir ou criando caso não exista)
+            shutil.copy2(src_path, db_path)
+
+            # Reset DataProvider e atualizar interface
+            try:
+                data_provider.reload_database()
+            except Exception:
+                pass
+
+            # Atualizar dashboard/visualizações
+            try:
+                self.refresh_data()
+            except Exception:
+                pass
+            try:
+                if hasattr(self, 'visualizations_tab'):
+                    self.visualizations_tab.refresh_visualization()
+            except Exception:
+                pass
+
+            self.message_helper.show_info("Banco de dados importado e recarregado.")
+            self.update_status("Importação concluída – reiniciando...")
+
+            # Reiniciar aplicação automaticamente para garantir recarga total
+            self.root.after(500, self._restart_application)
+
+        except Exception as e:
+            self.message_helper.show_error(f"Falha ao importar banco de dados: {e}")
         
     def clear_cache(self):
         """Limpa cache do sistema"""
@@ -1102,6 +1203,107 @@ CHAT IA:
         """Verificação final do estado"""
         # Fazer verificação adicional do estado da sidebar  
         self._log_layout_state(f"FINAL-{timing}")
+
+    def delete_database(self):
+        """Exclui o arquivo SQLite atual (faz backup)"""
+        try:
+            if not self.message_helper.ask_yes_no(
+                "Esta ação excluirá TODOS os dados do sistema.\nDeseja continuar?"
+            ):
+                return
+
+            from src.database.connection import get_database_connection
+            db_conn = get_database_connection()
+            db_path = Path(db_conn.config.SQLITE_PATH).resolve()
+
+            # Fechar conexões e descartar engine
+            try:
+                db_conn.close_connections()
+                if db_conn.engine:
+                    db_conn.engine.dispose()
+            except Exception:
+                pass
+
+            # Remover instância global
+            try:
+                import importlib, gc, time
+                connection_module = importlib.import_module('src.database.connection')
+                connection_module._db_connection = None
+                gc.collect(); time.sleep(0.3)
+            except Exception:
+                pass
+
+            if not db_path.exists():
+                self.message_helper.show_info("Banco de dados já não existe.")
+                return
+
+            # Backup antes de limpar
+            backup_path = db_path.with_suffix('.bak')
+            try:
+                shutil.copy2(db_path, backup_path)
+            except Exception:
+                pass
+
+            # Limpeza lógica: drop_all + create_all
+            try:
+                from src.models.entities import Base
+                Base.metadata.drop_all(bind=db_conn.engine)
+                Base.metadata.create_all(bind=db_conn.engine)
+            except Exception as e:
+                raise RuntimeError(f"Falha ao limpar tabelas: {e}")
+
+            # Reset DataProvider e atualizar interface
+            try:
+                data_provider.reset_database()
+            except Exception:
+                pass
+
+            # Atualizar dashboard/visualizações
+            try:
+                self.refresh_data()
+            except Exception:
+                pass
+            try:
+                if hasattr(self, 'visualizations_tab'):
+                    self.visualizations_tab.refresh_visualization()
+            except Exception:
+                pass
+
+            self.message_helper.show_info("Banco de dados limpo – reiniciando aplicação.")
+            self.update_status("Banco zerado – reiniciando...")
+
+            self.root.after(500, self._restart_application)
+
+        except Exception as e:
+            self.message_helper.show_error(f"Falha ao excluir banco de dados: {e}")
+
+    # ======================= REINICIAR APP =======================
+    def _restart_application(self):
+        """Reinicia a aplicação de forma robusta (compatível com caminhos com espaços)."""
+        try:
+            import subprocess, sys, os
+            cmd = f'"{sys.executable}" "{sys.argv[0]}"'
+            subprocess.Popen(cmd, shell=True)
+        finally:
+            os._exit(0)
+
+    def _maximize_window(self):
+        """Maximiza a janela de forma portátil sem remover a barra de título."""
+        try:
+            # Windows suporta state('zoomed')
+            if sys.platform.startswith("win"):
+                self.root.state("zoomed")
+            else:
+                # Alguns sistemas usam atributo -zoomed
+                self.root.attributes("-zoomed", True)
+        except Exception:
+            # Fallback: ocupar toda a tela manualmente
+            try:
+                screen_w = self.root.winfo_screenwidth()
+                screen_h = self.root.winfo_screenheight()
+                self.root.geometry(f"{screen_w}x{screen_h}+0+0")
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     app = MainWindow()

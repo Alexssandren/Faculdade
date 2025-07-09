@@ -382,8 +382,11 @@ class SeedDataManager:
                 ).all()
                 periodos_data = [(p.id, p.ano) for p in periodos_query]
                 
-                estados_query = session.query(Estado).limit(10).all()  # Principais estados
+                # Obter todos os 27 estados para ter cobertura completa nos cruzamentos das consultas
+                estados_query = session.query(Estado).all()
                 estados_data = [(e.id, e.nome_estado) for e in estados_query]
+                if len(estados_data) < 27:
+                    print(f"⚠️ Apenas {len(estados_data)} estados encontrados no banco. Ideal: 27.")
                 
                 if not periodos_data:
                     print("⚠️ Criando períodos primeiro...")

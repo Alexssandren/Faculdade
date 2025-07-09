@@ -51,8 +51,14 @@ class DatabaseConnection:
             db_path = Path(self.config.SQLITE_PATH).resolve()
             
             if not db_path.exists():
-                logger.error(f"❌ Banco SQLite não encontrado: {db_path}")
-                raise FileNotFoundError(f"Banco SQLite não encontrado: {db_path}")
+                # Criar diretório (caso o usuário tenha limpado a pasta) e permitir que o SQLite crie o arquivo vazio
+                logger.warning(f"⚠️ Banco SQLite não encontrado em {db_path}. Será criado um arquivo vazio.")
+                try:
+                    db_path.parent.mkdir(parents=True, exist_ok=True)
+                except Exception as mkdir_err:
+                    logger.error(f"❌ Falha ao criar diretório do banco: {mkdir_err}")
+                    raise
+                # Não criar o arquivo manualmente; o SQLAlchemy/SQLite fará isso ao conectar.
             
             # URL de conexão com configurações específicas
             database_url = f"sqlite:///{db_path}?check_same_thread=False"
@@ -87,6 +93,16 @@ class DatabaseConnection:
             
             # Criar sessão
             self.SessionLocal = sessionmaker(bind=self.engine)
+            
+            # Se o banco acabou de ser criado e não possui tabelas, criar o esquema vazio
+            try:
+                inspector = inspect(self.engine)
+                if not inspector.get_table_names():
+                    from src.models.entities import Base
+                    Base.metadata.create_all(bind=self.engine)
+                    logger.info("📦 Esquema básico criado em banco recém-gerado (zero tabelas encontradas).")
+            except Exception as schema_err:
+                logger.error(f"❌ Falha ao verificar/criar esquema inicial: {schema_err}")
             
             logger.info(f"✅ SQLite conectado: {db_path}")
             

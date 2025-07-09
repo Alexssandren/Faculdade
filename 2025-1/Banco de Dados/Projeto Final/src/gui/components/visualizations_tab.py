@@ -8,8 +8,8 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import FuncFormatter
 import numpy as np
-import threading
 import logging
 
 class VisualizationsTab:
@@ -56,11 +56,10 @@ class VisualizationsTab:
         viz_label = ttk.Label(control_frame, text="Tipo de Visualização:")
         viz_label.pack(anchor=W, pady=(0, 5))
         
-        self.viz_var = tk.StringVar(value="correlacao_idh")
+        self.viz_var = tk.StringVar(value="ranking_idh_investimento")
         viz_options = [
             ("Ranking IDH vs. Investimento", "ranking_idh_investimento"),
             ("Evolução Temporal", "evolucao_temporal"),
-            ("Correlação IDH vs Despesas", "correlacao_idh"),
             ("Análise Regional", "analise_regional"),
             ("Tendências Temporais", "tendencias_temporais"),
             ("Eficiência por Estado", "eficiencia_estados"),
@@ -118,7 +117,7 @@ class VisualizationsTab:
         toolbar_frame.pack(fill=X, pady=(0, 10))
         
         # Título da visualização atual
-        self.viz_title_var = tk.StringVar(value="Correlação IDH vs Despesas Públicas")
+        self.viz_title_var = tk.StringVar(value="Ranking IDH vs Investimento Público")
         title_label = ttk.Label(
             toolbar_frame,
             textvariable=self.viz_title_var,
@@ -325,65 +324,50 @@ class VisualizationsTab:
             
             data = data_provider.get_correlation_data(year=year, region=region)
             
-            # Verificação robusta dos dados antes de plotar
-            if not data or 'idh' not in data or 'investimento' not in data:
+            # Converter para numpy arrays e filtrar valores inválidos
+            investimento_arr = np.array(data['investimento'], dtype=float)
+            idh_arr = np.array(data['idh'], dtype=float)
+
+            valid_mask = np.isfinite(investimento_arr) & np.isfinite(idh_arr)
+
+            if valid_mask.sum() == 0:
                 self._create_correlation_chart_fallback(ax)
                 return
-                
-            # Plotar dados
-            ax.scatter(data['investimento'], data['idh'], alpha=0.6)
+
+            # Plotar dados válidos
+            ax.scatter(investimento_arr[valid_mask], idh_arr[valid_mask], alpha=0.6)
             ax.set_xlabel('Investimento per capita (R$)')
             ax.set_ylabel('IDH')
             ax.set_title(f'Correlação IDH vs Investimento Público ({year})')
             ax.tick_params(axis='y', colors=self.styling.colors['text_secondary'])
             ax.grid(True, linestyle='--', alpha=0.1)
             
-            # Adicionar linha de tendência
-            z = np.polyfit(data['investimento'], data['idh'], 1)
-            p = np.poly1d(z)
-            ax.plot(data['investimento'], p(data['investimento']), "r--", alpha=0.8)
+            if valid_mask.sum() >= 2 and np.unique(investimento_arr[valid_mask]).size > 1:
+                try:
+                    z = np.polyfit(investimento_arr[valid_mask], idh_arr[valid_mask], 1)
+                    p = np.poly1d(z)
+                    ax.plot(investimento_arr[valid_mask], p(investimento_arr[valid_mask]), "r--", alpha=0.8)
+                except Exception as poly_err:
+                    # Se regressão falhar, continuar sem linha de tendência
+                    print(f"⚠️ Falha na regressão linear: {poly_err}")
             
-            # Adicionar rótulos dos estados
-            for i, estado in enumerate(data['estados']):
-                ax.annotate(estado, (data['investimento'][i], data['idh'][i]))
+            estados = data.get('estados', [])
+            for i, estado in enumerate(estados):
+                if i < len(investimento_arr) and i < len(idh_arr) and valid_mask[i]:
+                    ax.annotate(estado, (investimento_arr[i], idh_arr[i]), fontsize=8)
                 
         except Exception as e:
             print(f"Erro ao criar gráfico de correlação: {e}")
             self._create_correlation_chart_fallback(ax)
             
     def _create_correlation_chart_fallback(self, ax):
-        """Cria gráfico de correlação com dados simulados"""
-        # Gerar dados simulados
-        np.random.seed(42)
-        n_states = 27
-        investimento = np.random.normal(5000, 1500, n_states)
-        idh = 0.5 + 0.3 * np.random.random(n_states)
-        estados = ['SP', 'RJ', 'MG', 'RS', 'PR', 'SC', 'BA', 'CE', 'PE', 'PA',
-                  'AM', 'GO', 'ES', 'PB', 'RN', 'MT', 'MS', 'PI', 'MA', 'SE',
-                  'RO', 'TO', 'AC', 'AP', 'RR', 'AL', 'DF']
-                  
-        # Plotar dados simulados
-        ax.scatter(investimento, idh, alpha=0.6)
-        ax.set_xlabel('Investimento per capita (R$) - Dados Simulados')
-        ax.set_ylabel('IDH - Dados Simulados')
-        ax.set_title('Correlação IDH vs Investimento Público (Simulação)')
-        ax.tick_params(axis='y', colors=self.styling.colors['text_secondary'])
-        ax.grid(True, linestyle='--', alpha=0.1)
+        """Exibe placeholder quando não há dados reais"""
+        ax.text(0.5, 0.5, 'Sem dados disponíveis',
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=12,
+                color=self.styling.colors['text_secondary'])
+        ax.set_axis_off()
         
-        # Adicionar linha de tendência
-        z = np.polyfit(investimento, idh, 1)
-        p = np.poly1d(z)
-        ax.plot(investimento, p(investimento), "r--", alpha=0.8)
-        
-        # Adicionar rótulos dos estados
-        for i, estado in enumerate(estados):
-            ax.annotate(estado, (investimento[i], idh[i]))
-            
-        # Adicionar nota sobre dados simulados
-        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
-                transform=ax.transAxes, fontsize=10,
-                verticalalignment='top', color='red')
-                
     def _create_regional_analysis(self):
         """Cria a análise comparativa regional com tabela e gráfico."""
         # Limpar container
@@ -550,7 +534,7 @@ class VisualizationsTab:
             data = data_provider.get_temporal_data()
             
             # Verificar dados
-            if not data or 'anos' not in data:
+            if not data or not data.get('anos'):
                 raise ValueError("Dados temporais inválidos")
                 
             # Plotar tendências
@@ -577,36 +561,13 @@ class VisualizationsTab:
             self._create_temporal_trends_fallback(ax)
             
     def _create_temporal_trends_fallback(self, ax):
-        """Cria gráfico de tendências temporais com dados simulados"""
-        # Dados simulados
-        anos = np.array([2019, 2020, 2021, 2022, 2023])
-        idh_medio = np.array([0.75, 0.76, 0.77, 0.78, 0.79])
-        investimento_medio = np.array([15000, 16500, 17200, 18800, 20000])
+        """Exibe placeholder quando não há dados reais"""
+        ax.text(0.5, 0.5, 'Sem dados disponíveis',
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=12,
+                color=self.styling.colors['text_secondary'])
+        ax.set_axis_off()
         
-        # Plotar tendências
-        ax.plot(anos, idh_medio, 'b-', label='IDH Médio')
-        ax.set_xlabel('Ano')
-        ax.set_ylabel('IDH Médio', color='b')
-        
-        # Criar segundo eixo Y para investimento
-        ax2 = ax.twinx()
-        ax2.plot(anos, investimento_medio, 'r-', label='Investimento Médio')
-        ax2.set_ylabel('Investimento Médio (R$)', color='r')
-        
-        # Configurar gráfico
-        ax.set_title('Evolução Temporal: IDH vs Investimento (Simulado)')
-        ax.grid(True, alpha=0.3)
-        
-        # Adicionar legendas
-        lines1, labels1 = ax.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-        
-        # Adicionar nota sobre dados simulados
-        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
-                transform=ax.transAxes, fontsize=10,
-                verticalalignment='top', color='red')
-                
     def _create_state_efficiency(self, ax):
         """Cria gráfico de eficiência por estado"""
         try:
@@ -623,7 +584,7 @@ class VisualizationsTab:
             data = data_provider.get_efficiency_data(year=year)
             
             # Verificar dados
-            if not data or 'estados' not in data:
+            if not data or not data.get('estados'):
                 raise ValueError("Dados de eficiência inválidos")
                 
             # Calcular eficiência (IDH / Investimento normalizado)
@@ -646,23 +607,13 @@ class VisualizationsTab:
             self._create_state_efficiency_fallback(ax)
             
     def _create_state_efficiency_fallback(self, ax):
-        """Cria gráfico de eficiência por estado com dados simulados"""
-        # Dados simulados
-        estados = ['SP', 'SC', 'RS', 'PR', 'MG', 'ES', 'RJ', 'MS', 'GO', 'DF']
-        eficiencia = np.array([1.2, 1.15, 1.1, 1.08, 1.05, 1.03, 1.0, 0.98, 0.95, 0.93])
+        """Exibe placeholder quando não há dados reais"""
+        ax.text(0.5, 0.5, 'Sem dados disponíveis',
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=12,
+                color=self.styling.colors['text_secondary'])
+        ax.set_axis_off()
         
-        # Plotar dados
-        ax.bar(estados, eficiencia)
-        ax.set_title('Top 10 Estados - Eficiência IDH/Investimento (Simulado)')
-        ax.set_xlabel('Estado')
-        ax.set_ylabel('Índice de Eficiência')
-        ax.tick_params(axis='x', rotation=45)
-        
-        # Adicionar nota sobre dados simulados
-        ax.text(0.02, 0.98, 'ATENÇÃO: Dados Simulados',
-                transform=ax.transAxes, fontsize=10,
-                verticalalignment='top', color='red')
-                
     def _create_sectoral_distribution(self, ax):
         """Cria gráfico de distribuição setorial"""
         try:
@@ -802,19 +753,19 @@ class VisualizationsTab:
         self.refresh_visualization()
         
     def refresh_visualization(self):
-        """Atualiza a visualização atual com novos filtros"""
+        """Atualiza a visualização atual com novos filtros (executado na thread principal)"""
         self.show_loading()
-        
-        def refresh_task():
+
+        def _refresh_in_ui_thread():
             try:
                 self.create_visualization()
             except Exception as e:
                 self.logger.error(f"Erro ao atualizar visualização: {e}", exc_info=True)
             finally:
                 self.hide_loading()
-                
-        # Executar em thread separada
-        threading.Thread(target=refresh_task).start()
+
+        # Agendar para a thread principal do Tkinter
+        self.chart_container.after(100, _refresh_in_ui_thread)
         
     def show_loading(self):
         """Mostra indicador de carregamento"""

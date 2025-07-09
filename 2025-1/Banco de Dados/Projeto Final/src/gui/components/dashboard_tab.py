@@ -222,47 +222,63 @@ class DashboardTab:
         return card_frame
         
     def _create_idh_evolution_chart(self, ax):
-        """Cria gráfico de evolução do IDH"""
-        # Dados simulados para exemplo
-        years = [2019, 2020, 2021, 2022, 2023]
-        regions = {
-            'Sudeste': [0.766, 0.768, 0.770, 0.772, 0.774],
-            'Sul': [0.754, 0.756, 0.758, 0.760, 0.762],
-            'Centro-Oeste': [0.734, 0.736, 0.738, 0.740, 0.742],
-            'Nordeste': [0.663, 0.665, 0.667, 0.669, 0.671],
-            'Norte': [0.684, 0.686, 0.688, 0.690, 0.692]
-        }
-        
-        colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
-        
-        for i, (region, values) in enumerate(regions.items()):
-            ax.plot(years, values, marker='o', linewidth=2, 
-                   label=region, color=colors[i])
-        
-        ax.set_xlabel('Ano')
-        ax.set_ylabel('IDH')
-        ax.set_title('Evolução do IDH por Região')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        ax.set_ylim(0.65, 0.78)
+        """Cria gráfico de evolução do IDH ou exibe placeholder vazio"""
+        try:
+            from src.gui.data_integration import data_provider
+            if not data_provider.has_real_data:
+                raise ValueError("Sem dados reais")
+
+            dados = data_provider.get_idh_evolution_by_region()
+            anos = dados.get('anos', [])
+            regioes_data = dados.get('regioes_data', {})
+
+            if not anos or not regioes_data:
+                raise ValueError("Dados temporais vazios")
+
+            colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
+            for i, (regiao, valores) in enumerate(regioes_data.items()):
+                ax.plot(anos, valores, marker='o', linewidth=2, label=regiao, color=colors[i % len(colors)])
+
+            ax.set_xlabel('Ano')
+            ax.set_ylabel('IDH médio')
+            ax.set_title('Evolução do IDH por Região')
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+        except Exception:
+            # Se qualquer problema ocorrer, exibir placeholder vazio
+            ax.text(0.5, 0.5, 'Sem dados', horizontalalignment='center',
+                    verticalalignment='center', transform=ax.transAxes,
+                    fontsize=12, color=self.styling.colors['text_secondary'])
+            ax.set_axis_off()
         
     def _create_expenses_distribution_chart(self, ax):
-        """Cria gráfico de distribuição de despesas"""
-        # Dados simulados
-        functions = ['Educação', 'Saúde', 'Previdência', 'Defesa', 'Transporte', 'Outros']
-        values = [22.5, 18.3, 15.7, 12.1, 8.4, 23.0]
-        colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#95a5a6']
+        """Cria gráfico de distribuição de despesas ou mostra placeholder vazio"""
+        try:
+            from src.gui.data_integration import data_provider
+            if not data_provider.has_real_data:
+                raise ValueError("Sem dados reais")
+
+            dados = data_provider.get_sectoral_distribution_data(year=2023)
+            setores = dados.get('setores', [])
+            valores = dados.get('valores', [])
+
+            if not setores or not valores:
+                raise ValueError("Dados setoriais vazios")
+
+            colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#95a5a6']
+            wedges, texts, autotexts = ax.pie(valores, labels=setores, colors=colors[:len(setores)],
+                                              autopct='%1.1f%%', startangle=90)
+            ax.set_title('Distribuição de Despesas por Setor')
+
+            for autotext in autotexts:
+                autotext.set_color('white')
+                autotext.set_fontweight('bold')
+        except Exception:
+            ax.text(0.5, 0.5, 'Sem dados', horizontalalignment='center',
+                    verticalalignment='center', transform=ax.transAxes,
+                    fontsize=12, color=self.styling.colors['text_secondary'])
+            ax.set_axis_off()
         
-        wedges, texts, autotexts = ax.pie(values, labels=functions, colors=colors, 
-                                         autopct='%1.1f%%', startangle=90)
-        
-        ax.set_title('Distribuição de Despesas por Função')
-        
-        # Melhorar aparência dos textos
-        for autotext in autotexts:
-            autotext.set_color('white')
-            autotext.set_fontweight('bold')
-            
     def _create_quick_insights(self, parent):
         """Cria seção de insights rápidos"""
         # Título da seção
@@ -400,11 +416,11 @@ class DashboardTab:
             
         except Exception as e:
             print(f"❌ Erro ao atualizar métricas: {e}")
-            # Usar valores fallback seguros
-            self._update_metric_card_value(self.metric1_frame, "27", "Estados + DF")
-            self._update_metric_card_value(self.metric2_frame, "5 anos", "2019-2023")
-            self._update_metric_card_value(self.metric3_frame, "10.935", "Registros ativos")
-            self._update_metric_card_value(self.metric4_frame, "Hoje", "Dados simulados")
+            # Usar valores fallback zeros
+            self._update_metric_card_value(self.metric1_frame, "0", "Estados + DF")
+            self._update_metric_card_value(self.metric2_frame, "0 anos", "-")
+            self._update_metric_card_value(self.metric3_frame, "0", "Registros ativos")
+            self._update_metric_card_value(self.metric4_frame, "-", "Dados indisponíveis")
     
     def _update_metric_card_value(self, card_frame, new_value, new_subtitle):
         """Atualiza o valor e subtítulo de um card de métrica"""
@@ -438,43 +454,39 @@ class DashboardTab:
         # Remover threading desnecessário para operações simples
         self.loading = True
         try:
-    
-            
             # Importar provedor de dados
             from src.gui.data_integration import data_provider
-            
+
             # Limpar cache para garantir dados frescos
             data_provider.clear_cache()
-            
+
             # Buscar métricas reais (operação rápida, não precisa de thread)
             self.metrics_data = data_provider.get_dashboard_metrics()
-            
-    
-            
+
             # Atualizar métricas na interface diretamente (já estamos na thread principal)
             self.update_metrics_display()
-            
+
             self.main_window.update_status("Dashboard carregado com sucesso")
-            
+
         except Exception as e:
             print(f"❌ Erro ao carregar dashboard: {e}")
-            
-            # Usar dados fallback
+
+            # Usar dados fallback ZERADOS (não mostrar dados obsoletos)
             self.metrics_data = {
-                'total_estados': 27,
-                'periodo_anos': 5,
-                'periodo_texto': '2019-2023',
-                'total_registros': '10.935',
-                'ultima_atualizacao': 'Hoje'
+                'total_estados': 0,
+                'periodo_anos': 0,
+                'periodo_texto': '-',
+                'total_registros': '0',
+                'ultima_atualizacao': ''
             }
-            
+
             # Atualizar interface com dados fallback
             self.update_metrics_display()
-            
-            # Mostrar mensagem de erro apenas se for crítico
+
+            # Mostrar mensagem de erro apenas se for crítico e não relacionado a loop principal
             if "not in main loop" not in str(e):
                 self.main_window.message_helper.show_error(f"Erro ao carregar dashboard: {str(e)}")
-                
+
         finally:
             self.loading = False
         

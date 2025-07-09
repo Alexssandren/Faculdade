@@ -29,6 +29,10 @@ if sys.platform == "win32":
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+# Definir backend do Matplotlib para TkAgg antes de qualquer importação de pyplot
+import matplotlib
+matplotlib.use("TkAgg", force=True)
+
 def main():
     """Função principal - inicia a aplicação GUI"""
     try:

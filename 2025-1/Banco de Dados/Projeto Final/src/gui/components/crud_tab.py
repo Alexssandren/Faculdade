@@ -597,20 +597,56 @@ class CrudTab:
             return
             
     def delete_record(self):
-        """Exclui o registro selecionado"""
-        if not self.current_record:
-            self.main_window.message_helper.show_warning("Selecione um registro para excluir")
+        """Exclui o(s) registro(s) selecionado(s) diretamente no banco de dados"""
+        # Coletar seleção atual
+        selection = self.tree.selection()
+        if not selection:
+            self.main_window.message_helper.show_warning("Selecione um ou mais registros para excluir")
             return
-            
-        if self.main_window.message_helper.ask_yes_no("Confirma a exclusão do registro?"):
-            try:
-                # Aqui integraria com o CRUD real
-                self.main_window.message_helper.show_success("Registro excluído com sucesso!")
-                self.main_window.update_status("Registro excluído")
-                self.refresh_data()
-                self._clear_form()
-            except Exception as e:
-                self.main_window.message_helper.show_error(f"Erro ao excluir: {str(e)}")
+
+        ids = [int(self.tree.item(item)['text']) for item in selection]
+
+        # Confirmação do usuário
+        plural = 'os registros' if len(ids) > 1 else 'o registro'
+        if not self.main_window.message_helper.ask_yes_no(f"Confirma a exclusão de {plural} selecionado(s)?"):
+            return
+
+        # Determinar CRUD responsável
+        crud = None
+        if self.current_table == 'estados':
+            crud = self.estados_crud
+        elif self.current_table == 'indicadores_idh':
+            crud = self.indicadores_crud
+        elif self.current_table == 'despesas_publicas':
+            crud = self.despesas_crud
+        elif self.current_table == 'organizacoes':
+            crud = self.orgaos_crud
+
+        if not crud:
+            self.main_window.message_helper.show_error("CRUD não encontrado para a tabela atual")
+            return
+
+        # Tentar remover no banco
+        try:
+            if len(ids) == 1:
+                sucesso = crud.delete(ids[0])
+                removidos = 1 if sucesso else 0
+            else:
+                removidos = crud.delete_multiple(ids)
+
+            if removidos == 0:
+                self.main_window.message_helper.show_warning("Nenhum registro foi removido (verifique dependências ou ID inexistente)")
+            else:
+                self.main_window.message_helper.show_success(f"{removidos} registro(s) excluído(s) com sucesso!")
+
+            # Atualizar interface
+            self.refresh_data()
+            self._clear_form()
+            self.current_record = None
+            self.main_window.update_status("Registro(s) excluído(s)")
+
+        except Exception as e:
+            self.main_window.message_helper.show_error(f"Erro ao excluir: {str(e)}")
                 
     def duplicate_record(self):
         """Duplica o registro selecionado"""

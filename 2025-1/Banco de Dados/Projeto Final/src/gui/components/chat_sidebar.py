@@ -374,8 +374,43 @@ Use os botões de **Análises Rápidas** ou digite sua pergunta!"""
                 if self._is_casual_message(user_message):
                     response = self._generate_casual_response(user_message)
                 elif self.ai_mode == "real" and self.ai_engine:
-                    # Usar IA real com dados contextuais para perguntas analíticas
-                    response = self._generate_real_ai_response(user_message)
+                    # Reunir dados analíticos detalhados para fornecer contexto real ao modelo
+                    # 1. Métricas gerais do dashboard (contagens, período, etc.)
+                    metrics = data_provider.get_dashboard_metrics()
+
+                    # 2. Resultados da Consulta 1 – Ranking IDH × Investimento (inclui correlação)
+                    #    Usamos ano mais recente disponível (2023). Ajustar se o dataset crescer.
+                    consulta1 = data_provider.get_correlation_data(year=2023)
+
+                    # 3. Resultados da Consulta 2 – Tendências temporais nacionais
+                    consulta2 = data_provider.get_temporal_trends_data()
+
+                    # 4. Resultados da Consulta 3 – Análise regional
+                    consulta3 = data_provider.get_regional_analysis_data(year=2023)
+
+                    # Montar dicionário no formato esperado por AIAnalyticsEngine._create_analytical_prompt()
+                    context_data = {
+                        'consulta_1': consulta1,
+                        'consulta_2': consulta2,
+                        'consulta_3': consulta3,
+                        # Informações adicionais úteis para o modelo
+                        'metrics': metrics
+                    }
+
+                    # Executar análise com IA
+                    response_dict = self.ai_engine.analyze_with_ai(user_message, context_data)
+
+                    # Extrair texto da resposta
+                    if isinstance(response_dict, dict):
+                        response_text = response_dict.get('response_text', '')
+                        # Fallback: se vazio ou muito curto, exibir mensagem de erro genérica
+                        if not response_text or len(response_text.strip()) < 5:
+                            response_text = "Desculpe, não foi possível gerar uma resposta baseada nos dados disponíveis."
+                    else:
+                        # Se IA retornar string simples
+                        response_text = str(response_dict)
+
+                    response = response_text
                 else:
                     # Usar sistema simulado com dados reais do data_provider
                     response = self._generate_enhanced_simulated_response(user_message)
