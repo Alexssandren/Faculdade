@@ -1,0 +1,35 @@
+{
+  "model_name": "RandomForest",
+  "best_score": 0.6228333944505562,
+  "models": {
+    "RandomForest": {
+      "score": 0.6228333944505562,
+      "params": {
+        "max_depth": 10,
+        "n_estimators": 200
+      }
+    },
+    "SVM-RBF": {
+      "score": 0.5437550421708837,
+      "params": {
+        "C": 1,
+        "gamma": "scale"
+      }
+    },
+    "GradientBoosting": {
+      "score": 0.6159185918591858,
+      "params": {
+        "learning_rate": 0.05,
+        "max_depth": 3,
+        "n_estimators": 200
+      }
+    },
+    "KNN": {
+      "score": 0.5160787189830094,
+      "params": {
+        "n_neighbors": 3,
+        "weights": "distance"
+      }
+    }
+  }
+}

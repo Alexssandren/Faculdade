@@ -1,0 +1,45 @@
+{
+  "sumario": {
+    "datasets_processados": 3,
+    "idh": {
+      "registros": 0,
+      "periodo": "N/A",
+      "estados": 0,
+      "dados_ausentes": 0
+    },
+    "despesas": {
+      "registros": 0,
+      "periodo": "N/A",
+      "estados": 0,
+      "categorias": 0,
+      "valor_total_milhoes": 0,
+      "dados_ausentes": 0
+    },
+    "unificado": {
+      "registros": 0,
+      "periodo": "N/A",
+      "estados": 0,
+      "colunas": 0
+    }
+  },
+  "idh": {
+    "registros": 135,
+    "periodo": "2019-2023",
+    "estados": 27,
+    "dados_ausentes": 0
+  },
+  "despesas": {
+    "registros": 10800,
+    "periodo": "2019-2023",
+    "estados": 27,
+    "categorias": 4,
+    "valor_total_milhoes": 1114248.96,
+    "dados_ausentes": 0
+  },
+  "unificado": {
+    "registros": 135,
+    "periodo": "2019-2023",
+    "estados": 27,
+    "colunas": 19
+  }
+}

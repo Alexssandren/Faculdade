@@ -1,0 +1,68 @@
+# ============================================================
+# REQUIREMENTS OTIMIZADO - Projeto de Visualização de Dados
+# ============================================================
+# Apenas dependências realmente necessárias para o funcionamento
+
+# ==================== CORE LIBRARIES ====================
+# Análise e manipulação de dados
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualização de dados
+matplotlib>=3.6.0
+seaborn>=0.12.0
+plotly>=5.0.0
+
+# Dados geoespaciais
+geopandas>=0.13.0
+
+# Machine Learning e estatística
+scikit-learn>=1.3.0
+scipy>=1.10.0
+
+# ==================== LLM & API ====================
+# Google Gemini API
+google-generativeai
+
+# Variáveis de ambiente
+python-dotenv
+
+# ==================== INTERFACE GRÁFICA ====================
+# PySide6 para o dashboard
+PySide6>=6.7.0
+# PySide6-WebEngine>=6.7.0  # Opcional - pode não estar disponível em todas as plataformas
+
+# ==================== BANCO DE DADOS ====================
+# SQLite (built-in no Python, mas explícito para clareza)
+# sqlite3 # Built-in
+
+# ==================== WEB & REQUESTS ====================
+# Para coleta de dados
+requests>=2.28.0
+
+# ==================== UTILITÁRIOS ====================
+# Leitura de Excel (se necessário)
+openpyxl>=3.1.0
+
+# ==================== DESENVOLVIMENTO (OPCIONAL) ====================
+# Formatação de código
+# black>=23.0.0  # Descomente se usar formatação automática
+
+# Linting
+# flake8>=6.0.0  # Descomente se usar linting
+
+# Testes
+# pytest>=7.0.0  # Descomente se usar testes
+
+# ==================== NOTAS ====================
+# Removidas dependências não utilizadas:
+# - Jupyter/IPython (não usado no projeto final)
+# - Streamlit/Dash (usando PySide6)
+# - CustomTkinter (não usado)
+# - Folium (usando Plotly para mapas)
+# - Flask/Werkzeug (não usado)
+# - Git/GitPython (não usado no código)
+# - Muitas outras dependências desnecessárias
+
+# Total: ~15 dependências essenciais vs 174 anteriores
+# Redução de ~91% no tamanho do requirements 

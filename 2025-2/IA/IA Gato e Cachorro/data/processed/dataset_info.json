@@ -1,0 +1,15 @@
+{
+  "n_samples": 2023,
+  "n_features": 300,
+  "n_cats": 1011,
+  "n_dogs": 1012,
+  "image_size": [
+    128,
+    128
+  ],
+  "feature_types": [
+    "color",
+    "texture",
+    "shape"
+  ]
+}
