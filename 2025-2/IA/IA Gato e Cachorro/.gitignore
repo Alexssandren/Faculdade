@@ -1,2 +1,3 @@
-/.venv"
-/IA Gato e Cachorro/data"
+.venv/
+# Large model files (>100MB) - store these elsewhere
+*.joblib
