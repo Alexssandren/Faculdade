@@ -13,7 +13,7 @@ import cv2
 # Adicionar diretório pai ao caminho para importar módulos locais
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.config import MODELS_DIR, CLASSES
+from utils.config import MODELS_DIR, CLASSES, MODEL_CONFIG, UNKNOWN_THRESHOLD, OTHER_CLASS_ID
 from utils.image_utils import create_image_processor
 
 
@@ -29,7 +29,7 @@ class ImagePredictor:
         Args:
             model_path (str): Caminho para o modelo treinado
         """
-        self.processor = create_image_processor()
+        self.processor = create_image_processor(image_size=MODEL_CONFIG['image_size'])
         self.model = None
         self.model_info = {}
         self.pca = None
@@ -50,9 +50,11 @@ class ImagePredictor:
             if not model_path.exists():
                 # Tentar encontrar modelo mais recente automaticamente
                 available_models = list(MODELS_DIR.glob('*.joblib'))
+                # Excluir arquivos PCA
+                available_models = [m for m in available_models if m.stem.lower() != 'pca']
                 if available_models:
                     model_path = max(available_models, key=lambda p: p.stat().st_mtime)
-                    print(f"🔍 Modelo não especificado, usando mais recente: {model_path.name}")
+                    print(f"[INFO] Modelo não especificado, usando mais recente: {model_path.name}")
                 else:
                     raise FileNotFoundError("Nenhum modelo encontrado")
 
@@ -62,7 +64,7 @@ class ImagePredictor:
             pca_path = model_path.parent / 'pca.joblib'
             if pca_path.exists():
                 self.pca = joblib.load(pca_path)
-                print("🔧 PCA carregado")
+                print("[INFO] PCA carregado")
 
             # Tentar carregar informações do modelo
             metrics_file = model_path.with_name(model_path.stem + '_metrics.json')
@@ -71,10 +73,10 @@ class ImagePredictor:
                 with open(metrics_file, 'r') as f:
                     self.model_info = json.load(f)
 
-            print(f"✅ Modelo carregado: {model_path.name}")
+            print(f"[OK] Modelo carregado: {model_path.name}")
 
         except Exception as e:
-            print(f"❌ Erro ao carregar modelo: {e}")
+            print(f"[ERROR] Erro ao carregar modelo: {e}")
             self.model = None
 
     def predict_image(self, image_path):
@@ -189,7 +191,11 @@ class ImagePredictor:
             prediction = self.model.predict(features)[0]
             probabilities = self.model.predict_proba(features)[0]
             confidence = probabilities[prediction]
-            class_name = CLASSES.get(prediction, 'Desconhecido')
+            if confidence < UNKNOWN_THRESHOLD:
+                prediction = OTHER_CLASS_ID
+                class_name = CLASSES.get(OTHER_CLASS_ID, 'Outro')
+            else:
+                class_name = CLASSES.get(prediction, 'Desconhecido')
 
             return {
                 'prediction': int(prediction),

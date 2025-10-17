@@ -28,11 +28,11 @@ def display_image_with_prediction(image, prediction):
     with col2:
         st.markdown("### Resultado")
 
-        # Emoji e nome da classe
-        emoji = "🐱" if prediction['prediction'] == 0 else "🐶"
+        # Ícone e nome da classe
+        icon = "[CAT]" if prediction['prediction'] == 0 else "[DOG]"
         class_name = prediction['class_name']
 
-        st.markdown(f"**{emoji} {class_name}**")
+        st.markdown(f"**{icon} {class_name}**")
 
         # Confiança
         confidence = prediction['confidence']
@@ -59,13 +59,13 @@ def format_prediction_result(prediction):
         str: Texto formatado
     """
     if prediction['error']:
-        return f"❌ Erro: {prediction['error']}"
+        return f"[ERROR] Erro: {prediction['error']}"
 
-    emoji = "🐱" if prediction['prediction'] == 0 else "🐶"
+    icon = "[CAT]" if prediction['prediction'] == 0 else "[DOG]"
     class_name = prediction['class_name']
     confidence = prediction['confidence']
 
-    return f"{emoji} **{class_name}** (Confiança: {confidence:.1%})"
+    return f"{icon} **{class_name}** (Confiança: {confidence:.1%})"
 
 
 def validate_image_file(uploaded_file):

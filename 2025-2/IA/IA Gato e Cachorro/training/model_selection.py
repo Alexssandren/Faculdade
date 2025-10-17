@@ -38,6 +38,7 @@ def build_search_spaces():
             "param_grid": {
                 "n_estimators": [100, 200],
                 "max_depth": [None, 10, 20],
+                "class_weight": [None, "balanced", "balanced_subsample"],
             },
         },
         "SVM-RBF": {
@@ -45,16 +46,17 @@ def build_search_spaces():
             "param_grid": {
                 "C": [1, 10],
                 "gamma": ["scale", 0.01, 0.001],
+                "class_weight": [None, "balanced"],
             },
         },
-        "GradientBoosting": {
-            "estimator": GradientBoostingClassifier(random_state=42),
-            "param_grid": {
-                "n_estimators": [100, 200],
-                "learning_rate": [0.1, 0.05],
-                "max_depth": [3, 5],
-            },
-        },
+         "GradientBoosting": {
+             "estimator": GradientBoostingClassifier(random_state=42),
+             "param_grid": {
+                 "n_estimators": [50, 100],
+                 "learning_rate": [0.1],
+                 "max_depth": [3],
+             },
+         },
         "KNN": {
             "estimator": KNeighborsClassifier(),
             "param_grid": {
@@ -78,29 +80,29 @@ def evaluate_best_models(results):
 
 
 def main():
-    print("🚀 Iniciando seleção de modelo...")
+    print("[START] Iniciando seleção de modelo...")
     X, y = load_data()
-    print(f"📊 Dados carregados: {X.shape[0]} amostras, {X.shape[1]} features")
+    print(f"[DATA] Dados carregados: {X.shape[0]} amostras, {X.shape[1]} features")
 
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)  # menos folds para acelerar
 
     search_spaces = build_search_spaces()
     all_results = {}
 
     for model_name, cfg in tqdm(search_spaces.items(), desc="Modelos", unit="model"):
-        print(f"\n🔍 Avaliando {model_name}")
+        print(f"\n[EVAL] Avaliando {model_name}")
         grid = GridSearchCV(
             estimator=cfg["estimator"],
             param_grid=cfg["param_grid"],
             cv=skf,
-            scoring="accuracy",
-            n_jobs=1,
+            scoring="f1_macro",
+            n_jobs=-1,
             verbose=0,
             return_train_score=False,
         )
         grid.fit(X, y)
         best = grid.best_estimator_
-        print(f"  ✅ Melhor params: {grid.best_params_} -> Acc={grid.best_score_:.4f}")
+        print(f"  [OK] Melhor params: {grid.best_params_} -> Acc={grid.best_score_:.4f}")
         all_results[model_name] = {
             "best_estimator": best,
             "best_score": grid.best_score_,
@@ -116,7 +118,7 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_path = MODELS_DIR / f"{best_model_name}_{timestamp}.joblib"
     joblib.dump(best_model, model_path)
-    print(f"\n🎉 Melhor modelo: {best_model_name} salvo em {model_path}")
+    print(f"\n[DONE] Melhor modelo: {best_model_name} salvo em {model_path}")
 
     # Salvar métricas
     metrics = {
@@ -130,7 +132,7 @@ def main():
     metrics_path = MODELS_DIR / f"{best_model_name}_{timestamp}_metrics.json"
     with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
-    print(f"📄 Métricas salvas em {metrics_path}")
+    print(f"[SAVE] Métricas salvas em {metrics_path}")
 
 
 if __name__ == "__main__":

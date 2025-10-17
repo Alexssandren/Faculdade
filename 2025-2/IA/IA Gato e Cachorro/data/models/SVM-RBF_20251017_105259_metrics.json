@@ -1,0 +1,37 @@
+{
+  "model_name": "SVM-RBF",
+  "best_score": 0.7395146602287995,
+  "models": {
+    "RandomForest": {
+      "score": 0.700652552443071,
+      "params": {
+        "class_weight": "balanced",
+        "max_depth": null,
+        "n_estimators": 200
+      }
+    },
+    "SVM-RBF": {
+      "score": 0.7395146602287995,
+      "params": {
+        "C": 10,
+        "class_weight": null,
+        "gamma": "scale"
+      }
+    },
+    "GradientBoosting": {
+      "score": 0.7077590718083816,
+      "params": {
+        "learning_rate": 0.1,
+        "max_depth": 3,
+        "n_estimators": 100
+      }
+    },
+    "KNN": {
+      "score": 0.5483060170953545,
+      "params": {
+        "n_neighbors": 7,
+        "weights": "distance"
+      }
+    }
+  }
+}

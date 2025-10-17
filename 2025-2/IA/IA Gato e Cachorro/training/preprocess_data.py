@@ -42,35 +42,43 @@ def find_image_directories():
     for possible_dir in possible_dirs:
         full_path = raw_path / possible_dir
         if full_path.exists():
-            print(f"📁 Encontrado diretório: {possible_dir}")
+            print(f"[DIR] Encontrado diretório: {possible_dir}")
 
             # Dentro deste diretório, procurar cats/cats e dogs/dogs
             cats_dir = full_path / 'cats'
             dogs_dir = full_path / 'dogs'
+            others_dir = full_path / 'others'
 
             if cats_dir.exists() and dogs_dir.exists():
                 image_dirs['cats'] = cats_dir
                 image_dirs['dogs'] = dogs_dir
-                print(f"  🐱 Gatos: {cats_dir}")
-                print(f"  🐶 Cachorros: {dogs_dir}")
+                if others_dir.exists():
+                    image_dirs['others'] = others_dir
+                print(f"  [CAT] Gatos: {cats_dir}")
+                print(f"  [DOG] Cachorros: {dogs_dir}")
+                if 'others' in image_dirs:
+                    print(f"  [OTHER] Outros: {others_dir}")
                 return image_dirs
 
     # Se não encontrou estrutura padrão, listar todos os diretórios
-    print("🔍 Procurando estrutura alternativa...")
+    print("[SEARCH] Procurando estrutura alternativa...")
     subdirs = [d for d in raw_path.rglob('*') if d.is_dir()]
 
     for subdir in subdirs:
         dir_name = subdir.name.lower()
         if 'cat' in dir_name:
             image_dirs['cats'] = subdir
-            print(f"  🐱 Gatos: {subdir}")
+            print(f"  [CAT] Gatos: {subdir}")
         elif 'dog' in dir_name:
             image_dirs['dogs'] = subdir
-            print(f"  🐶 Cachorros: {subdir}")
+            print(f"  [DOG] Cachorros: {subdir}")
+        elif 'other' in dir_name or 'random' in dir_name:
+            image_dirs['others'] = subdir
+            print(f"  [OTHER] Outros: {subdir}")
 
     if not image_dirs:
-        print("❌ Não foi possível encontrar diretórios de gatos e cachorros")
-        print("📋 Estrutura encontrada:")
+        print("[ERROR] Não foi possível encontrar diretórios de gatos e cachorros")
+        print("[LIST] Estrutura encontrada:")
         for subdir in subdirs[:10]:  # Mostrar primeiras 10
             print(f"  - {subdir}")
         if len(subdirs) > 10:
@@ -93,7 +101,7 @@ def collect_image_paths(image_dirs):
 
     for class_name, dir_path in image_dirs.items():
         if not dir_path.exists():
-            print(f"⚠️  Diretório {class_name} não existe: {dir_path}")
+            print(f"[WARN] Diretório {class_name} não existe: {dir_path}")
             continue
 
         # Procurar arquivos de imagem
@@ -102,10 +110,20 @@ def collect_image_paths(image_dirs):
         for ext in image_extensions:
             found_images = list(dir_path.rglob(ext))
             for img_path in found_images:
-                label = 0 if class_name == 'cats' else 1  # 0 = gato, 1 = cachorro
+                if class_name == 'cats':
+                    label = 0
+                elif class_name == 'dogs':
+                    label = 1
+                else:
+                    label = 2
                 image_paths.append((str(img_path), label))
 
-    print(f"📊 Total de imagens encontradas: {len(image_paths)}")
+    # Contagem por classe para debug
+    n_cats = sum(1 for _, l in image_paths if l == 0)
+    n_dogs = sum(1 for _, l in image_paths if l == 1)
+    n_others = sum(1 for _, l in image_paths if l == 2)
+
+    print(f"[STATS] Total de imagens encontradas: {len(image_paths)} | [CAT] {n_cats} | [DOG] {n_dogs} | [OTHER] {n_others}")
     return image_paths
 
 
@@ -125,11 +143,11 @@ def extract_features_batch(image_paths, processor, batch_size=100):
     all_labels = []
 
     total_images = len(image_paths)
-    print(f"🔄 Extraindo features de {total_images} imagens em lotes de {batch_size}")
+    print(f"[EXTRACT] Extraindo features de {total_images} imagens em lotes de {batch_size}")
 
     from tqdm.auto import tqdm
 
-    for i in tqdm(range(0, total_images, batch_size), desc="🔄 Extraindo", unit="batch"):
+    for i in tqdm(range(0, total_images, batch_size), desc="[EXTRACT] Extraindo", unit="batch"):
         batch_paths = image_paths[i:i + batch_size]
         batch_features = []
         batch_labels = []
@@ -175,6 +193,7 @@ def save_processed_data(features, labels, output_dir):
         'n_features': int(features.shape[1]) if len(features.shape) > 1 else 0,
         'n_cats': int(np.sum(labels == 0)),
         'n_dogs': int(np.sum(labels == 1)),
+        'n_others': int(np.sum(labels == 2)),
         'image_size': MODEL_CONFIG['image_size'],
         'feature_types': ['color', 'texture', 'shape']
     }
@@ -184,9 +203,9 @@ def save_processed_data(features, labels, output_dir):
     with open(output_dir / 'dataset_info.json', 'w') as f:
         json.dump(dataset_info, f, indent=2)
 
-    print(f"💾 Dados salvos em: {output_dir}")
-    print(f"📊 {dataset_info['n_samples']} amostras processadas")
-    print(f"🎨 {dataset_info['n_cats']} gatos, {dataset_info['n_dogs']} cachorros")
+    print(f"[SAVE] Dados salvos em: {output_dir}")
+    print(f"[STATS] {dataset_info['n_samples']} amostras processadas")
+    print(f"[CATDOG] {dataset_info['n_cats']} gatos, {dataset_info['n_dogs']} cachorros")
 
 
 def main():
@@ -200,21 +219,21 @@ def main():
     args = parser.parse_args()
 
     if not (0 < args.sample_fraction <= 1):
-        print("❌ --sample_fraction deve estar entre 0 e 1")
+        print("[ERROR] --sample_fraction deve estar entre 0 e 1")
         sys.exit(1)
 
-    print("🚀 Iniciando pré-processamento de dados...")
+    print("[START] Iniciando pré-processamento de dados...")
 
     # Passo 1: Encontrar diretórios de imagens
-    print("\n📁 Passo 1: Encontrando diretórios de imagens")
+    print("\n[STEP1] Passo 1: Encontrando diretórios de imagens")
     image_dirs = find_image_directories()
 
     if not image_dirs:
-        print("❌ Não foi possível encontrar dados de treinamento")
+        print("[ERROR] Não foi possível encontrar dados de treinamento")
         return
 
     # Passo 2: Coletar caminhos das imagens
-    print("\n🔍 Passo 2: Coletando caminhos das imagens")
+    print("\n[STEP2] Passo 2: Coletando caminhos das imagens")
     image_paths = collect_image_paths(image_dirs)
 
     # Amostragem aleatória se necessário
@@ -223,19 +242,19 @@ def main():
         np.random.shuffle(image_paths)
         sample_size = int(len(image_paths) * args.sample_fraction)
         image_paths = image_paths[:sample_size]
-        print(f"📉 Amostragem ativada: usando {sample_size} de {len(image_paths)} imagens")
+        print(f"[SAMPLE] Amostragem ativada: usando {sample_size} de {len(image_paths)} imagens")
 
     if not image_paths:
-        print("❌ Nenhuma imagem encontrada")
+        print("[ERROR] Nenhuma imagem encontrada")
         return
 
     # Passo 3: Criar processador de imagens
-    print("\n⚙️  Passo 3: Configurando processador de imagens")
+    print("\n[STEP3] Passo 3: Configurando processador de imagens")
     processor = create_image_processor(image_size=MODEL_CONFIG['image_size'])
-    print(f"📏 Tamanho das imagens: {MODEL_CONFIG['image_size']}")
+    print(f"[SIZE] Tamanho das imagens: {MODEL_CONFIG['image_size']}")
 
     # Passo 4: Extrair features
-    print("\n🔬 Passo 4: Extraindo features")
+    print("\n[STEP4] Passo 4: Extraindo features")
     features, labels = extract_features_batch(image_paths, processor)
     # Reduzir uso de memória
     features = features.astype(np.float32)
@@ -254,15 +273,15 @@ def main():
     features = features_reduced  # substituir
 
     if len(features) == 0:
-        print("❌ Nenhuma feature extraída")
+        print("[ERROR] Nenhuma feature extraída")
         return
 
     # Passo 5: Salvar dados processados
-    print("\n💾 Passo 5: Salvando dados processados")
+    print("\n[STEP5] Passo 5: Salvando dados processados")
     save_processed_data(features, labels, PROCESSED_DATA_DIR)
 
     # Passo 6: Dividir em treino e teste
-    print("\n✂️  Passo 6: Dividindo dados em treino e teste")
+    print("\n[STEP6] Passo 6: Dividindo dados em treino e teste")
     X_train, X_test, y_train, y_test = train_test_split(
         features, labels,
         test_size=MODEL_CONFIG['test_size'],
@@ -282,11 +301,11 @@ def main():
     np.save(test_dir / 'X_test.npy', X_test)
     np.save(test_dir / 'y_test.npy', y_test)
 
-    print("✅ Dados divididos em treino e teste")
-    print(f"📊 Treino: {len(X_train)} amostras")
-    print(f"📊 Teste: {len(X_test)} amostras")
+    print("[OK] Dados divididos em treino e teste")
+    print(f"[STATS] Treino: {len(X_train)} amostras")
+    print(f"[STATS] Teste: {len(X_test)} amostras")
 
-    print("\n🎉 Pré-processamento concluído com sucesso!")
+    print("\n[DONE] Pré-processamento concluído com sucesso!")
 
 
 if __name__ == "__main__":

@@ -27,8 +27,8 @@ KAGGLE_DATASET = {
 
 # Configurações da aplicação Streamlit
 STREAMLIT_CONFIG = {
-    'page_title': '🐱🐶 Classificador de Gatos e Cachorros',
-    'page_icon': '🐾',
+    'page_title': 'Classificador de Gatos e Cachorros',
+    'page_icon': 'icon',
     'layout': 'wide',
     'initial_sidebar_state': 'expanded',
 }
@@ -36,8 +36,14 @@ STREAMLIT_CONFIG = {
 # Classes de predição
 CLASSES = {
     0: 'Gato',
-    1: 'Cachorro'
+    1: 'Cachorro',
+    2: 'Outro'
 }
+
+# IDs auxiliares
+OTHER_CLASS_ID = 2
+UNKNOWN_CLASS_ID = 2  # Para compatibilidade
+UNKNOWN_THRESHOLD = 0.50  # se probabilidade abaixo, marca como Outro
 
 # Configurações de treinamento
 TRAINING_CONFIG = {

@@ -31,12 +31,12 @@ def main():
     )
 
     # Título principal
-    st.title(f"{STREAMLIT_CONFIG['page_icon']} Classificador de Gatos e Cachorros")
+    st.title("Classificador de Gatos e Cachorros")
     st.markdown("---")
 
     # Sidebar
     with st.sidebar:
-        st.header("🐾 Sobre")
+        st.header("Sobre")
         st.markdown("""
         Esta aplicação usa Machine Learning para classificar imagens entre **gatos** e **cachorros**.
 
@@ -50,8 +50,10 @@ def main():
         st.markdown("---")
 
         # Seleção de modelo
-        st.subheader("🤖 Modelo")
+        st.subheader("Modelo")
         available_models = list(MODELS_DIR.glob('*.joblib'))
+        # Excluir arquivo PCA
+        available_models = [m for m in available_models if m.stem.lower() != 'pca']
 
         if available_models:
             model_names = [m.stem for m in available_models]
@@ -62,16 +64,16 @@ def main():
             )
             model_path = MODELS_DIR / f"{selected_model}.joblib"
         else:
-            st.warning("⚠️ Nenhum modelo treinado encontrado!")
+            st.warning("Nenhum modelo treinado encontrado!")
             st.info("Execute o treinamento primeiro: `python training/train_model.py`")
             model_path = None
 
         st.markdown("---")
         st.markdown("**Desenvolvido com:**")
-        st.markdown("- 🐍 Python")
-        st.markdown("- 🧠 Scikit-learn")
-        st.markdown("- 🎨 OpenCV")
-        st.markdown("- 🌊 Streamlit")
+        st.markdown("- Python")
+        st.markdown("- Scikit-learn")
+        st.markdown("- OpenCV")
+        st.markdown("- Streamlit")
 
     # Área principal
     if model_path and model_path.exists():
@@ -83,7 +85,7 @@ def main():
         col1, col2 = st.columns([1, 1])
 
         with col1:
-            st.subheader("📤 Upload da Imagem")
+            st.subheader("Upload da Imagem")
 
             # Upload de arquivo
             uploaded_file = st.file_uploader(
@@ -99,28 +101,28 @@ def main():
                 # Redimensionar se necessário
                 if image.size[0] > 400 or image.size[1] > 400:
                     image.thumbnail((400, 400), Image.Resampling.LANCZOS)
-
-                st.image(image, caption="Imagem carregada", use_column_width=True)
+                    # use_container_width evita deprecation
+                st.image(image, caption="Imagem carregada", use_container_width=True)
 
                 # Botão de classificação
-                if st.button("🔍 Classificar Imagem", type="primary"):
+                if st.button("Classificar Imagem", type="primary"):
                     classify_image(image, st.session_state.predictor)
 
         with col2:
-            st.subheader("📊 Resultados")
+            st.subheader("Resultados")
 
             # Placeholder para resultados
             if 'last_prediction' in st.session_state:
                 show_prediction_results(st.session_state.last_prediction)
             else:
-                st.info("📋 Faça upload de uma imagem e clique em 'Classificar'")
+                st.info("Faca upload de uma imagem e clique em 'Classificar'")
 
     else:
-        st.error("❌ Modelo não encontrado!")
-        st.info("💡 Certifique-se de que executou o treinamento do modelo.")
+        st.error("Modelo não encontrado!")
+        st.info("Certifique-se de que executou o treinamento do modelo.")
 
         # Mostrar instruções
-        st.subheader("🚀 Como começar:")
+        st.subheader("Como começar:")
         st.markdown("""
         1. **Baixe os dados:**
            ```bash
@@ -158,7 +160,7 @@ def classify_image(image, predictor):
         image (PIL.Image): Imagem a ser classificada
         predictor (ImagePredictor): Preditor carregado
     """
-    with st.spinner("🔄 Analisando imagem..."):
+    with st.spinner("Analisando imagem..."):
         # Converter PIL Image para numpy array
         image_array = np.array(image)
 
@@ -171,7 +173,7 @@ def classify_image(image, predictor):
         if result['error']:
             st.error(f"Erro na classificação: {result['error']}")
         else:
-            st.success("✅ Classificação concluída!")
+            st.success("Classificação concluída!")
 
 
 def show_prediction_results(prediction):
@@ -185,35 +187,50 @@ def show_prediction_results(prediction):
     class_name = prediction['class_name']
     confidence = prediction['confidence']
 
-    # Emoji baseado na classe
-    emoji = "🐱" if prediction['prediction'] == 0 else "🐶"
+    # Se classe desconhecida
+    if prediction['prediction'] == -1:
+        st.warning("Classe desconhecida ou baixa confiança.")
 
-    st.markdown(f"### {emoji} Resultado: **{class_name}**")
+    # Ícone baseado na classe
+    if prediction['prediction'] == 0:
+        icon = '[CAT]'
+    elif prediction['prediction'] == 1:
+        icon = '[DOG]'
+    else:
+        icon = '[OTHER]'
+
+    st.markdown(f"### {icon} Resultado: **{class_name}**")
 
     # Barra de progresso para confiança
-    st.progress(confidence)
+    if confidence is not None:
+        st.progress(confidence)
+    else:
+        st.warning("Confiança não disponível para esta predição.")
 
     # Confiança em texto
     st.markdown(f"**Confiança:** {confidence:.1%}")
 
     # Gráfico de probabilidades
-    probabilities = prediction['probabilities']
+    probabilities = list(prediction['probabilities'])
+    if len(probabilities) == 2:
+        probabilities.append(0.0)  # padding para classe 'Outro' se modelo antigo
 
-    st.markdown("#### 📊 Probabilidades:")
+    st.markdown("#### Probabilidades:")
 
-    col1, col2 = st.columns(2)
-
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("🐱 Gato", f"{probabilities[0]:.1%}")
-
+        st.metric('Gato', f"{probabilities[0]:.1%}")
     with col2:
-        st.metric("🐶 Cachorro", f"{probabilities[1]:.1%}")
+        st.metric('Cachorro', f"{probabilities[1]:.1%}")
+    with col3:
+        st.metric('Outro', f"{probabilities[2]:.1%}")
 
     # Barra de progresso dupla
     st.markdown("**Distribuição:**")
     st.bar_chart({
         'Gato': probabilities[0],
-        'Cachorro': probabilities[1]
+        'Cachorro': probabilities[1],
+        'Outro': probabilities[2]
     })
 
 
