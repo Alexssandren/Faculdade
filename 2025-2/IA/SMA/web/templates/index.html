@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMA - Sistema de Gestão de Carteira</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Sistema Multiagente de Gestão de Carteira</h1>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Conectando...</span>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <!-- Resumo da Carteira -->
+            <section class="card">
+                <h2>Resumo da Carteira</h2>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <label>Saldo Disponível</label>
+                        <span class="value" id="saldoDisponivel">R$ 0,00</span>
+                    </div>
+                    <div class="summary-item">
+                        <label>Valor Total</label>
+                        <span class="value" id="valorTotal">R$ 0,00</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Distribuição da Carteira -->
+            <section class="card">
+                <h2>Distribuição da Carteira</h2>
+                <div id="distribuicaoChart" class="chart-container">
+                    <canvas id="distribuicaoCanvas"></canvas>
+                </div>
+                <div id="distribuicaoList" class="distribuicao-list"></div>
+            </section>
+
+            <!-- Posições -->
+            <section class="card">
+                <h2>Posições</h2>
+                <div class="table-container">
+                    <table id="posicoesTable">
+                        <thead>
+                            <tr>
+                                <th>Ativo</th>
+                                <th>Quantidade</th>
+                                <th>Preço Atual</th>
+                                <th>Valor Total</th>
+                                <th>Variação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="posicoesBody">
+                            <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Alertas -->
+            <section class="card">
+                <h2>Alertas</h2>
+                <div id="alertasList" class="alertas-list">
+                    <div class="loading">Carregando...</div>
+                </div>
+            </section>
+
+            <!-- Transações Recentes -->
+            <section class="card">
+                <h2>Transações Recentes</h2>
+                <div class="table-container">
+                    <table id="transacoesTable">
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Ativo</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transacoesBody">
+                            <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+

@@ -260,7 +260,7 @@ def main():
     features = features.astype(np.float32)
 
     # Aplicar PCA para redução de dimensionalidade
-    print("\n📉 Aplicando PCA (300 componentes)...")
+    print("\n Aplicando PCA (300 componentes)...")
     n_components = min(300, features.shape[1])
     pca = PCA(n_components=n_components, random_state=MODEL_CONFIG['random_state'])
     features_reduced = pca.fit_transform(features)
