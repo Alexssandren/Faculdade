@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Controle de Temperatura Fuzzy</title>
+    <title>Sistema de Controle de Velocidade da Ventoinha Fuzzy</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Sistema de Controle de Temperatura Fuzzy</h1>
-            <p>Controle inteligente da potência do ar-condicionado baseado na temperatura ambiente</p>
+            <h1>Sistema de Controle de Velocidade da Ventoinha Fuzzy</h1>
+            <p>Controle inteligente da velocidade da ventoinha baseado na temperatura da CPU e carga de processamento</p>
         </header>
 
         <main>
             <div class="control-panel">
                 <div class="input-section">
-                    <h2>Controle de Temperatura</h2>
+                    <h2>Controle da Ventoinha</h2>
                     <div class="input-group">
-                        <label for="current-temperature">Temperatura Ambiente Atual (°C):</label>
-                        <input type="number" id="current-temperature" min="0" max="40" value="25" step="0.1">
+                        <label for="cpu-temperature">Temperatura da CPU (°C):</label>
+                        <input type="number" id="cpu-temperature" min="30" max="100" value="55" step="0.1">
 
-                        <label for="desired-temperature">Temperatura Desejada (°C):</label>
-                        <input type="number" id="desired-temperature" min="15" max="30" value="22" step="0.1">
+                        <label for="cpu-load">Carga de Processamento (%):</label>
+                        <input type="number" id="cpu-load" min="0" max="100" value="50" step="1">
 
-                        <button id="calculate-btn">Calcular Potência</button>
+                        <button id="calculate-btn">Calcular Velocidade</button>
                     </div>
                 </div>
 
@@ -32,48 +32,57 @@
                     <h2>Resultado</h2>
                     <div id="results" class="results">
                         <div class="result-item">
-                            <span class="label">Erro Calculado:</span>
-                            <span id="error-result" class="value">-- °C</span>
-                        </div>
-                        <div class="result-item">
-                            <span class="label">Potência Recomendada:</span>
-                            <span id="power-result" class="value">-- %</span>
+                            <span class="label">Velocidade Recomendada:</span>
+                            <span id="fan-speed-result" class="value">-- %</span>
                         </div>
                         <div class="membership-values">
-                            <h3>Graus de Pertinência do Erro</h3>
-                            <div class="membership-item">
-                                <span class="label">Muito Frio:</span>
-                                <span id="muito-frio-value" class="value">--</span>
-                                <div class="bar">
-                                    <div id="muito-frio-bar" class="bar-fill"></div>
+                            <div class="membership-section">
+                                <h3>Temperatura da CPU</h3>
+                                <div class="membership-item">
+                                    <span class="label">Baixa:</span>
+                                    <span id="cpu-temp-baixa-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-temp-baixa-bar" class="bar-fill"></div>
+                                    </div>
+                                </div>
+                                <div class="membership-item">
+                                    <span class="label">Média:</span>
+                                    <span id="cpu-temp-media-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-temp-media-bar" class="bar-fill"></div>
+                                    </div>
+                                </div>
+                                <div class="membership-item">
+                                    <span class="label">Alta:</span>
+                                    <span id="cpu-temp-alta-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-temp-alta-bar" class="bar-fill"></div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="membership-item">
-                                <span class="label">Frio:</span>
-                                <span id="frio-value" class="value">--</span>
-                                <div class="bar">
-                                    <div id="frio-bar" class="bar-fill"></div>
+
+                            <div class="membership-section">
+                                <h3>Carga de Processamento</h3>
+                                <div class="membership-item">
+                                    <span class="label">Baixa:</span>
+                                    <span id="cpu-load-baixa-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-load-baixa-bar" class="bar-fill"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="membership-item">
-                                <span class="label">Ideal:</span>
-                                <span id="ideal-value" class="value">--</span>
-                                <div class="bar">
-                                    <div id="ideal-bar" class="bar-fill"></div>
+                                <div class="membership-item">
+                                    <span class="label">Média:</span>
+                                    <span id="cpu-load-media-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-load-media-bar" class="bar-fill"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="membership-item">
-                                <span class="label">Quente:</span>
-                                <span id="quente-value" class="value">--</span>
-                                <div class="bar">
-                                    <div id="quente-bar" class="bar-fill"></div>
-                                </div>
-                            </div>
-                            <div class="membership-item">
-                                <span class="label">Muito Quente:</span>
-                                <span id="muito-quente-value" class="value">--</span>
-                                <div class="bar">
-                                    <div id="muito-quente-bar" class="bar-fill"></div>
+                                <div class="membership-item">
+                                    <span class="label">Alta:</span>
+                                    <span id="cpu-load-alta-value" class="value">--</span>
+                                    <div class="bar">
+                                        <div id="cpu-load-alta-bar" class="bar-fill"></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -83,15 +92,16 @@
 
             <div class="visualization-section">
                 <h2>Visualização das Funções de Pertinência</h2>
+                <p>Gráficos das funções Fuzzy para temperatura CPU, carga de processamento e velocidade da ventoinha</p>
                 <button id="show-plot-btn">Mostrar Gráficos</button>
                 <div id="plot-container" class="plot-container hidden">
-                    <img id="plot-image" src="" alt="Funções de Pertinência">
+                    <img id="plot-image" src="" alt="Funções de Pertinência do Sistema Fuzzy">
                 </div>
             </div>
         </main>
 
         <footer>
-            <p>Desenvolvido com Python, Flask e scikit-fuzzy</p>
+            <p>Desenvolvido com Python, Flask e scikit-fuzzy - Sistema de Controle de Hardware</p>
         </footer>
     </div>
 

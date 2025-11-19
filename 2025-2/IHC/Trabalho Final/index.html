@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Análise crítica e redesign de interface do site UFSC.br - Identificando e documentando problemas reais de IHC">
+    <title>Análise Crítica e Redesign - Site UFSC.br | IHC</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/modal.css">
+    <link rel="stylesheet" href="assets/css/versions.css">
+    <link rel="stylesheet" href="assets/css/comparison.css">
+    
+    <style>
+        /* Hero Navigation */
+        .hero-nav {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            padding: var(--spacing-4xl) 0 var(--spacing-2xl) 0;
+            text-align: center;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero-nav-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-2xl);
+        }
+
+        .hero-brand {
+            font-size: var(--font-size-4xl);
+            font-weight: var(--font-weight-bold);
+            color: white;
+            text-decoration: none;
+            margin-bottom: var(--spacing-lg);
+            display: block;
+        }
+
+        .hero-brand:hover {
+            color: var(--color-secondary);
+        }
+
+        .hero-navigation {
+            width: 100%;
+        }
+
+        .hero-nav-menu {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-xl);
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            flex-wrap: wrap;
+        }
+
+        .hero-nav-link {
+            color: white;
+            text-decoration: none;
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-medium);
+            padding: var(--spacing-md) var(--spacing-xl);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius-lg);
+            transition: all var(--transition-fast);
+            display: inline-block;
+        }
+
+        .hero-nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: white;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            padding: var(--spacing-3xl) 0;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            color: white;
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .hero p {
+            font-size: var(--font-size-xl);
+            margin-bottom: var(--spacing-xl);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .problems-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-3xl) 0;
+        }
+        
+        .problem-card {
+            border-left: 4px solid var(--color-primary);
+        }
+        
+        .problem-number {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            background-color: var(--color-primary);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 32px;
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .section {
+            padding: var(--spacing-3xl) 0;
+        }
+        
+        .section-alt {
+            background-color: var(--color-bg-secondary);
+        }
+        
+        .cta-section {
+            background-color: var(--color-primary);
+            color: white;
+            text-align: center;
+            padding: var(--spacing-3xl) 0;
+        }
+        
+        .cta-section h2 {
+            color: white;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: var(--spacing-xl);
+        }
+
+        /* Responsividade para hero navigation */
+        @media (max-width: 768px) {
+            .hero-nav {
+                padding: var(--spacing-3xl) 0 var(--spacing-xl) 0;
+                min-height: auto;
+            }
+
+            .hero-brand {
+                font-size: var(--font-size-3xl);
+            }
+
+            .hero-nav-menu {
+                flex-direction: column;
+                gap: var(--spacing-md);
+                align-items: center;
+            }
+
+            .hero-nav-link {
+                font-size: var(--font-size-base);
+                padding: var(--spacing-sm) var(--spacing-lg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section com Navegação -->
+    <section class="hero-nav">
+        <div class="container">
+            <div class="hero-nav-content">
+                <a href="index.html" class="hero-brand">UFSC IHC Redesign</a>
+                <nav class="hero-navigation">
+                    <ul class="hero-nav-menu">
+                        <li><a href="#problemas" class="hero-nav-link">Problemas</a></li>
+                        <li><a href="#prototipo" class="hero-nav-link">Protótipo</a></li>
+                        <li><a href="docs/analise-problemas.html" class="hero-nav-link">Documentação</a></li>
+                        <li><a href="#comparacao" class="hero-nav-link">Comparação</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Análise Crítica e Redesign de Interface</h1>
+            <p>Identificando e documentando problemas reais de Interação Humano-Computador (IHC) no site institucional da UFSC</p>
+            <a href="#problemas" class="btn btn-secondary">Ver Análise</a>
+        </div>
+    </section>
+
+    <!-- Sobre o Projeto -->
+    <section class="section">
+        <div class="container">
+            <h2>Sobre o Projeto</h2>
+            <p>
+                Este projeto consiste em uma análise crítica do site institucional da Universidade Federal de Santa Catarina (UFSC), 
+                identificando problemas reais de usabilidade, acessibilidade e interação. Cada problema identificado é fundamentado 
+                teoricamente com base nas heurísticas de Nielsen e princípios de IHC, e soluções práticas são propostas através 
+                de um protótipo mockado.
+            </p>
+            <p>
+                O objetivo é demonstrar como princípios teóricos de IHC podem ser aplicados na prática para melhorar a experiência 
+                do usuário em sistemas reais, consolidando o conhecimento adquirido na disciplina de Interface Humano-Computador.
+            </p>
+        </div>
+    </section>
+
+    <!-- Comparação: Vídeo vs Versão Corrigida -->
+    <section id="comparacao" class="section section-alt" style="padding-left: 0; padding-right: 0;">
+        <div class="container" style="max-width: 100%; padding-left: var(--spacing-xl); padding-right: var(--spacing-xl);">
+            <div class="comparison-intro">
+                <h2>Comparação: Site Original vs. Versão Corrigida</h2>
+                <p>
+                    Abaixo você pode comparar a homepage original do site ufsc.br (vídeo à esquerda) 
+                    com a versão corrigida que implementa todas as melhorias de IHC identificadas (à direita).
+                </p>
+            </div>
+            
+            <div class="comparison-container">
+                <!-- Vídeo do Site Original -->
+                <div class="comparison-panel">
+                    <span class="comparison-label old">VERSÃO ORIGINAL</span>
+                    <h3>Site UFSC.br - Homepage Original</h3>
+                    <div class="video-container">
+                        <video controls preload="metadata" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;">
+                            <source src="assets/videos/homepage-ufsc.mp4" type="video/mp4">
+                            <source src="assets/videos/homepage-ufsc.webm" type="video/webm">
+                            <div class="video-placeholder">
+                                Seu navegador não suporta vídeo HTML5.<br>
+                                Por favor, coloque o vídeo em: assets/videos/homepage-ufsc.mp4
+                            </div>
+                        </video>
+                    </div>
+                    <div class="comparison-description">
+                        <strong>Vídeo demonstrando:</strong> Navegação pela homepage original do site ufsc.br, 
+                        mostrando os problemas de IHC identificados na análise.
+                    </div>
+                </div>
+                
+                <!-- Versão Corrigida -->
+                <div class="comparison-panel">
+                    <span class="comparison-label new">VERSÃO CORRIGIDA</span>
+                    <h3>Homepage com Todas as Correções</h3>
+                    <div class="version-container">
+                        <video controls preload="metadata" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain;">
+                            <source src="assets/videos/homepage-corrected.mp4" type="video/mp4">
+                            <source src="assets/videos/homepage-corrected.webm" type="video/webm">
+                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; text-align: center; padding: 20px; background-color: #000;">
+                                <div>
+                                    <p style="font-size: 18px; margin-bottom: 10px;">Vídeo da versão corrigida</p>
+                                    <p style="font-size: 14px;">Coloque o vídeo em: assets/videos/homepage-corrected.mp4</p>
+                                </div>
+                            </div>
+                        </video>
+                    </div>
+                    <div class="comparison-description">
+                        <strong>Versão corrigida implementando:</strong> Navegação simplificada, feedback visual, 
+                        hierarquia clara, acessibilidade, linguagem clara, prevenção de erros e consistência visual.
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botão para Preview Fullscreen -->
+            <div style="text-align: center; margin-top: var(--spacing-2xl);">
+                <a href="pages/homepage/" target="_blank" class="btn-preview-fullscreen">
+                    <span style="font-size: var(--font-size-xl); margin-right: var(--spacing-sm);"></span>
+                    Abrir Homepage Corrigida
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problemas Identificados -->
+    <section id="problemas" class="section section-alt">
+        <div class="container">
+            <h2>Problemas Identificados</h2>
+            <p class="text-secondary mb-lg">
+                Foram identificados problemas principais de IHC no site ufsc.br, fundamentados teoricamente 
+                e com propostas de correção implementadas no protótipo. Abaixo estão os problemas com páginas de correção disponíveis.
+            </p>
+            
+            <div class="problems-grid">
+                <div class="card problem-card">
+                    <div class="card-body">
+                        <span class="problem-number">1</span>
+                        <h3>Navegação Complexa</h3>
+                        <p class="text-secondary">
+                            Menu principal com estrutura hierárquica excessivamente complexa, causando sobrecarga cognitiva.
+                        </p>
+                        <p><strong>Heurísticas:</strong> #6, #8</p>
+                        <a href="pages/navegacao/" class="btn btn-outline btn-sm">Ver Correção</a>
+                    </div>
+                </div>
+
+                <div class="card problem-card">
+                    <div class="card-body">
+                        <span class="problem-number">2</span>
+                        <h3>Falta de Feedback Visual</h3>
+                        <p class="text-secondary">
+                            Elementos interativos não fornecem feedback claro quando o usuário interage com eles.
+                        </p>
+                        <p><strong>Heurísticas:</strong> #1, #4</p>
+                        <a href="pages/feedback-visual/" class="btn btn-outline btn-sm">Ver Correção</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Metodologia -->
+    <section class="section">
+        <div class="container">
+            <h2>Metodologia</h2>
+            <div class="grid grid-cols-1" style="gap: var(--spacing-xl);">
+                <div>
+                    <h3>Análise Heurística</h3>
+                    <p>
+                        Aplicação sistemática das 10 Heurísticas de Usabilidade de Jakob Nielsen para identificar 
+                        problemas na interface do site ufsc.br.
+                    </p>
+                </div>
+                <div>
+                    <h3>Fundamentação Teórica</h3>
+                    <p>
+                        Cada problema identificado é fundamentado com base em referências teóricas consolidadas, 
+                        incluindo Nielsen (1994), Norman (2013), Preece et al. (2015) e WCAG 2.1.
+                    </p>
+                </div>
+                <div>
+                    <h3>Proposta de Correção</h3>
+                    <p>
+                        Desenvolvimento de protótipo mockado demonstrando visualmente as correções propostas, 
+                        com foco em melhorias de usabilidade, acessibilidade e experiência do usuário.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="prototipo" class="cta-section">
+        <div class="container">
+            <h2>Explore o Protótipo</h2>
+            <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-xl);">
+                Navegue pelas páginas mockadas para ver as correções propostas para cada problema identificado.
+            </p>
+            <div class="cta-buttons">
+                <a href="pages/navegacao/" class="btn btn-secondary">Ver Navegação Melhorada</a>
+                <a href="pages/feedback-visual/" class="btn btn-secondary">Ver Feedback Visual</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="background-color: var(--color-bg-secondary); padding: var(--spacing-xl) 0; margin-top: var(--spacing-3xl);">
+        <div class="container">
+            <div class="text-center">
+                <p class="text-secondary">
+                    Projeto acadêmico desenvolvido para a disciplina de Interface Humano-Computador (IHC) - UFSC
+                </p>
+                <p class="text-muted" style="margin-top: var(--spacing-md);">
+                    Análise crítica e redesign do site <a href="https://ufsc.br" target="_blank" rel="noopener noreferrer">ufsc.br</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/modal.js"></script>
+    <script>
+        // Rolagem suave para links internos
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.hero-nav-link[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+
+                    if (targetElement) {
+                        const offsetTop = targetElement.offsetTop - 80; // Offset para compensar navbar fixa se houver
+
+                        window.scrollTo({
+                            top: offsetTop,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

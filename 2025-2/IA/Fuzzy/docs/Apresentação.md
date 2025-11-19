@@ -1,129 +1,139 @@
-# Sistema de Controle de Temperatura Fuzzy - Apresentacao
+# Sistema de Controle de Velocidade da Ventoinha Fuzzy - Apresentação
 
-## Principais Componentes do Codigo
+## Principais Componentes do Código
 
-### 1. Classe TemperatureController
+### 1. Classe FanController
 
-**Localizacao**: `fuzzy_logic.py`, linhas 11-166
+**Localização**: `fuzzy_logic.py`, linhas 11-166
 
-Esta e a classe principal que implementa o controlador Fuzzy:
+Esta é a classe principal que implementa o controlador Fuzzy para ventoinha:
 
 ```python
-class TemperatureController:
+class FanController:
     """
-    Controlador Fuzzy para sistema de ar-condicionado
-    Baseado na diferenca entre temperatura ambiente e desejada, determina a potencia ideal
+    Controlador Fuzzy para sistema de ventoinha de computador
+    Baseado na temperatura da CPU e carga de processamento, determina a velocidade ideal da ventoinha
     """
 ```
 
-#### Funcao `__init__()` (linhas 17-33)
+#### Função `__init__()` (linhas 17-33)
 
-- Define os universos de discurso para erro (-20°C a +20°C) e potencia (0% a 100%)
-- Cria as variaveis Fuzzy (Antecedente e Consequente)
-- Inicializa o sistema chamando os metodos de configuracao
+- Define os universos de discurso para temperatura CPU (30-100°C), carga processamento (0-100%) e velocidade ventoinha (0-100%)
+- Cria as variáveis Fuzzy (duas Antecedentes e uma Consequente)
+- Inicializa o sistema chamando os métodos de configuração
 
-#### Funcao `_define_error_membership()` (linhas 35-46)
+#### Função `_define_cpu_temp_membership()` (linhas 35-46)
 
-Define as funcoes de pertinencia para a variavel de entrada (erro):
-
-```python
-def _define_error_membership(self):
-    """Define as funcoes de pertinencia para o erro (temperatura desejada - atual)"""
-    # Cinco conjuntos Fuzzy: muito_frio, frio, ideal, quente, muito_quente
-    self.error['muito_frio'] = fuzz.trimf(self.error_range, [-20, -20, -12])
-    self.error['frio'] = fuzz.trimf(self.error_range, [-16, -10, -4])
-    self.error['ideal'] = fuzz.trimf(self.error_range, [-6, 0, 6])
-    self.error['quente'] = fuzz.trimf(self.error_range, [4, 10, 16])
-    self.error['muito_quente'] = fuzz.trimf(self.error_range, [12, 20, 20])
-```
-
-Cada conjunto utiliza uma funcao triangular (trimf) que define:
-
-- Ponto esquerdo: inicio da pertinencia
-- Pico: ponto de maxima pertinencia (pertinencia = 1.0)
-- Ponto direito: fim da pertinencia
-
-#### Funcao `_define_power_membership()` (linhas 48-59)
-
-Define as funcoes de pertinencia para a variavel de saida (potencia):
+Define as funções de pertinência para a temperatura da CPU:
 
 ```python
-def _define_power_membership(self):
-    """Define as funcoes de pertinencia para a potencia"""
-    self.power['muito_baixa'] = fuzz.trimf(self.power_range, [0, 0, 20])
-    self.power['baixa'] = fuzz.trimf(self.power_range, [10, 20, 40])
-    self.power['media'] = fuzz.trimf(self.power_range, [30, 50, 70])
-    self.power['alta'] = fuzz.trimf(self.power_range, [60, 80, 90])
-    self.power['muito_alta'] = fuzz.trimf(self.power_range, [80, 100, 100])
+def _define_cpu_temp_membership(self):
+    """Define as funções de pertinência para a temperatura da CPU"""
+    # Três conjuntos Fuzzy: baixa, media, alta
+    self.cpu_temp['baixa'] = fuzz.trimf(self.cpu_temp_range, [30, 30, 50])
+    self.cpu_temp['media'] = fuzz.trimf(self.cpu_temp_range, [40, 55, 70])
+    self.cpu_temp['alta'] = fuzz.trimf(self.cpu_temp_range, [60, 100, 100])
 ```
 
-#### Funcao `_define_rules()` (linhas 61-74)
+#### Função `_define_cpu_load_membership()` (linhas 48-55)
 
-Implementa as regras de inferencia Fuzzy:
+Define as funções de pertinência para a carga de processamento:
+
+```python
+def _define_cpu_load_membership(self):
+    """Define as funções de pertinência para a carga de processamento"""
+    self.cpu_load['baixa'] = fuzz.trimf(self.cpu_load_range, [0, 0, 30])
+    self.cpu_load['media'] = fuzz.trimf(self.cpu_load_range, [20, 45, 70])
+    self.cpu_load['alta'] = fuzz.trimf(self.cpu_load_range, [60, 100, 100])
+```
+
+#### Função `_define_fan_speed_membership()` (linhas 57-66)
+
+Define as funções de pertinência para a velocidade da ventoinha:
+
+```python
+def _define_fan_speed_membership(self):
+    """Define as funções de pertinência para a velocidade da ventoinha"""
+    self.fan_speed['baixa'] = fuzz.trimf(self.fan_speed_range, [0, 0, 25])
+    self.fan_speed['media'] = fuzz.trimf(self.fan_speed_range, [15, 30, 50])
+    self.fan_speed['alta'] = fuzz.trimf(self.fan_speed_range, [40, 60, 75])
+    self.fan_speed['muito_alta'] = fuzz.trimf(self.fan_speed_range, [70, 100, 100])
+```
+
+#### Função `_define_rules()` (linhas 68-87)
+
+Implementa as 9 regras de inferência Fuzzy baseadas em combinações de temperatura e carga:
 
 ```python
 def _define_rules(self):
-    """Define as regras fuzzy do sistema baseado no erro"""
-    rule1 = ctrl.Rule(self.error['muito_frio'], self.power['muito_baixa'])
-    rule2 = ctrl.Rule(self.error['frio'], self.power['baixa'])
-    rule3 = ctrl.Rule(self.error['ideal'], self.power['muito_baixa'])
-    rule4 = ctrl.Rule(self.error['quente'], self.power['alta'])
-    rule5 = ctrl.Rule(self.error['muito_quente'], self.power['muito_alta'])
-    self.rules = [rule1, rule2, rule3, rule4, rule5]
+    """Define as regras fuzzy do sistema baseado na temperatura CPU e carga de processamento"""
+    # Regras baseadas na combinação de temperatura CPU e carga de processamento
+    rule1 = ctrl.Rule(self.cpu_temp['baixa'] & self.cpu_load['baixa'], self.fan_speed['baixa'])
+    rule2 = ctrl.Rule(self.cpu_temp['baixa'] & self.cpu_load['media'], self.fan_speed['media'])
+    rule3 = ctrl.Rule(self.cpu_temp['baixa'] & self.cpu_load['alta'], self.fan_speed['alta'])
+    rule4 = ctrl.Rule(self.cpu_temp['media'] & self.cpu_load['baixa'], self.fan_speed['baixa'])
+    rule5 = ctrl.Rule(self.cpu_temp['media'] & self.cpu_load['media'], self.fan_speed['media'])
+    rule6 = ctrl.Rule(self.cpu_temp['media'] & self.cpu_load['alta'], self.fan_speed['alta'])
+    rule7 = ctrl.Rule(self.cpu_temp['alta'] & self.cpu_load['baixa'], self.fan_speed['alta'])
+    rule8 = ctrl.Rule(self.cpu_temp['alta'] & self.cpu_load['media'], self.fan_speed['muito_alta'])
+    rule9 = ctrl.Rule(self.cpu_temp['alta'] & self.cpu_load['alta'], self.fan_speed['muito_alta'])
+
+    self.rules = [rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8, rule9]
 ```
 
-Cada regra conecta um estado do erro a uma potencia recomendada.
+Cada regra conecta uma combinação específica de temperatura e carga a uma velocidade de ventoinha apropriada.
 
-#### Funcao `get_power()` (linhas 81-103)
+#### Função `get_fan_speed()` (linhas 92-111)
 
-Metodo principal que calcula a potencia recomendada:
+Método principal que calcula a velocidade da ventoinha:
 
 ```python
-def get_power(self, current_temp, desired_temp):
-    error = desired_temp - current_temp
-    error = max(-20, min(20, error))  # Limitacao do range
+def get_fan_speed(self, cpu_temp, cpu_load):
+    # Limitar valores aos ranges válidos
+    cpu_temp = max(30, min(100, cpu_temp))
+    cpu_load = max(0, min(100, cpu_load))
 
-    power_sim = ctrl.ControlSystemSimulation(self.power_ctrl)
-    power_sim.input['error'] = error
-    power_sim.compute()
+    # Usar a simulação existente e resetar entradas
+    self.fan_sim.input['cpu_temp'] = cpu_temp
+    self.fan_sim.input['cpu_load'] = cpu_load
+    self.fan_sim.compute()
 
-    return power_sim.output['power']
+    return self.fan_sim.output['fan_speed']
 ```
 
-Este metodo:
+Este método:
 
-1. Calcula o erro (diferenca entre desejada e atual)
-2. Limita o erro ao range definido
-3. Cria uma simulacao Fuzzy
-4. Define a entrada (erro)
-5. Executa a inferencia Fuzzy
-6. Retorna a potencia defuzzificada
+1. Limita os valores de entrada aos ranges válidos
+2. Define as duas entradas do sistema Fuzzy (temperatura e carga)
+3. Executa a inferência Fuzzy com as 9 regras
+4. Retorna a velocidade defuzzificada da ventoinha
 
-#### Funcao `get_membership_values()` (linhas 105-124)
+#### Função `get_membership_values()` (linhas 113-127)
 
-Calcula os graus de pertinencia para debug e visualizacao:
+Calcula os graus de pertinência para debug e visualização:
 
 ```python
-def get_membership_values(self, current_temp, desired_temp):
-    error = desired_temp - current_temp
-    error = max(-20, min(20, error))
+def get_membership_values(self, cpu_temp, cpu_load):
+    cpu_temp = max(30, min(100, cpu_temp))
+    cpu_load = max(0, min(100, cpu_load))
 
     return {
-        'muito_frio': fuzz.interp_membership(self.error_range, self.error['muito_frio'].mf, error),
-        'frio': fuzz.interp_membership(self.error_range, self.error['frio'].mf, error),
-        'ideal': fuzz.interp_membership(self.error_range, self.error['ideal'].mf, error),
-        'quente': fuzz.interp_membership(self.error_range, self.error['quente'].mf, error),
-        'muito_quente': fuzz.interp_membership(self.error_range, self.error['muito_quente'].mf, error)
+        'cpu_temp_baixa': fuzz.interp_membership(self.cpu_temp_range, self.cpu_temp['baixa'].mf, cpu_temp),
+        'cpu_temp_media': fuzz.interp_membership(self.cpu_temp_range, self.cpu_temp['media'].mf, cpu_temp),
+        'cpu_temp_alta': fuzz.interp_membership(self.cpu_temp_range, self.cpu_temp['alta'].mf, cpu_temp),
+        'cpu_load_baixa': fuzz.interp_membership(self.cpu_load_range, self.cpu_load['baixa'].mf, cpu_load),
+        'cpu_load_media': fuzz.interp_membership(self.cpu_load_range, self.cpu_load['media'].mf, cpu_load),
+        'cpu_load_alta': fuzz.interp_membership(self.cpu_load_range, self.cpu_load['alta'].mf, cpu_load)
     }
 ```
 
-### 2. Funcao `control_temperature()` (linhas 131-142)
+### 2. Função `control_fan_speed()` (linhas 134-142)
 
-Funcao de conveniencia para uso direto:
+Função de conveniência para uso direto:
 
 ```python
-def control_temperature(current_temp, desired_temp):
-    return temperature_controller.get_power(current_temp, desired_temp)
+def control_fan_speed(cpu_temp, cpu_load):
+    return fan_controller.get_fan_speed(cpu_temp, cpu_load)
 ```
 
 ### 3. Aplicacao Web Flask (`app.py`)
@@ -168,6 +178,6 @@ O projeto inclui 11 testes unitarios que validam:
 
 ### Exemplos de Funcionamento
 
-1. **Temperatura ideal** (erro = 0°C): Potencia ≈ 6.7% (manutencao minima)
-2. **Ambiente frio** (erro = +7°C): Potencia ≈ 76% (aquecimento intenso)
-3. **Ambiente quente** (erro = -10°C): Potencia ≈ 17% (resfriamento suave)
+1. **Computador ocioso** (CPU 35°C, carga 10%): Velocidade ≈ 9.0% (ventoinha lenta)
+2. **Trabalho office** (CPU 55°C, carga 50%): Velocidade ≈ 31.7% (ventoinha moderada)
+3. **Gaming intenso** (CPU 80°C, carga 90%): Velocidade ≈ 88.3% (ventoinha máxima)

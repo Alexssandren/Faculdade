@@ -1,42 +1,48 @@
-// Sistema de Controle de Temperatura Fuzzy - JavaScript
+// Sistema de Controle de Velocidade da Ventoinha Fuzzy - JavaScript
 
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos DOM
-    const currentTempInput = document.getElementById('current-temperature');
-    const desiredTempInput = document.getElementById('desired-temperature');
+    const cpuTempInput = document.getElementById('cpu-temperature');
+    const cpuLoadInput = document.getElementById('cpu-load');
     const calculateBtn = document.getElementById('calculate-btn');
-    const errorResult = document.getElementById('error-result');
-    const powerResult = document.getElementById('power-result');
-    const muitoFrioValue = document.getElementById('muito-frio-value');
-    const frioValue = document.getElementById('frio-value');
-    const idealValue = document.getElementById('ideal-value');
-    const quenteValue = document.getElementById('quente-value');
-    const muitoQuenteValue = document.getElementById('muito-quente-value');
-    const muitoFrioBar = document.getElementById('muito-frio-bar');
-    const frioBar = document.getElementById('frio-bar');
-    const idealBar = document.getElementById('ideal-bar');
-    const quenteBar = document.getElementById('quente-bar');
-    const muitoQuenteBar = document.getElementById('muito-quente-bar');
+    const fanSpeedResult = document.getElementById('fan-speed-result');
+
+    // Elementos de pertinência da temperatura CPU
+    const cpuTempBaixaValue = document.getElementById('cpu-temp-baixa-value');
+    const cpuTempMediaValue = document.getElementById('cpu-temp-media-value');
+    const cpuTempAltaValue = document.getElementById('cpu-temp-alta-value');
+    const cpuTempBaixaBar = document.getElementById('cpu-temp-baixa-bar');
+    const cpuTempMediaBar = document.getElementById('cpu-temp-media-bar');
+    const cpuTempAltaBar = document.getElementById('cpu-temp-alta-bar');
+
+    // Elementos de pertinência da carga CPU
+    const cpuLoadBaixaValue = document.getElementById('cpu-load-baixa-value');
+    const cpuLoadMediaValue = document.getElementById('cpu-load-media-value');
+    const cpuLoadAltaValue = document.getElementById('cpu-load-alta-value');
+    const cpuLoadBaixaBar = document.getElementById('cpu-load-baixa-bar');
+    const cpuLoadMediaBar = document.getElementById('cpu-load-media-bar');
+    const cpuLoadAltaBar = document.getElementById('cpu-load-alta-bar');
+
     const showPlotBtn = document.getElementById('show-plot-btn');
     const plotContainer = document.getElementById('plot-container');
     const plotImage = document.getElementById('plot-image');
 
-    // Calcular potência automaticamente quando qualquer temperatura muda
-    currentTempInput.addEventListener('input', function() {
-        if (this.value !== '' && desiredTempInput.value !== '') {
-            calculatePower();
+    // Calcular velocidade quando os campos perdem o foco (blur) e têm valores
+    cpuTempInput.addEventListener('blur', function() {
+        if (this.value !== '' && cpuLoadInput.value !== '' && isValidInput()) {
+            calculateFanSpeed();
         }
     });
 
-    desiredTempInput.addEventListener('input', function() {
-        if (this.value !== '' && currentTempInput.value !== '') {
-            calculatePower();
+    cpuLoadInput.addEventListener('blur', function() {
+        if (this.value !== '' && cpuTempInput.value !== '' && isValidInput()) {
+            calculateFanSpeed();
         }
     });
 
     // Botão de calcular
     calculateBtn.addEventListener('click', function() {
-        calculatePower();
+        calculateFanSpeed();
     });
 
     // Botão para mostrar gráficos
@@ -49,18 +55,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Função para calcular potência
-    function calculatePower() {
-        const currentTemp = parseFloat(currentTempInput.value);
-        const desiredTemp = parseFloat(desiredTempInput.value);
+    // Função para verificar se os inputs são válidos
+    function isValidInput() {
+        const cpuTemp = parseFloat(cpuTempInput.value);
+        const cpuLoad = parseFloat(cpuLoadInput.value);
 
-        if (isNaN(currentTemp) || currentTemp < 0 || currentTemp > 40) {
-            alert('Por favor, insira uma temperatura ambiente válida entre 0°C e 40°C');
+        return !isNaN(cpuTemp) && cpuTemp >= 30 && cpuTemp <= 100 &&
+               !isNaN(cpuLoad) && cpuLoad >= 0 && cpuLoad <= 100;
+    }
+
+    // Função para calcular velocidade da ventoinha
+    function calculateFanSpeed() {
+        const cpuTemp = parseFloat(cpuTempInput.value);
+        const cpuLoad = parseFloat(cpuLoadInput.value);
+
+        // Validação com alertas (só quando chamado explicitamente)
+        if (isNaN(cpuTemp) || cpuTemp < 30 || cpuTemp > 100) {
+            alert('Por favor, insira uma temperatura da CPU válida entre 30°C e 100°C');
             return;
         }
 
-        if (isNaN(desiredTemp) || desiredTemp < 15 || desiredTemp > 30) {
-            alert('Por favor, insira uma temperatura desejada válida entre 15°C e 30°C');
+        if (isNaN(cpuLoad) || cpuLoad < 0 || cpuLoad > 100) {
+            alert('Por favor, insira uma carga de processamento válida entre 0% e 100%');
             return;
         }
 
@@ -75,8 +91,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                current_temperature: currentTemp,
-                desired_temperature: desiredTemp
+                cpu_temperature: cpuTemp,
+                cpu_load: cpuLoad
             })
         })
         .then(response => response.json())
@@ -90,34 +106,39 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Erro:', error);
-            alert('Erro ao calcular potência');
+            alert('Erro ao calcular velocidade da ventoinha');
         })
         .finally(() => {
             // Restaurar botão
-            calculateBtn.textContent = 'Calcular Potência';
+            calculateBtn.textContent = 'Calcular Velocidade';
             calculateBtn.disabled = false;
         });
     }
 
     // Função para atualizar resultados na interface
     function updateResults(data) {
-        // Atualizar erro e potência
-        errorResult.textContent = data.error + ' °C';
-        powerResult.textContent = data.power + '%';
+        // Atualizar velocidade da ventoinha
+        fanSpeedResult.textContent = data.fan_speed + '%';
 
-        // Atualizar valores de pertinência
-        muitoFrioValue.textContent = data.membership.muito_frio;
-        frioValue.textContent = data.membership.frio;
-        idealValue.textContent = data.membership.ideal;
-        quenteValue.textContent = data.membership.quente;
-        muitoQuenteValue.textContent = data.membership.muito_quente;
+        // Atualizar valores de pertinência da temperatura CPU
+        cpuTempBaixaValue.textContent = data.membership.cpu_temp_baixa;
+        cpuTempMediaValue.textContent = data.membership.cpu_temp_media;
+        cpuTempAltaValue.textContent = data.membership.cpu_temp_alta;
 
-        // Atualizar barras de progresso
-        muitoFrioBar.style.width = (data.membership.muito_frio * 100) + '%';
-        frioBar.style.width = (data.membership.frio * 100) + '%';
-        idealBar.style.width = (data.membership.ideal * 100) + '%';
-        quenteBar.style.width = (data.membership.quente * 100) + '%';
-        muitoQuenteBar.style.width = (data.membership.muito_quente * 100) + '%';
+        // Atualizar barras de progresso da temperatura CPU
+        cpuTempBaixaBar.style.width = (data.membership.cpu_temp_baixa * 100) + '%';
+        cpuTempMediaBar.style.width = (data.membership.cpu_temp_media * 100) + '%';
+        cpuTempAltaBar.style.width = (data.membership.cpu_temp_alta * 100) + '%';
+
+        // Atualizar valores de pertinência da carga CPU
+        cpuLoadBaixaValue.textContent = data.membership.cpu_load_baixa;
+        cpuLoadMediaValue.textContent = data.membership.cpu_load_media;
+        cpuLoadAltaValue.textContent = data.membership.cpu_load_alta;
+
+        // Atualizar barras de progresso da carga CPU
+        cpuLoadBaixaBar.style.width = (data.membership.cpu_load_baixa * 100) + '%';
+        cpuLoadMediaBar.style.width = (data.membership.cpu_load_media * 100) + '%';
+        cpuLoadAltaBar.style.width = (data.membership.cpu_load_alta * 100) + '%';
     }
 
     // Função para mostrar gráficos
@@ -145,21 +166,65 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Calcular potência inicial (25°C ambiente, 22°C desejada)
+    // Calcular velocidade inicial (55°C CPU, 50% carga) - sem validação para valores padrão
     setTimeout(() => {
-        calculatePower();
+        if (cpuTempInput.value !== '' && cpuLoadInput.value !== '') {
+            calculateFanSpeedSilently();
+        }
     }, 500);
 
+    // Função para calcular sem mostrar alertas (para valores padrão)
+    function calculateFanSpeedSilently() {
+        const cpuTemp = parseFloat(cpuTempInput.value);
+        const cpuLoad = parseFloat(cpuLoadInput.value);
+
+        // Só calcula se os valores são válidos
+        if (!isNaN(cpuTemp) && cpuTemp >= 30 && cpuTemp <= 100 &&
+            !isNaN(cpuLoad) && cpuLoad >= 0 && cpuLoad <= 100) {
+
+            // Mostrar loading
+            calculateBtn.textContent = 'Calculando...';
+            calculateBtn.disabled = true;
+
+            // Fazer requisição AJAX
+            fetch('/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    cpu_temperature: cpuTemp,
+                    cpu_load: cpuLoad
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Atualizar resultados
+                    updateResults(data);
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+            })
+            .finally(() => {
+                // Restaurar botão
+                calculateBtn.textContent = 'Calcular Velocidade';
+                calculateBtn.disabled = false;
+            });
+        }
+    }
+
     // Adicionar evento para tecla Enter nos inputs
-    currentTempInput.addEventListener('keypress', function(e) {
+    cpuTempInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            calculatePower();
+            calculateFanSpeed();
         }
     });
 
-    desiredTempInput.addEventListener('keypress', function(e) {
+    cpuLoadInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            calculatePower();
+            calculateFanSpeed();
         }
     });
 });

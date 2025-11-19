@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Visual - UFSC IHC Redesign</title>
+    
+    <!-- CSS Compartilhado -->
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    
+    <!-- CSS Específico da Página -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navegação -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="../../index.html" class="navbar-brand">← Voltar</a>
+            <ul class="nav-menu">
+                <li><a href="../../index.html" class="nav-link">Início</a></li>
+                <li><a href="index.html" class="nav-link active">Feedback Visual</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" style="padding: var(--spacing-3xl) 0;">
+        <h1>Problema 2: Falta de Feedback Visual em Interações</h1>
+        
+        <!-- Descrição do Problema -->
+        <section class="problem-description">
+            <h3>❌ Problema Identificado</h3>
+            <p>
+                Elementos interativos na homepage não fornecem feedback visual adequado quando o usuário interage com eles. 
+                Links, botões e cards não indicam claramente que são clicáveis ou que a ação foi registrada pelo sistema.
+            </p>
+            
+            <h4 style="margin-top: var(--spacing-lg);">Impacto na Experiência do Usuário:</h4>
+            <ul>
+                <li><strong>Incerteza:</strong> Usuários não sabem se clicaram corretamente</li>
+                <li><strong>Frustração:</strong> Múltiplos cliques desnecessários</li>
+                <li><strong>Confusão:</strong> Não há indicação de elementos interativos</li>
+                <li><strong>Baixa confiança:</strong> Usuários não confiam que o sistema está respondendo</li>
+            </ul>
+            
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Heurísticas Violadas:</strong> #1 (Visibilidade do status do sistema), #4 (Consistência e padrões)
+            </p>
+        </section>
+
+        <!-- Comparação: Prints da Homepage -->
+        <section class="problem-section">
+            <h2>Problema na Homepage: Falta de Feedback Visual</h2>
+            <p class="text-secondary">
+                O problema de falta de feedback visual está presente nos cards de notícias da homepage do site ufsc.br. 
+                Abaixo você pode comparar o print do problema com o print da solução implementada.
+            </p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); margin-top: var(--spacing-xl);">
+                <!-- Versão Antiga - Print -->
+                <div class="old-version-container">
+                    <span class="old-version-label">❌ PROBLEMA</span>
+                    <div class="comparison-image-container">
+                        <img 
+                            src="../../assets/images/problems/feedback-visual-old.png" 
+                            alt="Print mostrando o problema de falta de feedback visual na homepage"
+                        >
+                        <div class="image-placeholder">
+                            <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-md);">📸 Imagem não encontrada</p>
+                            <p style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-lg);">Coloque o print do problema em:</p>
+                            <code>assets/images/problems/feedback-visual-old.png</code>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Versão Corrigida - Print -->
+                <div style="border: 2px solid var(--color-success); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background-color: var(--color-bg-secondary);">
+                    <span class="comparison-label after">✅ SOLUÇÃO</span>
+                    <div class="comparison-image-container" style="border-color: var(--color-success);">
+                        <img 
+                            src="../../assets/images/problems/feedback-visual-new.png" 
+                            alt="Print mostrando a solução de feedback visual na homepage"
+                        >
+                        <div class="image-placeholder">
+                            <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-md);">📸 Imagem não encontrada</p>
+                            <p style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-lg);">Coloque o print da solução em:</p>
+                            <code>assets/images/problems/feedback-visual-new.png</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section class="comparison-section" style="margin-top: var(--spacing-3xl);">
+            <h2>Melhorias Implementadas</h2>
+            
+            <div class="comparison-grid">
+                <div class="comparison-card before">
+                    <span class="comparison-label before">❌ ANTES - Problema</span>
+                    <h3>Elementos Sem Feedback</h3>
+                    <ul style="list-style: disc; margin-left: var(--spacing-lg);">
+                        <li>Botões não mudam ao passar o mouse</li>
+                        <li>Links não indicam claramente que são clicáveis</li>
+                        <li>Não há confirmação visual de ações</li>
+                        <li>Usuários não sabem se clicaram corretamente</li>
+                        <li>Falta de indicadores de estado</li>
+                    </ul>
+                    <p style="margin-top: var(--spacing-md);">
+                        <strong>Heurísticas Violadas:</strong> #1 (Visibilidade do Status), #4 (Consistência)
+                    </p>
+                </div>
+                
+                <div class="comparison-card after">
+                    <span class="comparison-label after">✅ DEPOIS - Correção</span>
+                    <h3>Feedback Visual Completo</h3>
+                    <ul style="list-style: disc; margin-left: var(--spacing-lg);">
+                        <li>Estados hover, focus e active em todos elementos</li>
+                        <li>Transições suaves para feedback visual</li>
+                        <li>Indicadores de loading para ações</li>
+                        <li>Confirmação visual de ações realizadas</li>
+                        <li>Feedback imediato em interações</li>
+                    </ul>
+                    <p style="margin-top: var(--spacing-md);">
+                        <strong>Melhorias:</strong> Redução de incerteza, aumento de confiança
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="feedback-demo">
+            <h2>Demonstração de Feedback Visual</h2>
+            
+            <!-- Botões com Feedback -->
+            <div class="demo-section">
+                <h3>1. Botões com Estados Visuais</h3>
+                <p>Passe o mouse, clique e use Tab para navegar pelos botões abaixo:</p>
+                
+                <div style="margin-top: var(--spacing-lg);">
+                    <button class="btn btn-primary btn-demo">Botão Primário</button>
+                    <button class="btn btn-secondary btn-demo">Botão Secundário</button>
+                    <button class="btn btn-outline btn-demo">Botão Outline</button>
+                </div>
+                
+                <p style="margin-top: var(--spacing-md); font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                    <strong>Observações:</strong>
+                </p>
+                <ul style="font-size: var(--font-size-sm);">
+                    <li>Hover: Elevação e sombra aumentam</li>
+                    <li>Active: Retorno suave à posição original</li>
+                    <li>Focus: Outline visível para navegação por teclado</li>
+                </ul>
+            </div>
+
+            <!-- Links com Feedback -->
+            <div class="demo-section">
+                <h3>2. Links com Feedback Visual</h3>
+                <p>Links indicam claramente que são clicáveis e mudam de estado:</p>
+                
+                <div style="margin-top: var(--spacing-lg);">
+                    <a href="#" class="link-demo">Link não visitado</a>
+                    <a href="#" class="link-demo" style="color: #6c5ce7;">Link visitado</a>
+                    <a href="#" class="link-demo">Link com hover</a>
+                </div>
+                
+                <p style="margin-top: var(--spacing-md); font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                    <strong>Melhorias:</strong> Sublinhado aparece no hover, cor diferente para visitados, outline no focus
+                </p>
+            </div>
+
+            <!-- Cards Interativos -->
+            <div class="demo-section">
+                <h3>3. Cards com Feedback de Interação</h3>
+                <p>Cards indicam que são clicáveis através de feedback visual:</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-lg);">
+                    <div class="card interactive-card" tabindex="0" role="button" aria-label="Ver notícia sobre extensão">
+                        <div class="card-body">
+                            <h4>UFSC lança programa de extensão</h4>
+                            <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                                Programa visa aproximar universidade da comunidade...
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="card interactive-card" tabindex="0" role="button" aria-label="Ver evento acadêmico">
+                        <div class="card-body">
+                            <h4>Semana Acadêmica de TIC</h4>
+                            <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                                Evento acontece de 01 a 05 de dezembro...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estados de Loading -->
+            <div class="demo-section">
+                <h3>4. Indicadores de Loading</h3>
+                <p>Feedback visual para ações que demoram:</p>
+                
+                <div class="loading-demo">
+                    <div>
+                        <p><strong>Spinner:</strong></p>
+                        <div class="spinner" aria-label="Carregando"></div>
+                    </div>
+                    
+                    <div style="flex: 1;">
+                        <p><strong>Barra de Progresso:</strong></p>
+                        <div class="progress-bar" role="progressbar" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feedback de Ações -->
+            <div class="demo-section">
+                <h3>5. Confirmação de Ações</h3>
+                <p>Clique no botão para ver feedback de ação realizada:</p>
+                
+                <button class="btn btn-primary" onclick="showToast()" style="margin-top: var(--spacing-md);">
+                    Salvar Alterações
+                </button>
+                
+                <div id="toast" class="toast" role="alert" aria-live="polite">
+                    ✓ Alterações salvas com sucesso!
+                </div>
+            </div>
+
+            <!-- Formulário com Feedback -->
+            <div class="demo-section">
+                <h3>6. Formulário com Feedback em Tempo Real</h3>
+                <p>Digite nos campos abaixo para ver feedback visual:</p>
+                
+                <form class="form-feedback-demo" style="margin-top: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label for="nome-feedback" class="form-label">Nome</label>
+                        <div class="input-with-feedback">
+                            <input 
+                                type="text" 
+                                id="nome-feedback" 
+                                class="form-control" 
+                                placeholder="Digite seu nome"
+                                oninput="validateFeedbackField(this)"
+                            >
+                            <span class="input-icon-feedback">✏️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email-feedback" class="form-label">E-mail</label>
+                        <div class="input-with-feedback">
+                            <input 
+                                type="email" 
+                                id="email-feedback" 
+                                class="form-control" 
+                                placeholder="seu@email.com"
+                                oninput="validateFeedbackField(this)"
+                            >
+                            <span class="input-icon-feedback">📧</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section style="margin-top: var(--spacing-3xl); background-color: var(--color-bg-secondary); padding: var(--spacing-xl); border-radius: var(--border-radius-lg);">
+            <h2>Fundamentação Teórica</h2>
+            <p>
+                Conforme <strong>Nielsen (1994)</strong>, o sistema deve sempre informar ao usuário o que está 
+                acontecendo através de feedback apropriado. A heurística #1 (Visibilidade do status do sistema) 
+                enfatiza que o sistema deve comunicar claramente seu estado atual e as ações que estão sendo processadas.
+            </p>
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Norman (2013)</strong> destaca a importância de affordances visuais claras que indiquem 
+                como os elementos podem ser manipulados. Feedback visual imediato confirma que a ação do usuário 
+                foi reconhecida e está sendo processada, reduzindo incerteza e aumentando confiança.
+            </p>
+            <p style="margin-top: var(--spacing-md);">
+                A heurística #4 (Consistência e padrões) de Nielsen estabelece que elementos similares devem 
+                se comportar de forma similar. Botões devem sempre ter estados hover e focus consistentes, 
+                links devem sempre indicar claramente que são clicáveis, e ações devem sempre fornecer feedback.
+            </p>
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Shneiderman (2016)</strong> enfatiza que feedback informativo deve ser fornecido para 
+                cada ação do usuário. Transições suaves e indicadores visuais claros melhoram a percepção de 
+                qualidade e profissionalismo da interface.
+            </p>
+        </section>
+    </main>
+
+    <footer style="background-color: var(--color-bg-secondary); padding: var(--spacing-xl) 0; margin-top: var(--spacing-3xl);">
+        <div class="container text-center">
+            <p class="text-secondary">Protótipo de correção - Feedback Visual em Interações</p>
+        </div>
+    </footer>
+
+    <!-- Scripts Compartilhados -->
+    <script src="../../assets/js/main.js"></script>
+    
+    <!-- Script Específico da Página -->
+    <script src="script.js"></script>
+</body>
+</html>
+

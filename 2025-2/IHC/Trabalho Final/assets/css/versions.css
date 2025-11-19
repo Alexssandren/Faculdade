@@ -1,0 +1,191 @@
+/* ============================================
+   Versions CSS - Antiga vs Corrigida
+   ============================================ */
+
+/* Versão Antiga - Simula problemas do site original */
+.version-old {
+    font-family: Arial, sans-serif;
+}
+
+/* Versão Antiga - Navegação Complexa */
+.version-old .nav-complex {
+    background-color: #f5f5f5;
+    padding: 20px 0;
+    border-bottom: 2px solid #ddd;
+}
+
+.version-old .nav-complex ul {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 0;
+    margin: 0;
+}
+
+.version-old .nav-complex li {
+    margin: 0;
+}
+
+.version-old .nav-complex a {
+    padding: 8px 12px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    display: block;
+}
+
+.version-old .nav-complex a:hover {
+    background-color: #e0e0e0;
+}
+
+/* Versão Antiga - Sem Feedback Visual */
+.version-old .btn-no-feedback {
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.version-old .link-no-feedback {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+/* Versão Antiga - Hierarquia Ruim */
+.version-old .hierarchy-bad h1,
+.version-old .hierarchy-bad h2,
+.version-old .hierarchy-bad h3 {
+    font-size: 18px;
+    font-weight: normal;
+    color: #666;
+    margin: 10px 0;
+}
+
+.version-old .hierarchy-bad p {
+    font-size: 16px;
+    color: #333;
+    margin: 5px 0;
+}
+
+/* Versão Antiga - Contraste Ruim */
+.version-old .low-contrast {
+    background-color: #f0f0f0;
+    color: #e0e0e0;
+    padding: 20px;
+}
+
+.version-old .low-contrast-text {
+    color: #999;
+    background-color: #fff;
+}
+
+/* Versão Antiga - Linguagem Técnica */
+.version-old .technical-language {
+    font-size: 14px;
+}
+
+.version-old .technical-language .acronym {
+    font-weight: bold;
+    color: #0066cc;
+    text-decoration: none;
+}
+
+/* Versão Antiga - Formulário Sem Validação */
+.version-old .form-no-validation input {
+    border: 1px solid #ccc;
+    padding: 8px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.version-old .form-no-validation .error-message {
+    color: red;
+    font-size: 12px;
+    display: none;
+}
+
+.version-old .form-no-validation.submitted .error-message {
+    display: block;
+}
+
+/* Versão Antiga - Inconsistência */
+.version-old .inconsistent-btn-1 {
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.version-old .inconsistent-btn-2 {
+    background-color: #0066cc;
+    color: white;
+    border: 2px solid #0066cc;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.version-old .inconsistent-btn-3 {
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+
+/* Versão Corrigida - Usa o design system */
+.version-new {
+    /* Herda todos os estilos do design system principal */
+}
+
+/* Container para comparar versões lado a lado (opcional) */
+.version-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-xl);
+    margin: var(--spacing-xl) 0;
+}
+
+.version-comparison .version-old,
+.version-comparison .version-new {
+    border: 2px solid var(--color-border);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    overflow: auto;
+    max-height: 600px;
+}
+
+.version-comparison .version-label {
+    display: inline-block;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-md);
+}
+
+.version-comparison .version-label.old {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--color-error);
+}
+
+.version-comparison .version-label.new {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--color-success);
+}
+
+@media (max-width: 1024px) {
+    .version-comparison {
+        grid-template-columns: 1fr;
+    }
+}
+

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFSC - Homepage Corrigida (Preview para Gravação)</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        /* Estilos específicos da homepage corrigida - Preview Fullscreen */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family-body);
+            background-color: var(--color-bg-primary);
+        }
+        
+        /* Header melhorado */
+        .header-improved {
+            background-color: var(--color-bg-primary);
+            border-bottom: var(--border-width-thin) solid var(--color-border);
+            padding: var(--spacing-md) 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--spacing-lg);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+        
+        .logo-improved {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        /* Navegação simplificada */
+        .nav-main-improved {
+            display: flex;
+            list-style: none;
+            gap: var(--spacing-md);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .nav-main-improved a {
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--color-text-primary);
+            text-decoration: none;
+            border-radius: var(--border-radius-md);
+            transition: all var(--transition-fast);
+            font-weight: var(--font-weight-medium);
+            position: relative;
+        }
+        
+        .nav-main-improved a:hover {
+            background-color: var(--color-bg-secondary);
+            color: var(--color-primary);
+            transform: translateY(-1px);
+        }
+        
+        .nav-main-improved a:focus {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+        
+        .nav-main-improved a:active {
+            transform: translateY(0);
+        }
+        
+        /* Busca destacada */
+        .search-improved {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            background-color: var(--color-bg-secondary);
+            border-radius: var(--border-radius-full);
+            padding: var(--spacing-xs) var(--spacing-md);
+            border: var(--border-width-thin) solid var(--color-border);
+            transition: all var(--transition-fast);
+            min-width: 300px;
+        }
+        
+        .search-improved:focus-within {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .search-improved input {
+            border: none;
+            background: transparent;
+            outline: none;
+            flex: 1;
+            font-size: var(--font-size-sm);
+        }
+        
+        /* Destaques */
+        .highlights {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            padding: var(--spacing-3xl) 0;
+        }
+        
+        .highlights-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+        
+        .highlights h1 {
+            color: white;
+            font-size: var(--font-size-5xl);
+            margin-bottom: var(--spacing-lg);
+            line-height: var(--line-height-tight);
+        }
+        
+        .highlights p {
+            font-size: var(--font-size-xl);
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: var(--spacing-xl);
+            max-width: 800px;
+        }
+        
+        /* Cards de notícias */
+        .news-section {
+            padding: var(--spacing-3xl) 0;
+        }
+        
+        .news-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+        
+        .news-grid-improved {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+        
+        .news-card {
+            transition: all var(--transition-base);
+            cursor: pointer;
+        }
+        
+        .news-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--color-primary);
+        }
+        
+        .news-card:focus-within {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+        
+        /* Acesso rápido */
+        .quick-access-section {
+            background-color: var(--color-bg-secondary);
+            padding: var(--spacing-3xl) 0;
+        }
+        
+        .quick-access-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+        
+        .quick-access-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-xl);
+        }
+        
+        .quick-access-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            background-color: var(--color-bg-primary);
+            border: var(--border-width-thin) solid var(--color-border);
+            border-radius: var(--border-radius-lg);
+            text-decoration: none;
+            color: var(--color-text-primary);
+            transition: all var(--transition-base);
+        }
+        
+        .quick-access-item:hover {
+            border-color: var(--color-primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        
+        .quick-access-item:focus {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+        
+        .quick-access-icon {
+            width: 56px;
+            height: 56px;
+            background-color: var(--color-primary);
+            color: white;
+            border-radius: var(--border-radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--font-size-2xl);
+            flex-shrink: 0;
+        }
+        
+        /* Footer */
+        .footer-improved {
+            background-color: var(--color-bg-secondary);
+            padding: var(--spacing-xl) 0;
+            border-top: var(--border-width-thin) solid var(--color-border);
+            margin-top: var(--spacing-3xl);
+        }
+        
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+        
+        /* Breadcrumbs */
+        .breadcrumb-section {
+            background-color: var(--color-bg-secondary);
+            padding: var(--spacing-md) 0;
+            border-bottom: var(--border-width-thin) solid var(--color-border);
+        }
+        
+        .breadcrumb-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 var(--spacing-xl);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header com Navegação Melhorada -->
+    <header class="header-improved">
+        <div class="header-content">
+            <a href="#" class="logo-improved">
+                UFSC
+            </a>
+            
+            <!-- CORREÇÃO 1: Menu simplificado (5-7 itens) -->
+            <nav aria-label="Navegação principal">
+                <ul class="nav-main-improved">
+                    <li><a href="#institucional">Institucional</a></li>
+                    <li><a href="#ensino">Ensino</a></li>
+                    <li><a href="#pesquisa">Pesquisa</a></li>
+                    <li><a href="#extensao">Extensão</a></li>
+                    <li><a href="#servicos">Serviços</a></li>
+                </ul>
+            </nav>
+            
+            <!-- CORREÇÃO 1: Busca destacada e acessível -->
+            <div class="search-improved">
+                <span aria-hidden="true">🔍</span>
+                <input type="search" placeholder="Buscar no site..." aria-label="Buscar no site">
+            </div>
+        </div>
+    </header>
+
+    <!-- Breadcrumbs -->
+    <div class="breadcrumb-section">
+        <div class="breadcrumb-content">
+            <nav aria-label="Breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#">Início</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Homepage</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Seção de Destaques -->
+    <section class="highlights">
+        <div class="highlights-content">
+            <!-- CORREÇÃO 3: Hierarquia visual clara -->
+            <h1>Universidade Federal de Santa Catarina</h1>
+            <p>
+                Uma das principais universidades públicas do Brasil, comprometida com ensino, 
+                pesquisa e extensão de qualidade. Conheça nossos programas, serviços e oportunidades.
+            </p>
+            <div style="display: flex; gap: var(--spacing-md); flex-wrap: wrap;">
+                <a href="#noticias" class="btn btn-secondary">Ver Notícias</a>
+                <a href="#servicos" class="btn btn-secondary">Serviços Estudantis</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Notícias e Eventos -->
+    <section id="noticias" class="news-section">
+        <div class="news-content">
+            <h2>Notícias e Eventos</h2>
+            
+            <div class="news-grid-improved">
+                <!-- CORREÇÃO 2: Cards com feedback visual -->
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>UFSC lança novo programa de extensão</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Programa visa aproximar universidade da comunidade através de projetos sociais e culturais. 
+                            Inscrições abertas até 30 de novembro.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+                
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>Semana Acadêmica de TIC acontece em dezembro</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Evento reúne estudantes e profissionais da área de tecnologia da informação. 
+                            Palestras, workshops e networking.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+                
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>Inscrições abertas para cursos de verão</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Universidade oferece diversos cursos de extensão durante o período de férias. 
+                            Oportunidade de aprendizado e desenvolvimento.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+                
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>Pesquisa da UFSC é destaque internacional</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Estudo sobre sustentabilidade recebe reconhecimento em conferência mundial. 
+                            Contribuição científica de impacto global.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+                
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>Calendário acadêmico 2026 disponível</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Estudantes já podem consultar as datas importantes do próximo ano letivo. 
+                            Planeje seu semestre com antecedência.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+                
+                <article class="card news-card">
+                    <div class="card-body">
+                        <h3>Biblioteca Universitária amplia horário</h3>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">
+                            Novo horário de funcionamento oferece mais flexibilidade para estudantes. 
+                            Acesso ampliado aos recursos bibliográficos.
+                        </p>
+                        <a href="#" class="btn btn-outline">Leia mais</a>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- Acesso Rápido -->
+    <section id="servicos" class="quick-access-section">
+        <div class="quick-access-content">
+            <h2>Acesso Rápido</h2>
+            <!-- CORREÇÃO 5: Linguagem clara (sem siglas sem explicação) -->
+            <p class="text-secondary">
+                Links para os serviços mais utilizados pelos estudantes:
+            </p>
+            
+            <div class="quick-access-grid">
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">📚</div>
+                    <div>
+                        <strong>Moodle</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Ambiente virtual de aprendizagem
+                        </p>
+                    </div>
+                </a>
+                
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">📋</div>
+                    <div>
+                        <strong>Portal do Estudante</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Acesso a serviços acadêmicos
+                        </p>
+                    </div>
+                </a>
+                
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">💰</div>
+                    <div>
+                        <strong>Assistência Estudantil</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Programas de apoio financeiro e social
+                        </p>
+                    </div>
+                </a>
+                
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">📅</div>
+                    <div>
+                        <strong>Calendário Acadêmico</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Datas importantes do semestre
+                        </p>
+                    </div>
+                </a>
+                
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">📖</div>
+                    <div>
+                        <strong>Biblioteca Universitária</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Acervo e serviços bibliográficos
+                        </p>
+                    </div>
+                </a>
+                
+                <a href="#" class="quick-access-item">
+                    <div class="quick-access-icon">🍽️</div>
+                    <div>
+                        <strong>Restaurante Universitário</strong>
+                        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0;">
+                            Cardápio e horários de funcionamento
+                        </p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-improved">
+        <div class="footer-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-xl);">
+                <div>
+                    <h4>UFSC</h4>
+                    <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                        Universidade Federal de Santa Catarina
+                    </p>
+                </div>
+                <div>
+                    <h4>Links Úteis</h4>
+                    <ul style="list-style: none; padding: 0; font-size: var(--font-size-sm);">
+                        <li style="margin-bottom: var(--spacing-xs);"><a href="#" style="color: var(--color-text-secondary); text-decoration: none;">Biblioteca</a></li>
+                        <li style="margin-bottom: var(--spacing-xs);"><a href="#" style="color: var(--color-text-secondary); text-decoration: none;">Restaurante Universitário</a></li>
+                        <li style="margin-bottom: var(--spacing-xs);"><a href="#" style="color: var(--color-text-secondary); text-decoration: none;">Transporte</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Contato</h4>
+                    <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                        Campus Universitário<br>
+                        Trindade, Florianópolis - SC
+                    </p>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: var(--spacing-xl); padding-top: var(--spacing-lg); border-top: var(--border-width-thin) solid var(--color-border);">
+                <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">
+                    © 2025 UFSC - Todos os direitos reservados
+                </p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
+

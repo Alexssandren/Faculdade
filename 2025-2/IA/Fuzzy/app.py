@@ -1,5 +1,5 @@
 """
-Aplicação Web Flask para Sistema de Controle de Temperatura Fuzzy
+Aplicação Web Flask para Sistema de Controle de Velocidade de Ventoinha Fuzzy
 """
 
 from flask import Flask, render_template, request, jsonify
@@ -8,7 +8,7 @@ matplotlib.use('Agg')  # Usar backend não-interativo
 import matplotlib.pyplot as plt
 import io
 import base64
-from fuzzy_logic import temperature_controller
+from fuzzy_logic import fan_controller
 
 
 app = Flask(__name__)
@@ -22,29 +22,28 @@ def index():
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
-    """Endpoint para calcular potência baseada nas temperaturas"""
+    """Endpoint para calcular velocidade da ventoinha baseada na temperatura CPU e carga"""
     try:
         data = request.get_json()
-        current_temp = float(data.get('current_temperature', 25))
-        desired_temp = float(data.get('desired_temperature', 22))
+        cpu_temp = float(data.get('cpu_temperature', 55))
+        cpu_load = float(data.get('cpu_load', 50))
 
-        # Calcular erro e potência
-        error = desired_temp - current_temp
-        power = temperature_controller.get_power(current_temp, desired_temp)
-        membership = temperature_controller.get_membership_values(current_temp, desired_temp)
+        # Calcular velocidade da ventoinha
+        fan_speed = fan_controller.get_fan_speed(cpu_temp, cpu_load)
+        membership = fan_controller.get_membership_values(cpu_temp, cpu_load)
 
         return jsonify({
             'success': True,
-            'current_temperature': current_temp,
-            'desired_temperature': desired_temp,
-            'error': round(error, 1),
-            'power': round(power, 1),
+            'cpu_temperature': cpu_temp,
+            'cpu_load': cpu_load,
+            'fan_speed': round(fan_speed, 1),
             'membership': {
-                'muito_frio': round(membership['muito_frio'], 2),
-                'frio': round(membership['frio'], 2),
-                'ideal': round(membership['ideal'], 2),
-                'quente': round(membership['quente'], 2),
-                'muito_quente': round(membership['muito_quente'], 2)
+                'cpu_temp_baixa': round(membership['cpu_temp_baixa'], 2),
+                'cpu_temp_media': round(membership['cpu_temp_media'], 2),
+                'cpu_temp_alta': round(membership['cpu_temp_alta'], 2),
+                'cpu_load_baixa': round(membership['cpu_load_baixa'], 2),
+                'cpu_load_media': round(membership['cpu_load_media'], 2),
+                'cpu_load_alta': round(membership['cpu_load_alta'], 2)
             }
         })
     except Exception as e:
@@ -58,41 +57,49 @@ def calculate():
 def plot():
     """Gera gráfico das funções de pertinência"""
     try:
-        # Criar figura
-        plt.figure(figsize=(12, 8))
+        # Criar figura com 3 subplots
+        plt.figure(figsize=(15, 10))
 
-        # Plotar funções de pertinência do erro
-        plt.subplot(2, 1, 1)
-        plt.plot(temperature_controller.error_range,
-                temperature_controller.error['muito_frio'].mf, 'c-', label='Muito Frio', linewidth=2)
-        plt.plot(temperature_controller.error_range,
-                temperature_controller.error['frio'].mf, 'b-', label='Frio', linewidth=2)
-        plt.plot(temperature_controller.error_range,
-                temperature_controller.error['ideal'].mf, 'g-', label='Ideal', linewidth=2)
-        plt.plot(temperature_controller.error_range,
-                temperature_controller.error['quente'].mf, 'y-', label='Quente', linewidth=2)
-        plt.plot(temperature_controller.error_range,
-                temperature_controller.error['muito_quente'].mf, 'r-', label='Muito Quente', linewidth=2)
-        plt.title('Funções de Pertinência - Erro (Temperatura Desejada - Atual)')
-        plt.xlabel('Erro (°C)')
+        # Plotar funções de pertinência da temperatura CPU
+        plt.subplot(3, 1, 1)
+        plt.plot(fan_controller.cpu_temp_range,
+                fan_controller.cpu_temp['baixa'].mf, 'b-', label='Baixa', linewidth=2)
+        plt.plot(fan_controller.cpu_temp_range,
+                fan_controller.cpu_temp['media'].mf, 'g-', label='Média', linewidth=2)
+        plt.plot(fan_controller.cpu_temp_range,
+                fan_controller.cpu_temp['alta'].mf, 'r-', label='Alta', linewidth=2)
+        plt.title('Funções de Pertinência - Temperatura da CPU')
+        plt.xlabel('Temperatura (°C)')
         plt.ylabel('Grau de Pertinência')
         plt.legend()
         plt.grid(True, alpha=0.3)
 
-        # Plotar funções de pertinência da potência
-        plt.subplot(2, 1, 2)
-        plt.plot(temperature_controller.power_range,
-                temperature_controller.power['muito_baixa'].mf, 'c-', label='Muito Baixa', linewidth=2)
-        plt.plot(temperature_controller.power_range,
-                temperature_controller.power['baixa'].mf, 'b-', label='Baixa', linewidth=2)
-        plt.plot(temperature_controller.power_range,
-                temperature_controller.power['media'].mf, 'g-', label='Média', linewidth=2)
-        plt.plot(temperature_controller.power_range,
-                temperature_controller.power['alta'].mf, 'y-', label='Alta', linewidth=2)
-        plt.plot(temperature_controller.power_range,
-                temperature_controller.power['muito_alta'].mf, 'r-', label='Muito Alta', linewidth=2)
-        plt.title('Funções de Pertinência - Potência do Ar-Condicionado')
-        plt.xlabel('Potência (%)')
+        # Plotar funções de pertinência da carga de processamento
+        plt.subplot(3, 1, 2)
+        plt.plot(fan_controller.cpu_load_range,
+                fan_controller.cpu_load['baixa'].mf, 'b-', label='Baixa', linewidth=2)
+        plt.plot(fan_controller.cpu_load_range,
+                fan_controller.cpu_load['media'].mf, 'g-', label='Média', linewidth=2)
+        plt.plot(fan_controller.cpu_load_range,
+                fan_controller.cpu_load['alta'].mf, 'r-', label='Alta', linewidth=2)
+        plt.title('Funções de Pertinência - Carga de Processamento')
+        plt.xlabel('Carga (%)')
+        plt.ylabel('Grau de Pertinência')
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+
+        # Plotar funções de pertinência da velocidade da ventoinha
+        plt.subplot(3, 1, 3)
+        plt.plot(fan_controller.fan_speed_range,
+                fan_controller.fan_speed['baixa'].mf, 'b-', label='Baixa', linewidth=2)
+        plt.plot(fan_controller.fan_speed_range,
+                fan_controller.fan_speed['media'].mf, 'g-', label='Média', linewidth=2)
+        plt.plot(fan_controller.fan_speed_range,
+                fan_controller.fan_speed['alta'].mf, 'y-', label='Alta', linewidth=2)
+        plt.plot(fan_controller.fan_speed_range,
+                fan_controller.fan_speed['muito_alta'].mf, 'r-', label='Muito Alta', linewidth=2)
+        plt.title('Funções de Pertinência - Velocidade da Ventoinha')
+        plt.xlabel('Velocidade (%)')
         plt.ylabel('Grau de Pertinência')
         plt.legend()
         plt.grid(True, alpha=0.3)
@@ -118,6 +125,6 @@ def plot():
 
 
 if __name__ == '__main__':
-    print("Iniciando Sistema de Controle de Temperatura Fuzzy...")
+    print("Iniciando Sistema de Controle de Velocidade da Ventoinha Fuzzy...")
     print("Acesse: http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000)

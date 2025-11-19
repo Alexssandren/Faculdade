@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navegação Melhorada - UFSC IHC Redesign</title>
+    
+    <!-- CSS Compartilhado -->
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../assets/css/modal.css">
+    <link rel="stylesheet" href="../../assets/css/versions.css">
+    
+    <!-- CSS Específico da Página -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Navegação -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="../../index.html" class="navbar-brand">← Voltar</a>
+            <ul class="nav-menu">
+                <li><a href="../../index.html" class="nav-link">Início</a></li>
+                <li><a href="index.html" class="nav-link active">Navegação</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main id="main-content" class="container" style="padding: var(--spacing-3xl) 0;">
+        <h1>Problema 1: Navegação Complexa e Sobrecarga Cognitiva</h1>
+        
+        <!-- Descrição do Problema -->
+        <section class="problem-description">
+            <h3>❌ Problema Identificado</h3>
+            <p>
+                O menu principal do site apresenta uma estrutura hierárquica excessivamente complexa, 
+                com múltiplos níveis de navegação e uma quantidade massiva de opções simultâneas. 
+                O menu possui mais de 50 links diretos visíveis, organizados em categorias que não 
+                seguem uma lógica intuitiva para o usuário comum.
+            </p>
+            
+            <h4 style="margin-top: var(--spacing-lg);">Impacto na Experiência do Usuário:</h4>
+            <ul>
+                <li><strong>Sobrecarga cognitiva:</strong> Usuários ficam paralisados pela quantidade de opções</li>
+                <li><strong>Dificuldade de localização:</strong> Informações importantes ficam "perdidas" na massa de links</li>
+                <li><strong>Frustração:</strong> Usuários precisam fazer múltiplos cliques para encontrar o que procuram</li>
+                <li><strong>Abandono:</strong> Usuários podem desistir de encontrar informações específicas</li>
+            </ul>
+            
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Heurísticas Violadas:</strong> #6 (Reconhecimento em vez de recordação), #8 (Estética e design minimalista)
+            </p>
+        </section>
+
+        <!-- Comparação: Prints da Homepage -->
+        <section class="problem-section">
+            <h2>Problema na Homepage: Navegação Complexa</h2>
+            <p class="text-secondary">
+                O problema de navegação complexa está presente no header da homepage do site ufsc.br. 
+                Abaixo você pode comparar o print do problema com o print da solução implementada.
+            </p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-xl); margin-top: var(--spacing-xl);">
+                <!-- Versão Antiga - Print -->
+                <div class="old-version-container">
+                    <span class="old-version-label">❌ PROBLEMA</span>
+                    <div class="comparison-image-container">
+                        <img 
+                            src="../../assets/images/problems/navegacao-old.png" 
+                            alt="Print mostrando o problema de navegação complexa na homepage"
+                        >
+                        <div class="image-placeholder">
+                            <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-md);">📸 Imagem não encontrada</p>
+                            <p style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-lg);">Coloque o print do problema em:</p>
+                            <code>assets/images/problems/navegacao-old.png</code>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Versão Corrigida - Print -->
+                <div style="border: 2px solid var(--color-success); border-radius: var(--border-radius-lg); padding: var(--spacing-lg); background-color: var(--color-bg-secondary);">
+                    <span class="comparison-label after" style="display: inline-block; padding: var(--spacing-xs) var(--spacing-sm); background-color: rgba(40, 167, 69, 0.1); color: var(--color-success); border-radius: var(--border-radius-sm); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); margin-bottom: var(--spacing-md);">✅ SOLUÇÃO</span>
+                    <div class="comparison-image-container" style="border-color: var(--color-success);">
+                        <img 
+                            src="../../assets/images/problems/navegacao-new.png" 
+                            alt="Print mostrando a solução de navegação melhorada na homepage"
+                        >
+                        <div class="image-placeholder">
+                            <p style="font-size: var(--font-size-lg); margin-bottom: var(--spacing-md);">📸 Imagem não encontrada</p>
+                            <p style="font-size: var(--font-size-sm); margin-bottom: var(--spacing-lg);">Coloque o print da solução em:</p>
+                            <code>assets/images/problems/navegacao-new.png</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Melhorias Implementadas -->
+        <section style="margin-top: var(--spacing-3xl);">
+            <h2>Melhorias Implementadas na Versão Corrigida</h2>
+            
+            <div class="grid grid-cols-2" style="margin-top: var(--spacing-lg); gap: var(--spacing-lg);">
+                <div class="card">
+                    <div class="card-body">
+                        <h3>Menu Simplificado</h3>
+                        <p style="font-size: var(--font-size-sm);">
+                            Menu principal reduzido para 5-7 itens essenciais, eliminando sobrecarga cognitiva.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h3>Busca Destacada</h3>
+                        <p style="font-size: var(--font-size-sm);">
+                            Campo de busca visível e acessível, permitindo localização rápida de informações.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h3>Breadcrumbs</h3>
+                        <p style="font-size: var(--font-size-sm);">
+                            Navegação contextual que mostra ao usuário onde está no site.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <h3>Acesso Rápido</h3>
+                        <p style="font-size: var(--font-size-sm);">
+                            Menu de acesso rápido com links para serviços mais utilizados pelos estudantes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Fundamentação Teórica -->
+        <section style="margin-top: var(--spacing-3xl); background-color: var(--color-bg-secondary); padding: var(--spacing-xl); border-radius: var(--border-radius-lg);">
+            <h2>Fundamentação Teórica</h2>
+            <p>
+                Conforme <strong>Nielsen (1994)</strong>, interfaces devem minimizar a carga cognitiva do usuário, 
+                apresentando informações de forma clara e hierárquica. A heurística #6 (Reconhecimento em vez de 
+                recordação) enfatiza que usuários não devem precisar lembrar onde estão informações específicas.
+            </p>
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Norman (2013)</strong> destaca que a navegação deve seguir modelos mentais intuitivos, 
+                evitando estruturas que exijam conhecimento prévio do sistema. A simplificação do menu principal 
+                e a adição de breadcrumbs facilitam a orientação espacial do usuário.
+            </p>
+            <p style="margin-top: var(--spacing-md);">
+                <strong>Krug (2014)</strong> enfatiza que navegação deve ser autoexplicativa, não exigindo que 
+                usuários pensem sobre como encontrar informações. O menu de acesso rápido reduz o número de cliques 
+                necessários para acessar serviços comuns.
+            </p>
+        </section>
+    </main>
+
+    <footer style="background-color: var(--color-bg-secondary); padding: var(--spacing-xl) 0; margin-top: var(--spacing-3xl);">
+        <div class="container text-center">
+            <p class="text-secondary">Protótipo de correção - Problema de Navegação Complexa</p>
+        </div>
+    </footer>
+
+    <!-- Scripts Compartilhados -->
+    <script src="../../assets/js/main.js"></script>
+    <script src="../../assets/js/modal.js"></script>
+    
+    <!-- Script Específico da Página -->
+    <script src="script.js"></script>
+</body>
+</html>
+

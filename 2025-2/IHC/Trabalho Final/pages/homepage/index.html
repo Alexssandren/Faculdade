@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UFSC - Universidade Federal de Santa Catarina</title>
+
+    <!-- CSS Compartilhado -->
+    <link rel="stylesheet" href="../../assets/css/style.css">
+
+    <!-- CSS Específico da Homepage -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header UFSC -->
+    <header class="header-ufsc">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="header-logo">
+                    <img src="../../assets/images/brasao_UFSC.png" alt="Brasão UFSC">
+                </div>
+                <div class="header-info">
+                    <h1>Universidade Federal de Santa Catarina</h1>
+                    <p>Fundada em 18 de dezembro de 1960</p>
+                </div>
+            </div>
+            <div class="header-links">
+                <a href="#">Acesso à Informação</a>
+                <a href="#">Contato</a>
+                <a href="#">Mapa do Site</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navegação Principal -->
+    <nav class="nav-main">
+        <div class="container">
+            <ul>
+                <li><a href="#">A Universidade</a></li>
+                <li><a href="#">Ensino</a></li>
+                <li><a href="#">Pesquisa</a></li>
+                <li><a href="#">Extensão</a></li>
+                <li><a href="#">Internacional</a></li>
+                <li><a href="#">Serviços</a></li>
+            </ul>
+            <div class="search-box">
+                <input type="text" placeholder="Buscar..." aria-label="Buscar no site">
+                <button aria-label="Buscar">🔍</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Carrossel Hero -->
+    <section class="hero-carousel">
+        <div class="container">
+            <div class="carousel-container">
+                <div class="carousel-slides">
+                    <!-- Slide 1: Campus Araranguá -->
+                    <div class="carousel-slide active">
+                        <div class="carousel-content">
+                            <div class="carousel-image">
+                                <img src="../../assets/images/Campus UFSC Ararangua.jpg" alt="Campus UFSC Araranguá" loading="lazy">
+                            </div>
+                            <div class="carousel-text">
+                                <div class="carousel-title">
+                                    <h1>Campus Araranguá</h1>
+                                </div>
+                                <p>O Campus Araranguá da UFSC oferece cursos de graduação e pós-graduação, com foco em áreas como Engenharia, Administração e Ciências Sociais.</p>
+                                <div class="carousel-buttons">
+                                    <a href="#" class="btn btn-primary">Conheça o Campus</a>
+                                    <a href="#" class="btn btn-secondary">Cursos Disponíveis</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 2: Pesquisa e Inovação -->
+                    <div class="carousel-slide">
+                        <div class="carousel-content">
+                            <div class="carousel-image">
+                                <img src="../../assets/images/Pesquisa%20e%20Inovação.jpg" alt="Pesquisa e Inovação UFSC" loading="lazy">
+                            </div>
+                            <div class="carousel-text">
+                                <div class="carousel-title">
+                                    <h1>Pesquisa e Inovação</h1>
+                                </div>
+                                <p>A UFSC é referência nacional em pesquisa científica, com projetos inovadores em diversas áreas do conhecimento e parcerias com empresas e instituições internacionais.</p>
+                                <div class="carousel-buttons">
+                                    <a href="#" class="btn btn-primary">Grupos de Pesquisa</a>
+                                    <a href="#" class="btn btn-secondary">Inovação</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Slide 3: Extensão e Cultura -->
+                    <div class="carousel-slide">
+                        <div class="carousel-content">
+                            <div class="carousel-image">
+                                <img src="../../assets/images/novembro-negro.png" alt="Novembro Negro UFSC" loading="lazy">
+                            </div>
+                            <div class="carousel-text">
+                                <div class="carousel-title">
+                                    <h1>Extensão e Cultura</h1>
+                                </div>
+                                <p>A UFSC promove atividades de extensão universitária, cultura e arte, aproximando a academia da sociedade através de projetos sociais, culturais e esportivos.</p>
+                                <div class="carousel-buttons">
+                                    <a href="#" class="btn btn-primary">Projetos de Extensão</a>
+                                    <a href="#" class="btn btn-secondary">Agenda Cultural</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles do Carrossel -->
+                <div class="carousel-controls">
+                    <button class="carousel-btn prev" aria-label="Slide anterior">‹</button>
+                    <div class="carousel-indicators">
+                        <span class="indicator active" data-slide="0"></span>
+                        <span class="indicator" data-slide="1"></span>
+                        <span class="indicator" data-slide="2"></span>
+                    </div>
+                    <button class="carousel-btn next" aria-label="Próximo slide">›</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Serviços Rápidos -->
+    <section class="quick-services">
+        <div class="container">
+            <h2>Acesso Rápido</h2>
+            <div class="services-grid">
+                <a href="https://moodle.ufsc.br" target="_blank" class="service-card">
+                    <div class="service-icon">📚</div>
+                    <h3>Moodle</h3>
+                    <p>Ambiente Virtual</p>
+                </a>
+                <a href="https://portal.ufsc.br" target="_blank" class="service-card">
+                    <div class="service-icon">👤</div>
+                    <h3>Portal do Estudante</h3>
+                    <p>Acesso Acadêmico</p>
+                </a>
+                <a href="https://prograd.ufsc.br/assistencia-estudantil/" target="_blank" class="service-card">
+                    <div class="service-icon">❤️</div>
+                    <h3>Assistência Estudantil</h3>
+                    <p>Apoio ao Estudante</p>
+                </a>
+                <a href="https://prograd.ufsc.br/calendarios-academicos/" target="_blank" class="service-card">
+                    <div class="service-icon">📅</div>
+                    <h3>Calendário Acadêmico</h3>
+                    <p>Datas Importantes</p>
+                </a>
+                <a href="https://portal.bu.ufsc.br" target="_blank" class="service-card">
+                    <div class="service-icon">📖</div>
+                    <h3>Biblioteca</h3>
+                    <p>Acervo Digital</p>
+                </a>
+                <a href="https://ru.ufsc.br" target="_blank" class="service-card">
+                    <div class="service-icon">🍽️</div>
+                    <h3>Restaurante Universitário</h3>
+                    <p>Cardápio e Horários</p>
+                </a>
+                <a href="https://sigaa.ufsc.br" target="_blank" class="service-card">
+                    <div class="service-icon">📋</div>
+                    <h3>SIGAA</h3>
+                    <p>Sistema Acadêmico</p>
+                </a>
+                <a href="https://preg.ufsc.br/editais/" target="_blank" class="service-card">
+                    <div class="service-icon">📄</div>
+                    <h3>Editais</h3>
+                    <p>Concursos e Oportunidades</p>
+                </a>
+            </div>
+        </div>
+    </section>
+    <!-- Notícias -->
+    <section class="news-section">
+        <div class="container">
+            <h2>Notícias</h2>
+            <div class="news-grid">
+                <div class="news-card">
+                    <div class="news-image">
+                        <img src="https://ufsc.br/wp-content/uploads/2022/05/Noticia-UFSC.jpg" alt="UFSC lança programa de bolsas" loading="lazy">
+    </div>
+                    <div class="news-content">
+                        <h3>UFSC lança novo programa de bolsas para estudantes</h3>
+                        <p>A Universidade Federal de Santa Catarina anunciou hoje um novo programa de bolsas para estudantes...</p>
+                        <a href="#" class="news-link">Leia mais</a>
+                    </div>
+                </div>
+                <div class="news-card">
+                    <div class="news-image">
+                        <img src="https://ufsc.br/wp-content/uploads/2022/04/Pesquisa-UFSC.jpg" alt="Pesquisa UFSC destaque internacional" loading="lazy">
+                    </div>
+                    <div class="news-content">
+                        <h3>Pesquisa da UFSC é destaque em revista internacional</h3>
+                        <p>O estudo desenvolvido por pesquisadores da UFSC foi publicado na renomada revista...</p>
+                        <a href="#" class="news-link">Leia mais</a>
+                    </div>
+                </div>
+                <div class="news-card">
+                    <div class="news-image">
+                        <img src="https://ufsc.br/wp-content/uploads/2022/03/Evento-UFSC.jpg" alt="Semana cultura indígena UFSC" loading="lazy">
+                    </div>
+                    <div class="news-content">
+                        <h3>UFSC promove semana de cultura indígena</h3>
+                        <p>Entre os dias 18 e 22 de abril, a UFSC realizará diversas atividades para celebrar...</p>
+                        <a href="#" class="news-link">Leia mais</a>
+                    </div>
+                </div>
+            </div>
+            <div class="news-more">
+                <a href="#" class="btn btn-primary">Mais Notícias</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-ufsc">
+        <div class="footer-content">
+            <div class="footer-grid">
+                <div class="footer-section">
+                    <h4>Sobre a UFSC</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">História</a></li>
+                        <li><a href="#">Estrutura</a></li>
+                        <li><a href="#">Reitoria</a></li>
+                        <li><a href="#">Conselhos</a></li>
+                        <li><a href="#">Planejamento</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Serviços</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Biblioteca</a></li>
+                        <li><a href="#">Restaurante Universitário</a></li>
+                        <li><a href="#">Hospitais</a></li>
+                        <li><a href="#">Transporte</a></li>
+                        <li><a href="#">Editais</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contato</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Ouvidoria</a></li>
+                        <li><a href="#">Imprensa</a></li>
+                        <li><a href="#">Fale Conosco</a></li>
+                        <li><a href="#">Trabalhe Conosco</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Redes Sociais</h4>
+                    <div class="footer-social">
+                        <a href="#" aria-label="Facebook">📘</a>
+                        <a href="#" aria-label="Twitter">🐦</a>
+                        <a href="#" aria-label="Instagram">📷</a>
+                        <a href="#" aria-label="YouTube">📺</a>
+                    </div>
+                    <h4 style="margin-top: var(--spacing-lg);">Endereço</h4>
+                    <p style="font-size: var(--font-size-sm); color: rgba(255, 255, 255, 0.8); margin-top: var(--spacing-xs);">
+                        Reitoria da UFSC<br>
+                        Campus Universitário - Trindade<br>
+                        Florianópolis - SC - Brasil<br>
+                        CEP 88040-900
+                    </p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Universidade Federal de Santa Catarina. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts Compartilhados -->
+    <script src="../../assets/js/main.js"></script>
+
+    <!-- Script Específico da Homepage -->
+    <script src="script.js"></script>
+</body>
+</html>
